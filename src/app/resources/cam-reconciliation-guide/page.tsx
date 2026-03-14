@@ -13,6 +13,8 @@ export const metadata: Metadata = {
     "CAM year-end adjustment",
     "operating expense reconciliation",
     "tenant reconciliation",
+    "triple net lease expenses",
+    "commercial lease CAM charges",
   ],
 };
 
@@ -21,27 +23,31 @@ export default function CamReconciliationGuide() {
     <ArticleLayout
       title="CAM Reconciliation: What Tenants Need to Know"
       publishedDate="March 2026"
-      readTime="8 min read"
+      readTime="9 min read"
     >
       <p>
-        Every year, commercial tenants receive a document that often gets filed
-        away without much thought: the CAM reconciliation statement. This
-        document reconciles what you paid in monthly CAM estimates against the
-        actual expenses incurred by the landlord during the year. The result is
-        either a credit (you overpaid) or an additional charge (you underpaid).
+        The annual CAM reconciliation statement is one of the most financially
+        significant documents a commercial tenant receives — and one of the
+        most frequently ignored. This statement determines whether you owe your
+        landlord additional money or are owed a credit, and errors in the
+        reconciliation can cost retail tenants, office tenants, medical
+        practices, and franchise operators thousands of dollars per year.
       </p>
       <p>
-        Understanding how reconciliation works is important because it directly
-        affects how much you owe — and whether you&apos;re being charged
-        fairly.
+        Understanding how reconciliation works — and knowing where mistakes
+        commonly occur — is essential for any tenant who wants to verify
+        they&apos;re being charged fairly.
       </p>
 
       <h2>How CAM Reconciliation Works</h2>
       <p>
-        During the lease year, tenants pay monthly CAM estimates based on the
-        landlord&apos;s projected operating costs. These estimates are typically
-        set at the beginning of the year based on the prior year&apos;s actual
-        expenses plus any anticipated increases.
+        During the lease year, tenants pay monthly{" "}
+        <Link href="/resources/cam-charges-explained" className="text-blue-600 hover:underline">
+          CAM estimates
+        </Link>{" "}
+        based on the landlord&apos;s projected operating costs. These estimates
+        are typically set at the beginning of the year based on the prior
+        year&apos;s actual expenses plus any anticipated increases.
       </p>
       <p>
         After the year ends, the landlord tallies the actual operating expenses,
@@ -105,7 +111,8 @@ export default function CamReconciliationGuide() {
       <h3>Estimated vs. Actual Expense Gaps</h3>
       <p>
         If the landlord consistently underestimates monthly CAM charges, tenants
-        face large year-end true-up bills. This can create cash flow problems.
+        face large year-end true-up bills. This can create serious cash flow
+        problems, especially for small business owners and franchise operators.
         Some leases limit how much the landlord can increase estimates year
         over year to prevent this.
       </p>
@@ -127,7 +134,17 @@ export default function CamReconciliationGuide() {
         lease. If the building&apos;s total rentable area has changed (due to
         renovations or remeasurement), the landlord may adjust your share
         without updating you. Always verify the square footage figures on your
-        statement.
+        statement — even a small error here affects every expense category.
+      </p>
+
+      <h3>Inflated Management Fees</h3>
+      <p>
+        Management fees are typically calculated as a percentage of total
+        operating expenses. If other costs on the reconciliation are inflated —
+        whether through errors or the inclusion of expenses the lease excludes
+        — the management fee is automatically inflated too. This compounding
+        effect can add up to a meaningful overcharge, particularly in
+        properties with higher management fee percentages.
       </p>
 
       <h3>Year-Over-Year Comparisons</h3>
@@ -136,28 +153,42 @@ export default function CamReconciliationGuide() {
         year&apos;s reconciliation to prior years. If a category like
         &quot;repairs and maintenance&quot; increased 40% with no obvious
         explanation (like a known building issue), it warrants a closer look.
+        Similarly, watch for new line items that didn&apos;t exist in prior
+        years.
       </p>
 
       <h2>How to Review Your Reconciliation Statement</h2>
       <ol>
         <li>Check the math — verify that line items add up to the stated totals</li>
-        <li>Verify your proportionate share percentage</li>
+        <li>Verify your proportionate share percentage against the lease</li>
         <li>Compare each category to the prior year</li>
         <li>Cross-reference against your lease&apos;s definition of permitted expenses</li>
         <li>Look for excluded costs that may have been included</li>
-        <li>Check if CAM cap provisions have been applied correctly</li>
+        <li>Check if{" "}
+          <Link href="/resources/cam-cap-commercial-lease" className="text-blue-600 hover:underline">
+            CAM cap provisions
+          </Link>{" "}
+          have been applied correctly
+        </li>
         <li>Confirm the reconciliation was delivered within the required timeframe</li>
       </ol>
       <p>
-        This kind of cross-referencing between your lease and your
-        reconciliation statement is exactly what{" "}
-        <Link href="/" className="text-blue-600 hover:underline">
-          LeaseGuard
-        </Link>{" "}
-        is designed to simplify. Rather than spending hours manually comparing
-        lease clauses against statement line items, you can upload both
-        documents and let the platform identify areas where the charges may not
-        align with your lease terms.
+        For a complete step-by-step process, see our guide on{" "}
+        <Link href="/resources/how-to-audit-cam-charges" className="text-blue-600 hover:underline">
+          how to audit your CAM charges
+        </Link>.
+      </p>
+
+      <h2>How LeaseGuard Helps</h2>
+      <p>
+        Cross-referencing your lease clauses against every line item on a
+        reconciliation statement is exactly the kind of detailed work that
+        tools are good at. LeaseGuard lets you upload both your lease and your
+        reconciliation statement, then analyzes them together to identify areas
+        where the charges may not align with your lease terms — including pro
+        rata share errors, excluded cost pass-throughs, management fee
+        calculations, and CAM cap compliance. Results are delivered in about 60
+        seconds, giving you a clear starting point for any follow-up review.
       </p>
 
       <h2>Key Takeaways</h2>

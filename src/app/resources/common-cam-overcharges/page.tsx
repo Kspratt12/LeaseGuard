@@ -13,6 +13,8 @@ export const metadata: Metadata = {
     "tenant overcharges",
     "CAM audit findings",
     "operating expense errors",
+    "triple net lease expenses",
+    "commercial lease CAM charges",
   ],
 };
 
@@ -21,14 +23,20 @@ export default function CommonCamOvercharges() {
     <ArticleLayout
       title="5 Common CAM Overcharges Tenants Miss"
       publishedDate="March 2026"
-      readTime="8 min read"
+      readTime="9 min read"
     >
       <p>
-        CAM overcharges aren&apos;t usually the result of a landlord trying to
-        defraud their tenants. More often, they stem from administrative errors,
-        vague lease language, or legitimate disagreements about how certain
-        provisions should be interpreted. But regardless of the cause, the
-        financial impact on tenants is real.
+        CAM overcharges affect commercial tenants of every type — retail
+        operators, office tenants, medical practices, franchise owners, and
+        small businesses. These overcharges aren&apos;t usually the result of
+        intentional fraud. More often, they stem from administrative errors,
+        vague lease language, or disagreements about how certain provisions
+        should be interpreted. But regardless of the cause, the financial impact
+        is real: tenants who don&apos;t review their{" "}
+        <Link href="/resources/cam-reconciliation-guide" className="text-blue-600 hover:underline">
+          CAM reconciliation statements
+        </Link>{" "}
+        may be overpaying by thousands of dollars every year.
       </p>
       <p>
         Here are five of the most commonly overlooked CAM overcharges that
@@ -64,31 +72,41 @@ export default function CommonCamOvercharges() {
         sometimes classify major projects as repairs to pass the full cost
         through immediately. If you see a large, one-time charge in categories
         like &quot;building maintenance,&quot; &quot;repairs,&quot; or
-        &quot;structural,&quot; dig deeper.
+        &quot;structural,&quot; dig deeper. Ask for the underlying invoices and
+        determine whether the work constitutes a capital improvement.
       </p>
 
       <h2>2. Management Fee Overcharges</h2>
       <p>
         Property management fees are typically calculated as a percentage of
         total operating expenses — usually between 3% and 8%. The overcharge
-        risk comes from two angles:
+        risk comes from multiple angles:
       </p>
       <ul>
         <li>
-          <strong>Inflated base costs:</strong> If other CAM charges are
-          inflated, the management fee (as a percentage of those charges) is
+          <strong>Inflated base costs:</strong> If other{" "}
+          <Link href="/resources/cam-charges-explained" className="text-blue-600 hover:underline">
+            CAM charges
+          </Link>{" "}
+          are inflated, the management fee (as a percentage of those charges) is
           automatically inflated too. This creates a compounding effect.
         </li>
         <li>
           <strong>Wrong percentage:</strong> The lease specifies 4%, but the
-          reconciliation applies 6%. This sounds obvious, but in a complex
-          reconciliation with dozens of line items, it&apos;s easy to miss.
+          reconciliation applies 6%. In a complex reconciliation with dozens of
+          line items, this is easy to miss.
         </li>
         <li>
           <strong>Double-charging:</strong> Some landlords charge both a
           management fee and separate administrative charges for functions that
           should be covered by the management fee (like accounting, vendor
           coordination, or supervision).
+        </li>
+        <li>
+          <strong>Fee applied to excluded expenses:</strong> If the lease
+          excludes certain costs from CAM, the management fee percentage
+          shouldn&apos;t be applied to those costs either — but sometimes it
+          is.
         </li>
       </ul>
 
@@ -112,7 +130,8 @@ export default function CommonCamOvercharges() {
         of marketing the property,&quot; but the reconciliation might list it
         under &quot;community development&quot; or &quot;property
         promotion.&quot; Identifying these mismatches requires careful
-        cross-referencing.
+        cross-referencing between your lease language and the statement line
+        items.
       </p>
 
       <h2>4. Incorrect Proportionate Share Calculations</h2>
@@ -146,9 +165,11 @@ export default function CommonCamOvercharges() {
 
       <h2>5. CAM Cap Violations</h2>
       <p>
-        If your lease includes a CAM cap, it places a ceiling on how much your
-        CAM charges can increase year over year. Cap violations are surprisingly
-        common because:
+        If your lease includes a{" "}
+        <Link href="/resources/cam-cap-commercial-lease" className="text-blue-600 hover:underline">
+          CAM cap
+        </Link>, it places a ceiling on how much your CAM charges can increase
+        year over year. Cap violations are surprisingly common because:
       </p>
       <ul>
         <li>
@@ -179,19 +200,9 @@ export default function CommonCamOvercharges() {
         The reason these issues persist isn&apos;t that tenants are careless —
         it&apos;s that CAM reconciliation statements are dense, technical
         documents, and comparing them line by line against a complex lease
-        agreement is time-consuming. Many tenants simply don&apos;t have the
+        agreement is time-consuming. Many small business owners, franchise
+        operators, and medical practice managers simply don&apos;t have the
         time or expertise to do it every year.
-      </p>
-      <p>
-        This is the problem{" "}
-        <Link href="/" className="text-blue-600 hover:underline">
-          LeaseGuard
-        </Link>{" "}
-        was designed to address. By analyzing both your lease and your CAM
-        reconciliation statement together, the platform identifies potential
-        discrepancies across all of the categories described above — from
-        capital expense classification to CAM cap compliance to excluded cost
-        pass-throughs.
       </p>
 
       <h2>What to Do If You Find Overcharges</h2>
@@ -216,6 +227,23 @@ export default function CommonCamOvercharges() {
           you recover the overcharges.
         </li>
       </ol>
+      <p>
+        For a complete walkthrough of the audit process, see our{" "}
+        <Link href="/resources/how-to-audit-cam-charges" className="text-blue-600 hover:underline">
+          step-by-step CAM audit guide
+        </Link>.
+      </p>
+
+      <h2>How LeaseGuard Helps</h2>
+      <p>
+        LeaseGuard was designed to address exactly these issues. By uploading
+        both your lease and your CAM reconciliation statement, the platform
+        cross-references the two documents to identify potential discrepancies
+        across all five categories described above — from capital expense
+        classification to CAM cap compliance to excluded cost pass-throughs to
+        management fee calculations. The analysis is delivered in about 60
+        seconds, giving you a clear picture of where to focus your review.
+      </p>
 
       <h2>Key Takeaways</h2>
       <ul>

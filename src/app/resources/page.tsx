@@ -13,6 +13,8 @@ export const metadata: Metadata = {
     "CAM overcharges",
     "common area maintenance",
     "commercial tenant resources",
+    "triple net lease expenses",
+    "commercial lease CAM charges",
   ],
 };
 
@@ -64,9 +66,11 @@ export default function ResourcesPage() {
             <br className="hidden sm:block" /> Commercial Lease Insights
           </h1>
           <p className="mt-5 text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Guides and articles to help commercial tenants understand CAM
-            charges, identify potential overcharges, and make informed decisions
-            about their leases.
+            This resource center helps commercial tenants — including retail
+            operators, office tenants, medical practices, and franchise owners —
+            understand CAM charges, review reconciliation statements, and
+            identify potential lease overcharges. Each guide covers practical
+            concepts that directly affect your bottom line.
           </p>
         </div>
       </section>

@@ -13,6 +13,8 @@ export const metadata: Metadata = {
     "CAM fees",
     "triple net lease",
     "operating expenses",
+    "commercial lease CAM charges",
+    "CAM charges explained",
   ],
 };
 
@@ -21,15 +23,20 @@ export default function CamChargesExplained() {
     <ArticleLayout
       title="What Are CAM Charges in Commercial Leases?"
       publishedDate="March 2026"
-      readTime="7 min read"
+      readTime="8 min read"
     >
       <p>
-        If you lease commercial space — whether it&apos;s a retail storefront, an
-        office suite, or a warehouse unit — there&apos;s a good chance your lease
-        includes Common Area Maintenance (CAM) charges. These charges are one of
-        the most significant variable costs in a commercial lease, yet many
-        tenants don&apos;t fully understand what they cover or how they&apos;re
-        calculated.
+        CAM charges are one of the largest variable costs in any commercial
+        lease — and one of the most misunderstood. For retail tenants, office
+        tenants, medical practices, and franchise operators, these charges can
+        add thousands of dollars per year to occupancy costs. When they&apos;re
+        calculated incorrectly or include expenses your lease doesn&apos;t
+        permit, the financial impact compounds year after year.
+      </p>
+      <p>
+        Understanding what CAM charges are, how they&apos;re calculated, and
+        where overcharges commonly occur is the first step toward protecting
+        your business.
       </p>
 
       <h2>The Basics of CAM Charges</h2>
@@ -74,7 +81,8 @@ export default function CamChargesExplained() {
         total operating costs. This fee compensates for the administrative work
         of managing the property, coordinating vendors, and handling tenant
         relations. Management fees typically range from 3% to 8% of total
-        operating costs.
+        operating costs. If the underlying expenses are inflated, the management
+        fee — calculated as a percentage — is automatically inflated too.
       </p>
       <h3>Capital Expenditures</h3>
       <p>
@@ -83,15 +91,18 @@ export default function CamChargesExplained() {
         included in CAM charges, depending on lease language. Many leases
         require capital costs to be amortized over their useful life rather than
         charged in a single year, but not all leases are clear about this.
+        When capital expenses are passed through improperly, the overcharge can
+        be substantial — sometimes tens of thousands of dollars in a single
+        reconciliation period.
       </p>
 
       <h2>How CAM Charges Are Calculated</h2>
       <p>
         Most CAM charges are allocated to tenants based on their proportionate
-        share of the total leasable area. For example, if you lease 2,000 square
-        feet in a 50,000-square-foot building, your pro rata share would be 4%.
-        If the total CAM expenses for the year are $200,000, your share would be
-        $8,000.
+        share (pro rata share) of the total leasable area. For example, if you
+        lease 2,000 square feet in a 50,000-square-foot building, your pro rata
+        share would be 4%. If the total CAM expenses for the year are $200,000,
+        your share would be $8,000.
       </p>
       <p>
         However, the calculation isn&apos;t always this simple. Factors that
@@ -101,8 +112,23 @@ export default function CamChargesExplained() {
         <li>Whether the building is fully occupied or has vacancies</li>
         <li>Whether your lease uses a &quot;gross-up&quot; provision to adjust for occupancy</li>
         <li>Whether certain tenants (like anchor tenants) have negotiated exclusions</li>
-        <li>Whether your lease has a CAM cap limiting annual increases</li>
+        <li>
+          Whether your lease has a{" "}
+          <Link href="/resources/cam-cap-commercial-lease" className="text-blue-600 hover:underline">
+            CAM cap
+          </Link>{" "}
+          limiting annual increases
+        </li>
       </ul>
+      <p>
+        Even small errors in the pro rata share calculation — say, 4.2% instead
+        of 4.0% — compound across every expense category on your statement.
+        This is why verifying your proportionate share is one of the first steps
+        in any{" "}
+        <Link href="/resources/how-to-audit-cam-charges" className="text-blue-600 hover:underline">
+          CAM audit
+        </Link>.
+      </p>
 
       <h2>Why CAM Charges Create Problems for Tenants</h2>
       <p>
@@ -113,7 +139,9 @@ export default function CamChargesExplained() {
         <li>
           <strong>Vague lease language</strong> — When the lease doesn&apos;t clearly define
           which expenses are included, landlords may pass through costs that
-          tenants didn&apos;t anticipate.
+          tenants didn&apos;t anticipate. This is particularly common with
+          older leases or leases drafted with broad operating expense
+          definitions.
         </li>
         <li>
           <strong>Billing errors</strong> — With dozens of expense categories and multiple
@@ -132,11 +160,28 @@ export default function CamChargesExplained() {
         </li>
       </ul>
 
+      <h2>Reviewing Your Annual Reconciliation Statement</h2>
+      <p>
+        Each year, your landlord should provide a{" "}
+        <Link href="/resources/cam-reconciliation-guide" className="text-blue-600 hover:underline">
+          CAM reconciliation statement
+        </Link>{" "}
+        that compares your monthly estimates against actual expenses. This
+        statement determines whether you owe additional money or are due a
+        credit. Reviewing it carefully is one of the most important things a
+        commercial tenant can do.
+      </p>
+      <p>
+        Look for unexplained year-over-year increases, new expense categories
+        that weren&apos;t on prior statements, and costs that your lease
+        explicitly excludes. If anything looks wrong, most leases give tenants
+        the right to request supporting documentation.
+      </p>
+
       <h2>How to Protect Yourself</h2>
       <p>
         The single most important thing a commercial tenant can do is read and
-        understand the CAM provisions in their lease before signing. Pay
-        attention to:
+        understand the CAM provisions in their lease. Pay attention to:
       </p>
       <ul>
         <li>The definition of &quot;operating expenses&quot; or &quot;CAM costs&quot;</li>
@@ -145,16 +190,16 @@ export default function CamChargesExplained() {
         <li>Your audit rights (most leases grant them)</li>
         <li>How your proportionate share is calculated</li>
       </ul>
+
+      <h2>How LeaseGuard Helps</h2>
       <p>
-        Once you&apos;re in a lease, review your annual reconciliation statement
-        carefully. Compare it against prior years and against what your lease
-        says should (and shouldn&apos;t) be included. Tools like{" "}
-        <Link href="/" className="text-blue-600 hover:underline">
-          LeaseGuard
-        </Link>{" "}
-        can help you cross-reference your lease clauses against your CAM
-        statements to flag potential discrepancies — something that would
-        otherwise take hours of manual review.
+        Comparing your lease clauses against your CAM reconciliation statement
+        line by line is time-consuming — but it&apos;s essential for catching
+        overcharges. LeaseGuard allows commercial tenants to upload their lease
+        and CAM reconciliation statements, then cross-references the two
+        documents to flag potential discrepancies. The platform checks for
+        excluded cost pass-throughs, pro rata share errors, management fee
+        issues, and CAM cap compliance, delivering results in about 60 seconds.
       </p>
 
       <h2>Key Takeaways</h2>

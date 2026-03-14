@@ -13,6 +13,8 @@ export const metadata: Metadata = {
     "non-cumulative CAM cap",
     "controllable expenses cap",
     "CAM increase limit",
+    "commercial lease overcharges",
+    "triple net lease expenses",
   ],
 };
 
@@ -21,19 +23,23 @@ export default function CamCapCommercialLease() {
     <ArticleLayout
       title="CAM Caps in Commercial Leases Explained"
       publishedDate="March 2026"
-      readTime="7 min read"
+      readTime="8 min read"
     >
       <p>
-        One of the most valuable protections a commercial tenant can negotiate
-        is a CAM cap — a ceiling on how much common area maintenance charges
-        can increase from year to year. Without a cap, there&apos;s essentially
-        no limit on what your landlord can pass through in operating expenses,
-        as long as the charges fall within the lease&apos;s definition of CAM.
+        Without a CAM cap, there is no ceiling on the{" "}
+        <Link href="/resources/cam-charges-explained" className="text-blue-600 hover:underline">
+          common area maintenance charges
+        </Link>{" "}
+        your landlord can pass through — as long as the costs fall within the
+        lease&apos;s definition of operating expenses. For retail tenants,
+        office tenants, medical practices, and franchise operators, this means
+        CAM costs can increase unpredictably year after year, creating real
+        budget risk for your business.
       </p>
       <p>
-        But not all CAM caps are created equal. The type of cap, the expenses it
-        covers, and the way it&apos;s structured can make a significant
-        difference in how well it actually protects you.
+        A CAM cap is one of the most valuable protections a commercial tenant
+        can negotiate. But not all caps are structured the same way, and the
+        differences can mean thousands of dollars over the life of a lease.
       </p>
 
       <h2>What Is a CAM Cap?</h2>
@@ -105,11 +111,8 @@ export default function CamCapCommercialLease() {
         It&apos;s common for CAM caps to apply only to controllable expenses,
         meaning taxes and insurance can increase without limit. This is
         significant because property taxes and insurance are often the largest
-        components of operating expenses.
-      </p>
-      <p>
-        Read your lease carefully to understand which categories fall under the
-        cap and which don&apos;t.
+        components of operating expenses. If your cap only covers controllable
+        items, your total CAM bill can still increase substantially.
       </p>
 
       <h2>The Base Year Problem</h2>
@@ -135,7 +138,10 @@ export default function CamCapCommercialLease() {
       <h2>Common CAM Cap Mistakes</h2>
       <p>
         Even when a lease includes a CAM cap, it&apos;s not always applied
-        correctly. Issues tenants encounter include:
+        correctly on the{" "}
+        <Link href="/resources/cam-reconciliation-guide" className="text-blue-600 hover:underline">
+          reconciliation statement
+        </Link>. Issues tenants encounter include:
       </p>
       <ul>
         <li>
@@ -156,6 +162,14 @@ export default function CamCapCommercialLease() {
           says one thing, but the reconciliation calculates the other way.
         </li>
       </ul>
+      <p>
+        Cap violations tend to compound over time. A miscalculated base in Year
+        1 affects every subsequent year, and the cumulative impact can amount to{" "}
+        <Link href="/resources/common-cam-overcharges" className="text-blue-600 hover:underline">
+          thousands of dollars in overcharges
+        </Link>{" "}
+        over the lease term.
+      </p>
 
       <h2>Verifying Your CAM Cap</h2>
       <p>To check whether your CAM cap is being applied correctly:</p>
@@ -166,16 +180,16 @@ export default function CamCapCommercialLease() {
         <li>Calculate the maximum permitted charge for the current year</li>
         <li>Compare that maximum against what you were actually charged</li>
       </ol>
+
+      <h2>How LeaseGuard Helps</h2>
       <p>
-        This process requires reading your lease&apos;s cap provisions
+        CAM cap verification requires reading your lease&apos;s cap provisions
         precisely and applying them to the numbers on your reconciliation
-        statement. It&apos;s one of the areas where tools like{" "}
-        <Link href="/" className="text-blue-600 hover:underline">
-          LeaseGuard
-        </Link>{" "}
-        can be particularly useful — the platform analyzes your lease&apos;s
-        cap language alongside your CAM statement to check whether the cap was
-        applied correctly.
+        statement — including identifying which expenses fall under the cap,
+        which base year to use, and whether the cap is cumulative or
+        non-cumulative. LeaseGuard analyzes your lease&apos;s cap language
+        alongside your CAM statement to check whether the cap was applied
+        correctly, flagging any potential violations automatically.
       </p>
 
       <h2>Key Takeaways</h2>

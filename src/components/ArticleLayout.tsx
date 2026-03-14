@@ -48,17 +48,19 @@ export function ArticleLayout({
       <section className="border-t border-gray-100 bg-gray-50/60">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 py-14 sm:py-18 text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-3">
-            Want to check your own CAM charges?
+            Run a LeaseGuard CAM Audit
           </h2>
           <p className="text-gray-600 mb-8 max-w-xl mx-auto leading-relaxed">
-            Upload your commercial lease and CAM reconciliation statements to
-            run a LeaseGuard audit. Get results in about 60 seconds.
+            Commercial tenants can upload their lease and CAM reconciliation
+            statement to quickly identify potential billing discrepancies,
+            excluded cost pass-throughs, and CAM cap violations. Results are
+            delivered in about 60 seconds.
           </p>
           <Link
             href="/upload"
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-7 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-500 hover:shadow-md transition-all"
           >
-            Run 60-Second Audit
+            Run Audit
           </Link>
           <div className="mt-6 flex items-center justify-center gap-6 text-sm text-gray-500">
             <Link
