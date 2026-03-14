@@ -416,25 +416,28 @@ function normalizeExtractedText(text: string): string {
  * terminology regardless of how the original document phrased things.
  */
 const CONCEPT_SYNONYMS: Array<{ canonical: string; variants: RegExp }> = [
-  // CAM cap synonyms
-  { canonical: "CAM cap", variants: /\b(?:controllable\s*(?:expense|cost|operating)\s*cap|operating\s*expense\s*(?:escalation\s*)?cap|expense\s*escalation\s*(?:cap|limit)|annual\s*escalation\s*cap|cam\s*escalation\s*(?:cap|limit)|opex\s*cap|cap\s*on\s*controllable\s*(?:expenses?|costs?)|controllable\s*operating\s*expenses?\s*shall\s*not\s*exceed|operating\s*expense\s*increase\s*cap)\b/gi },
-  // Pro rata share synonyms
-  { canonical: "pro-rata share", variants: /\b(?:proportionate\s*share|tenant(?:'s)?\s*(?:allocation|share\s*(?:percentage|pct|%))|cost\s*sharing\s*(?:percentage|ratio)|rentable\s*(?:area\s*)?(?:allocation|share)|sq(?:uare)?\s*(?:ft|foot|footage)\s*allocation|tenant\s*percentage|lessee(?:'s)?\s*share|occupancy\s*(?:share|percentage|ratio))\b/gi },
-  // Management fee synonyms
-  { canonical: "management fee", variants: /\b(?:property\s*(?:mgmt|mgt)\s*fee|(?:mgmt|mgt)\s*fee|pm\s*fee|supervisory\s*fee|oversight\s*(?:fee|charge)|supervision\s*fee|management\s*charge|property\s*management\s*charge)\b/gi },
-  // Admin fee synonyms
-  { canonical: "administrative fee", variants: /\b(?:admin\s*(?:charge|cost|overhead)|administrative\s*(?:charge|cost|overhead)|overhead\s*(?:fee|charge)|admin\s*fee|administration\s*(?:fee|charge))\b/gi },
+  // CAM cap synonyms — do NOT consume "shall not exceed" (would break regex extraction of the percentage)
+  { canonical: "CAM cap", variants: /\b(?:controllable\s*(?:expense|cost|operating)\s*cap|operating\s*expense\s*(?:escalation\s*)?cap|expense\s*escalation\s*(?:cap|limit)|annual\s*escalation\s*cap|cam\s*escalation\s*(?:cap|limit)|opex\s*cap|cap\s*on\s*controllable\s*(?:expenses?|costs?)|operating\s*expense\s*increase\s*cap|escalation\s*limitation|expense\s*increase\s*limitation|cost\s*escalation\s*limit)\b/gi },
+  // Pro rata share synonyms — includes percentage share, tenant share, etc.
+  { canonical: "pro-rata share", variants: /\b(?:proportionate\s*share|tenant(?:'s)?\s*(?:allocation|share\s*(?:percentage|pct|%))|cost\s*sharing\s*(?:percentage|ratio)|rentable\s*(?:area\s*)?(?:allocation|share)|sq(?:uare)?\s*(?:ft|foot|footage)\s*allocation|tenant\s*percentage|lessee(?:'s)?\s*share|occupancy\s*(?:share|percentage|ratio)|percentage\s*share|your\s*share|ratable\s*share|pro\s*rata|prorata)\b/gi },
+  // Management fee synonyms — includes mgmt, mgt, PM shorthand
+  { canonical: "management fee", variants: /\b(?:property\s*(?:mgmt|mgt)\s*fee|(?:mgmt|mgt)\s*fee|pm\s*fee|supervisory\s*fee|oversight\s*(?:fee|charge)|supervision\s*fee|management\s*charge|property\s*management\s*charge|mgmt\s*charge|property\s*mgmt\s*charge)\b/gi },
+  // Admin fee synonyms — includes admin, administration shorthand
+  { canonical: "administrative fee", variants: /\b(?:admin\s*(?:charge|cost|overhead)|administrative\s*(?:charge|cost|overhead)|overhead\s*(?:fee|charge)|admin\s*fee|administration\s*(?:fee|charge)|admin\.\s*fee|adm\s*fee|adm\.\s*fee)\b/gi },
   // Excluded expense synonyms
   { canonical: "capital improvement", variants: /\b(?:cap(?:ital)?\s*(?:ex|expenditure|improvement|project)|capex|capital\s*(?:outlay|replacement|upgrade)|major\s*(?:repair|renovation|improvement))\b/gi },
   { canonical: "structural repair", variants: /\b(?:structural\s*(?:work|issue|deficiency|element)|building\s*(?:structure|shell|envelope)\s*(?:repair|maintenance)|structural\s*maintenance)\b/gi },
   // Reconciliation total synonyms
-  { canonical: "total operating expenses", variants: /\b(?:total\s*(?:opex|op\s*ex)|aggregate\s*(?:operating\s*)?(?:expenses?|charges?|costs?)|combined\s*(?:operating\s*)?(?:expenses?|charges?)|total\s*common\s*area\s*(?:maintenance\s*)?(?:charges?|costs?))\b/gi },
-  // Square footage synonyms
-  { canonical: "rentable square feet", variants: /\b(?:rsf|gross\s*leasable\s*area|gla|net\s*rentable\s*area|nra|usable\s*square\s*(?:feet|footage)|leasable\s*(?:area|square\s*(?:feet|footage)))\b/gi },
-  // Common area maintenance synonyms
-  { canonical: "common area maintenance", variants: /\b(?:cam\b|common\s*area\s*(?:charges?|costs?|expenses?)|maintenance\s*(?:charges?|costs?))\b/gi },
-  // Operating expenses synonyms
-  { canonical: "operating expenses", variants: /\b(?:opex|op\s*ex|operating\s*costs?|building\s*(?:operating\s*)?(?:expenses?|costs?))\b/gi },
+  { canonical: "total operating expenses", variants: /\b(?:total\s*(?:opex|op\s*ex)|aggregate\s*(?:operating\s*)?(?:expenses?|charges?|costs?)|combined\s*(?:operating\s*)?(?:expenses?|charges?)|total\s*common\s*area\s*(?:maintenance\s*)?(?:charges?|costs?)|grand\s*total\s*(?:operating\s*)?(?:expenses?|charges?)|total\s*bldg\s*(?:expenses?|charges?))\b/gi },
+  // Square footage synonyms — includes RSF, NRA, GLA
+  { canonical: "rentable square feet", variants: /\b(?:rsf|gross\s*leasable\s*area|gla|net\s*rentable\s*area|nra|usable\s*square\s*(?:feet|footage)|leasable\s*(?:area|square\s*(?:feet|footage))|rentable\s*sf|net\s*sf|gross\s*sf)\b/gi },
+  // Common area maintenance synonyms — includes comm, com shorthand
+  // Note: cam\b uses negative lookahead to avoid breaking "CAM Cap", "CAM Reconciliation", "CAM Charges" patterns
+  { canonical: "common area maintenance", variants: /\b(?:cam\b(?!\s*(?:cap|reconcil|charges?|escalat))|common\s*area\s*(?:charges?|costs?|expenses?)|maintenance\s*(?:charges?|costs?)|comm(?:on|ercial)?\s*area\s*(?:maint(?:enance)?|charges?|costs?)|com\.\s*area\s*maint)\b/gi },
+  // Operating expenses synonyms — includes OpEx shorthand
+  { canonical: "operating expenses", variants: /\b(?:opex|op\s*ex|op\.\s*ex\.?|operating\s*costs?|building\s*(?:operating\s*)?(?:expenses?|costs?)|bldg\s*(?:operating\s*)?(?:expenses?|costs?))\b/gi },
+  // Commercial shorthand
+  { canonical: "commercial", variants: /\b(?:comm\b|com\b|comm\.\s*(?:lease|property|space))\b/gi },
 ];
 
 /**
@@ -520,7 +523,34 @@ export async function extractTextFromPdf(
 
   const pipeline: ExtractorAttempt[] = [];
 
-  // ── Stage 1: pdfjs-dist ────────────────────────────────────────────
+  // ── Stage 1: unpdf (serverless-safe, bundles its own pdfjs-dist) ───
+  let unpdfText = "";
+  let unpdfError: string | null = null;
+  const unpdfStart = Date.now();
+  try {
+    const { extractText } = await import("unpdf");
+    const { text, totalPages } = await extractText(new Uint8Array(buffer), { mergePages: true });
+    unpdfText = text ?? "";
+    console.log(`[extractText] unpdf extracted ${unpdfText.trim().length} chars, ${wordCount(unpdfText)} words, ${totalPages} pages`);
+    if (unpdfText.trim().length > 0) {
+      console.log(`[extractText] unpdf first 200 chars: ${unpdfText.substring(0, 200).replace(/[\n\r]+/g, " | ")}`);
+    }
+  } catch (err) {
+    unpdfError = err instanceof Error ? err.message : String(err);
+    console.warn("[extractText] unpdf failed:", unpdfError);
+    if (err instanceof Error && err.stack) {
+      console.warn("[extractText] unpdf stack:", err.stack.split("\n").slice(0, 3).join(" > "));
+    }
+  }
+  pipeline.push({
+    method: "unpdf",
+    textLength: unpdfText.trim().length,
+    wordCount: wordCount(unpdfText),
+    timingMs: Date.now() - unpdfStart,
+    error: unpdfError,
+  });
+
+  // ── Stage 2: pdfjs-dist (direct import, works locally and some runtimes) ─
   let pdfjsText = "";
   let pdfjsError: string | null = null;
   const pdfjsStart = Date.now();
@@ -545,7 +575,7 @@ export async function extractTextFromPdf(
     error: pdfjsError,
   });
 
-  // ── Stage 2: pdf-parse (dynamic import — avoids module-init crash) ─
+  // ── Stage 3: pdf-parse (dynamic import — avoids module-init crash) ─
   let legacyText = "";
   let legacyError: string | null = null;
   const legacyStart = Date.now();
@@ -573,7 +603,7 @@ export async function extractTextFromPdf(
     error: legacyError,
   });
 
-  // ── Stage 3: Raw buffer extraction (zero-dependency fallback) ──────
+  // ── Stage 4: Raw buffer extraction (zero-dependency fallback) ──────
   let rawText = "";
   let rawError: string | null = null;
   const rawStart = Date.now();
@@ -596,9 +626,10 @@ export async function extractTextFromPdf(
   });
 
   // Log diagnostic summary when all extractors return little text
-  if (pdfjsText.trim().length < 30 && legacyText.trim().length < 30 && rawText.trim().length < 30) {
+  if (unpdfText.trim().length < 30 && pdfjsText.trim().length < 30 && legacyText.trim().length < 30 && rawText.trim().length < 30) {
     console.error(
-      `[extractText] CRITICAL: All three extractors returned minimal text. ` +
+      `[extractText] CRITICAL: All four extractors returned minimal text. ` +
+      `unpdf=${unpdfText.trim().length} chars (error: ${unpdfError ?? "none"}), ` +
       `pdfjs=${pdfjsText.trim().length} chars (error: ${pdfjsError ?? "none"}), ` +
       `pdf-parse=${legacyText.trim().length} chars (error: ${legacyError ?? "none"}), ` +
       `raw-buffer=${rawText.trim().length} chars (error: ${rawError ?? "none"}). ` +
@@ -608,6 +639,7 @@ export async function extractTextFromPdf(
 
   // ── Pick the best result by word count, then char length ───────────
   const candidates = [
+    { name: "unpdf", text: unpdfText },
     { name: "pdfjs-dist", text: pdfjsText },
     { name: "pdf-parse", text: legacyText },
     { name: "raw-buffer", text: rawText },
@@ -635,7 +667,7 @@ export async function extractTextFromPdf(
     };
   }
 
-  // ── Stage 4: OCR fallback ──────────────────────────────────────────
+  // ── Stage 5: OCR fallback ──────────────────────────────────────────
   console.log(
     `[extractText] Text extraction returned ${pdfText.trim().length} chars (< ${OCR_TEXT_THRESHOLD}), attempting OCR fallback...`,
   );

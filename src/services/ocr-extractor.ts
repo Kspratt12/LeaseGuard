@@ -1,22 +1,27 @@
 /**
  * OCR fallback for scanned / image-based PDFs.
  *
- * When pdf-parse returns very little text (< 200 chars), this module
- * renders each PDF page to a PNG image using pdfjs-dist + @napi-rs/canvas,
- * then runs Tesseract.js OCR to recover the text content.
+ * When text extractors return very little text (< 200 chars), this module
+ * attempts OCR to recover text content.
  *
- * Dependencies: tesseract.js, pdfjs-dist, @napi-rs/canvas
+ * Strategy:
+ *   1. Try unpdf renderPageAsImage (serverless-safe, no native canvas needed)
+ *   2. Fall back to pdfjs-dist + @napi-rs/canvas (works locally, may fail on Vercel)
+ *   3. Run Tesseract.js OCR on each rendered page image
+ *
+ * Dependencies: tesseract.js, unpdf, pdfjs-dist (optional), @napi-rs/canvas (optional)
  */
 
 import Tesseract from "tesseract.js";
 
 // Dynamic import for @napi-rs/canvas — may not be available on all platforms
-// (e.g., Vercel Lambda if the native binary is missing for the target arch)
 let createCanvasFn: typeof import("@napi-rs/canvas").createCanvas | null = null;
 let canvasLoadError: string | null = null;
+let canvasChecked = false;
 
 async function ensureCanvas() {
-  if (createCanvasFn) return createCanvasFn;
+  if (canvasChecked) return createCanvasFn;
+  canvasChecked = true;
   try {
     const canvasModule = await import("@napi-rs/canvas");
     createCanvasFn = canvasModule.createCanvas;
@@ -86,7 +91,6 @@ function ocrWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 
 /**
  * Custom CanvasFactory for pdfjs-dist that uses @napi-rs/canvas.
- * pdfjs-dist calls create() to get a canvas+context pair for rendering.
  */
 class NodeCanvasFactory {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -168,9 +172,110 @@ async function renderPageToPng(
 }
 
 /**
- * Run OCR on a PDF buffer by rendering each page to a PNG image
- * using pdfjs-dist + @napi-rs/canvas, then running Tesseract.js OCR
- * on each rendered image.
+ * Try rendering PDF pages to images using unpdf (serverless-safe).
+ * Returns an array of PNG buffers, one per page.
+ */
+async function renderPagesWithUnpdf(
+  pdfBuffer: Buffer,
+  pageCount: number,
+): Promise<Buffer[]> {
+  const pngBuffers: Buffer[] = [];
+  try {
+    const { getDocumentProxy, renderPageAsImage } = await import("unpdf");
+    const doc = await getDocumentProxy(new Uint8Array(pdfBuffer));
+    const total = Math.min(doc.numPages, pageCount);
+    console.log(`[ocr] unpdf: rendering ${total} pages to images...`);
+
+    for (let i = 1; i <= total; i++) {
+      try {
+        const result = await renderPageAsImage(doc, i, {
+          scale: RENDER_SCALE,
+          width: undefined,
+          height: undefined,
+        });
+        // renderPageAsImage returns a Uint8Array (PNG)
+        const buf = Buffer.from(result);
+        console.log(`[ocr] unpdf page ${i}: rendered ${buf.length} bytes`);
+        if (buf.length > 100) {
+          pngBuffers.push(buf);
+        } else {
+          console.warn(`[ocr] unpdf page ${i}: image too small (${buf.length} bytes), skipping`);
+        }
+      } catch (pageErr) {
+        const msg = pageErr instanceof Error ? pageErr.message : String(pageErr);
+        console.warn(`[ocr] unpdf page ${i} render failed: ${msg}`);
+      }
+    }
+
+    doc.destroy();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[ocr] unpdf rendering failed: ${msg}`);
+    if (err instanceof Error && err.stack) {
+      console.warn(`[ocr] unpdf stack: ${err.stack.split("\n").slice(0, 3).join(" > ")}`);
+    }
+  }
+  return pngBuffers;
+}
+
+/**
+ * Try rendering PDF pages using pdfjs-dist + @napi-rs/canvas (native).
+ * Returns an array of PNG buffers, one per page.
+ */
+async function renderPagesWithCanvas(
+  pdfBuffer: Buffer,
+  pageCount: number,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createCanvas: any,
+): Promise<Buffer[]> {
+  const pngBuffers: Buffer[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let pdfjsLib: any;
+  const importPaths = [
+    "pdfjs-dist/legacy/build/pdf.mjs",
+    "pdfjs-dist/build/pdf.mjs",
+    "pdfjs-dist/legacy/build/pdf.js",
+    "pdfjs-dist",
+  ];
+  for (const p of importPaths) {
+    try {
+      pdfjsLib = await import(/* webpackIgnore: true */ p);
+      break;
+    } catch { /* try next */ }
+  }
+  if (!pdfjsLib) {
+    console.warn("[ocr] pdfjs-dist import failed in canvas OCR (all paths exhausted)");
+    return [];
+  }
+
+  const data = new Uint8Array(pdfBuffer);
+  const pdfDoc = await pdfjsLib.getDocument({
+    data,
+    disableFontFace: true,
+    useSystemFonts: true,
+  }).promise;
+
+  const total = Math.min(pdfDoc.numPages, pageCount);
+  console.log(`[ocr] canvas: rendering ${total} pages to images...`);
+
+  for (let i = 1; i <= total; i++) {
+    const pngBuffer = await renderPageToPng(pdfDoc, i, createCanvas);
+    if (pngBuffer && pngBuffer.length > 0) {
+      pngBuffers.push(pngBuffer);
+    }
+  }
+
+  pdfDoc.destroy();
+  return pngBuffers;
+}
+
+/**
+ * Run OCR on a PDF buffer by rendering each page to a PNG image,
+ * then running Tesseract.js OCR on each rendered image.
+ *
+ * Rendering strategy:
+ *   1. Try unpdf renderPageAsImage (serverless-safe, no native deps)
+ *   2. Fall back to pdfjs-dist + @napi-rs/canvas (local/Docker)
  *
  * Limits: processes at most MAX_OCR_PAGES pages, with PER_PAGE_TIMEOUT_MS
  * per page and TOTAL_OCR_TIMEOUT_MS overall to avoid serverless timeouts.
@@ -180,75 +285,49 @@ export async function extractTextWithOcr(
 ): Promise<string> {
   const ocrStart = Date.now();
   try {
-    // Ensure canvas is available for PDF-to-image rendering
-    const createCanvas = await ensureCanvas();
-    if (!createCanvas) {
-      const errMsg = `@napi-rs/canvas is not available (${canvasLoadError ?? "unknown reason"}). ` +
-        `OCR requires canvas for PDF-to-image conversion. ` +
-        `This is expected on some Vercel deployments where native binaries are missing.`;
+    const pageCount = MAX_OCR_PAGES;
+
+    // Strategy 1: Try unpdf (serverless-safe, no native canvas needed)
+    console.log("[ocr] Attempting page rendering with unpdf (serverless-safe)...");
+    let pngBuffers = await renderPagesWithUnpdf(pdfBuffer, pageCount);
+
+    // Strategy 2: Fall back to pdfjs-dist + @napi-rs/canvas
+    if (pngBuffers.length === 0) {
+      console.log("[ocr] unpdf rendering produced no images, trying @napi-rs/canvas fallback...");
+      const createCanvas = await ensureCanvas();
+      if (createCanvas) {
+        pngBuffers = await renderPagesWithCanvas(pdfBuffer, pageCount, createCanvas);
+      } else {
+        console.error(
+          `[ocr] @napi-rs/canvas also unavailable (${canvasLoadError ?? "unknown"}). ` +
+          `No PDF-to-image renderer available for OCR.`,
+        );
+      }
+    }
+
+    if (pngBuffers.length === 0) {
+      const errMsg = "OCR failed: no PDF-to-image renderer available. " +
+        "Neither unpdf rendering nor @napi-rs/canvas produced page images. " +
+        "Text PDFs should be handled by the text extraction pipeline (unpdf/pdfjs-dist).";
       console.error(`[ocr] ${errMsg}`);
       throw new Error(errMsg);
     }
 
-    // Load PDF with pdfjs-dist for rendering — try multiple import paths
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let pdfjsLib: any;
-    const importPaths = [
-      "pdfjs-dist/legacy/build/pdf.mjs",
-      "pdfjs-dist/build/pdf.mjs",
-      "pdfjs-dist/legacy/build/pdf.js",
-      "pdfjs-dist",
-    ];
-    for (const p of importPaths) {
-      try {
-        pdfjsLib = await import(/* webpackIgnore: true */ p);
-        break;
-      } catch { /* try next */ }
-    }
-    if (!pdfjsLib) {
-      throw new Error("pdfjs-dist import failed in OCR (all paths exhausted)");
-    }
-    const data = new Uint8Array(pdfBuffer);
-    const pdfDoc = await pdfjsLib.getDocument({
-      data,
-      disableFontFace: true,
-      useSystemFonts: true,
-    }).promise;
+    console.log(`[ocr] Starting Tesseract OCR on ${pngBuffers.length} page images (buffer: ${pdfBuffer.length} bytes)...`);
 
-    const totalPages = pdfDoc.numPages;
-    const pageCount = Math.min(totalPages, MAX_OCR_PAGES);
     const pageTexts: string[] = [];
-
-    if (totalPages === 0) {
-      console.warn("[ocr] PDF has 0 pages, nothing to OCR");
-      pdfDoc.destroy();
-      return "";
-    }
-
-    if (totalPages > MAX_OCR_PAGES) {
-      console.log(
-        `[ocr] PDF has ${totalPages} pages, limiting OCR to first ${MAX_OCR_PAGES}`,
-      );
-    }
-
-    console.log(`[ocr] Starting OCR on ${pageCount} pages (buffer: ${pdfBuffer.length} bytes)...`);
-
-    for (let i = 1; i <= pageCount; i++) {
+    for (let i = 0; i < pngBuffers.length; i++) {
       // Check total elapsed time
       if (Date.now() - ocrStart > TOTAL_OCR_TIMEOUT_MS) {
         console.warn(
-          `[ocr] Total OCR timeout reached after ${i - 1} pages ` +
+          `[ocr] Total OCR timeout reached after ${i} pages ` +
           `(${TOTAL_OCR_TIMEOUT_MS / 1000}s), returning partial text`,
         );
         break;
       }
 
-      // Render PDF page to PNG
-      const pngBuffer = await renderPageToPng(pdfDoc, i, createCanvas);
-      if (!pngBuffer || pngBuffer.length === 0) {
-        console.warn(`[ocr] Page ${i} rendered empty buffer, skipping`);
-        continue;
-      }
+      const pngBuffer = pngBuffers[i];
+      console.log(`[ocr] Running Tesseract on page ${i + 1}: ${pngBuffer.length} bytes input image`);
 
       // Run Tesseract OCR on the PNG image
       const result = await ocrWithTimeout(
@@ -260,26 +339,25 @@ export async function extractTextWithOcr(
 
       if (result == null) {
         console.warn(
-          `[ocr] Page ${i} OCR timed out after ${PER_PAGE_TIMEOUT_MS / 1000}s, skipping`,
+          `[ocr] Page ${i + 1} OCR timed out after ${PER_PAGE_TIMEOUT_MS / 1000}s, skipping`,
         );
         continue;
       }
 
       const pageText = result.data.text?.trim() ?? "";
+      const confidence = result.data.confidence ?? 0;
       if (pageText.length > 0) {
         pageTexts.push(pageText);
-        console.log(`[ocr] Page ${i}: ${pageText.length} chars extracted`);
+        console.log(`[ocr] Page ${i + 1}: ${pageText.length} chars, confidence: ${confidence}%`);
       } else {
-        console.warn(`[ocr] Page ${i}: Tesseract returned empty text`);
+        console.warn(`[ocr] Page ${i + 1}: Tesseract returned empty text (confidence: ${confidence}%)`);
       }
     }
-
-    pdfDoc.destroy();
 
     const combinedText = pageTexts.join("\n\n");
     console.log(
       `[ocr] Completed in ${((Date.now() - ocrStart) / 1000).toFixed(1)}s, ` +
-      `${pageTexts.length}/${pageCount} pages produced text, ` +
+      `${pageTexts.length}/${pngBuffers.length} pages produced text, ` +
       `${combinedText.length} total chars`,
     );
     return combinedText;
