@@ -1582,6 +1582,22 @@ export async function runAudit(
     verifiedPaid.splice(0, 1);
   }
 
+  // Guarantee at least one finding so the client never gets stuck polling.
+  // When the audit extracted very little data, generate a summary finding.
+  if (verifiedFree.length === 0 && verifiedPaid.length === 0) {
+    verifiedFree.push({
+      category: "Document Review Summary",
+      description:
+        "The system was unable to extract specific lease terms or reconciliation data from the uploaded documents. " +
+        "This may occur when documents use non-standard formatting, are image-heavy, or contain limited text. " +
+        "For best results, upload clearly formatted PDF lease agreements and CAM reconciliation statements. " +
+        "A professional review of your documents is recommended to identify potential overcharges.",
+      potential_savings: 0,
+      severity: "medium",
+      insufficientData: true,
+    });
+  }
+
   // Calculate savings only from verified, non-insufficient findings
   // Include estimated overcharge from excluded categories
   const findingSavings = [...verifiedFree, ...verifiedPaid]

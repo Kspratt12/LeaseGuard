@@ -1223,25 +1223,11 @@ function determineAuditMode(
     return "full";
   }
 
-  // At least one unknown and no extracted fields to work with → rejected
+  // At least one unknown — run in limited mode regardless.
+  // Never reject: the audit engine generates "Insufficient Data" findings
+  // when fields are missing, which is more useful than blocking entirely.
   if (leaseTier === "unknown" || reconTier === "unknown") {
-    // Even if one is unknown, check if extraction produced usable fields.
-    // Include line items and excluded terms — these enable the excluded-
-    // category-billing check which is one of the most valuable findings.
-    const hasAnyField =
-      leaseFields.camCapPercentage != null ||
-      leaseFields.adminFeePercentage != null ||
-      leaseFields.managementFee != null ||
-      leaseFields.proRataShare != null ||
-      reconFields.totalCamCharges != null ||
-      reconFields.reconciliationTotal != null ||
-      reconFields.managementFee != null ||
-      reconFields.adminFeePercentage != null ||
-      reconFields.lineItems.length >= 2 ||
-      leaseFields.excludedTerms.length > 0;
-
-    if (hasAnyField) return "limited";
-    return "rejected";
+    return "limited";
   }
 
   // At least one likely_match → limited audit
@@ -1270,70 +1256,30 @@ export async function validateDocuments(
   let leaseExtractionMethod = leaseExtraction.method;
   let reconExtractionMethod = reconExtraction.method;
 
-  // 2. Truly empty PDF detection (no readable text at all)
+  // 2. Log short-text warnings but NEVER reject — always try to audit.
+  // AI extraction and the audit engine can produce useful findings even
+  // with very limited text.  Blocking here was the primary cause of the
+  // "stuck at 95%" / "does not contain readable data" errors.
   const MIN_TEXT_LENGTH = 20;
 
-  if (leaseText.trim().length < MIN_TEXT_LENGTH && reconText.trim().length < MIN_TEXT_LENGTH) {
-    return {
-      leaseClassification: unknownClassification(),
-      reconClassification: unknownClassification(),
-      leaseText: "",
-      reconText: "",
-      leaseFields: emptyFields(),
-      reconFields: emptyFields(),
-      wasSwapped: false,
-      leaseExtractionMethod: leaseExtractionMethod,
-      reconExtractionMethod: reconExtractionMethod,
-      issues: [],
-      confidence: "low",
-      confidenceScore: 0,
-      canProceed: false,
-      auditMode: "rejected",
-      userMessage:
-        "This document does not contain readable lease or CAM data. Please upload a valid document.",
-    };
-  }
-
   if (leaseText.trim().length < MIN_TEXT_LENGTH) {
-    return {
-      leaseClassification: unknownClassification(),
-      reconClassification: detectDocumentType(reconText),
-      leaseText: "",
-      reconText,
-      leaseFields: emptyFields(),
-      reconFields: extractFields(reconText),
-      wasSwapped: false,
-      leaseExtractionMethod: leaseExtractionMethod,
-      reconExtractionMethod: reconExtractionMethod,
-      issues: [],
-      confidence: "low",
-      confidenceScore: 0,
-      canProceed: false,
-      auditMode: "rejected",
-      userMessage:
-        "The lease document does not contain readable text. Please upload a valid lease PDF.",
-    };
+    console.warn(
+      `[validator] Lease text very short (${leaseText.trim().length} chars) — will attempt AI extraction`,
+    );
+    issues.push({
+      field: "lease_text",
+      message: "Lease document contained very little extractable text. AI analysis will be attempted.",
+    });
   }
 
   if (reconText.trim().length < MIN_TEXT_LENGTH) {
-    return {
-      leaseClassification: detectDocumentType(leaseText),
-      reconClassification: unknownClassification(),
-      leaseText,
-      reconText: "",
-      leaseFields: extractFields(leaseText),
-      reconFields: emptyFields(),
-      wasSwapped: false,
-      leaseExtractionMethod: leaseExtractionMethod,
-      reconExtractionMethod: reconExtractionMethod,
-      issues: [],
-      confidence: "low",
-      confidenceScore: 0,
-      canProceed: false,
-      auditMode: "rejected",
-      userMessage:
-        "The reconciliation document does not contain readable text. Please upload a valid CAM reconciliation PDF.",
-    };
+    console.warn(
+      `[validator] Recon text very short (${reconText.trim().length} chars) — will attempt AI extraction`,
+    );
+    issues.push({
+      field: "recon_text",
+      message: "Reconciliation document contained very little extractable text. AI analysis will be attempted.",
+    });
   }
 
   // 3. Classify documents
@@ -1399,26 +1345,8 @@ export async function validateDocuments(
     reconFields,
   );
 
-  if (auditMode === "rejected") {
-    return {
-      leaseClassification,
-      reconClassification,
-      leaseText,
-      reconText,
-      leaseFields,
-      reconFields,
-      wasSwapped,
-      leaseExtractionMethod,
-      reconExtractionMethod,
-      issues,
-      confidence: "low",
-      confidenceScore: 0,
-      canProceed: false,
-      auditMode: "rejected",
-      userMessage:
-        "The uploaded documents could not be identified as lease or CAM reconciliation documents. Please upload valid commercial lease and reconciliation files.",
-    };
-  }
+  // Note: auditMode is never "rejected" — we always proceed.
+  // The audit engine will generate appropriate findings even with sparse data.
 
   // 7. Required data detection (informational — does not block)
   if (!leaseFields.camCapPercentage) {

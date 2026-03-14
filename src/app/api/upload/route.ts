@@ -95,19 +95,13 @@ async function processAudit(
       `[process:${auditId}] Recon fields — totalCam: ${validation.reconFields.totalCamCharges ?? "NULL"}, reconTotal: ${validation.reconFields.reconciliationTotal ?? "NULL"}, lineItems: ${validation.reconFields.lineItems.length}, year: ${validation.reconFields.reconciliationYear ?? "NULL"}`,
     );
 
-    // Step 2: If validation fails, stop
-    if (!validation.canProceed) {
+    // Never reject — always proceed to audit.
+    // The audit engine generates "Insufficient Data" findings when fields
+    // are missing, which is far more useful than blocking outright.
+    if (validation.userMessage) {
       console.log(
-        `[process:${auditId}] Validation failed: ${validation.userMessage}`,
+        `[process:${auditId}] Validation note: ${validation.userMessage}`,
       );
-      await supabase
-        .from("audits")
-        .update({
-          status: "error",
-          error_message: validation.userMessage,
-        })
-        .eq("id", auditId);
-      return;
     }
 
     // Step 2b: Build multi-year reconciliation data if extra recons provided
