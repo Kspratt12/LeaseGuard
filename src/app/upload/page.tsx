@@ -1,5 +1,5 @@
 import { UploadZone } from "@/components/upload-zone";
-import { FileText, Files } from "lucide-react";
+import { FileText, Files, Camera } from "lucide-react";
 
 export default function UploadPage() {
   return (
@@ -10,19 +10,20 @@ export default function UploadPage() {
           Upload Your Documents
         </h1>
         <p className="text-lg text-gray-600">
-          Upload your commercial lease and CAM reconciliation statements.
-          LeaseGuard will analyze them and flag potential overcharges.
+          Upload your commercial lease and CAM reconciliation statements, or
+          take photos with your phone. LeaseGuard will analyze them and flag
+          potential overcharges.
         </p>
       </div>
 
       {/* Upload instructions */}
-      <div className="w-full max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+      <div className="w-full max-w-2xl grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <div className="rounded-lg border border-gray-200 bg-white p-4 flex items-start gap-3">
           <div className="rounded-lg bg-blue-50 p-2 shrink-0">
             <FileText className="h-4 w-4 text-blue-700" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900">Lease PDF</p>
+            <p className="text-sm font-semibold text-gray-900">Upload Lease PDF</p>
             <p className="text-xs text-gray-500 mt-0.5">
               Upload the section of your lease that contains CAM or operating
               expense clauses.
@@ -35,11 +36,23 @@ export default function UploadPage() {
           </div>
           <div>
             <p className="text-sm font-semibold text-gray-900">
-              Reconciliation PDFs
+              Upload CAM Reconciliation Statements
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
               Upload one or more annual CAM reconciliation statements. Multiple
               years enable year-over-year comparisons.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 flex items-start gap-3">
+          <div className="rounded-lg bg-blue-50 p-2 shrink-0">
+            <Camera className="h-4 w-4 text-blue-700" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Or Take Photo</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Use your phone or tablet camera to capture documents. Photos are
+              automatically converted to PDF.
             </p>
           </div>
         </div>
