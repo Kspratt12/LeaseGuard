@@ -65,9 +65,11 @@ export default function AuditPage({
         const data: Audit = await res.json();
 
         // Data-driven completion: if result data exists, the audit is done
-        // regardless of the status string (handles partial status update failures)
+        // regardless of the status string (handles partial status update failures).
+        // IMPORTANT: An empty array [] does NOT count as result data — it may be
+        // a DB column default. Only treat non-empty findings as completion evidence.
         const hasResultData =
-          data.free_findings != null && Array.isArray(data.free_findings);
+          Array.isArray(data.free_findings) && data.free_findings.length > 0;
         if (hasResultData && data.status !== "completed" && data.status !== "error") {
           console.warn(
             `[poll] audit=${id} has result data but status="${data.status}" — forcing completed`,
@@ -75,10 +77,22 @@ export default function AuditPage({
           data.status = "completed";
         }
 
+        // Status says "completed" but findings are empty — the DB might have
+        // returned a premature "completed" due to a column default or race
+        // condition.  Keep polling for up to 15 extra seconds to let the
+        // background processor finish writing real data.
+        const statusSaysComplete = data.status === "completed";
+        const hasZeroFindings =
+          (!data.free_findings || data.free_findings.length === 0) &&
+          (!data.paid_findings || data.paid_findings.length === 0) &&
+          (data.savings_estimate == null || data.savings_estimate === 0);
+        const elapsedMs = Date.now() - startedAt;
+        const suspiciouslyEmpty = statusSaysComplete && hasZeroFindings && elapsedMs < 30_000;
+
         const isTerminal =
-          data.status === "completed" || data.status === "error";
+          (data.status === "completed" && !suspiciouslyEmpty) || data.status === "error";
         console.log(
-          `[poll] audit=${id} status=${data.status} terminal=${isTerminal} poll#=${pollCount} hasData=${hasResultData} keys=[${Object.keys(data).join(",")}]`,
+          `[poll] audit=${id} status=${data.status} terminal=${isTerminal} poll#=${pollCount} hasData=${hasResultData} suspiciouslyEmpty=${suspiciouslyEmpty} keys=[${Object.keys(data).join(",")}]`,
         );
 
         if (!cancelled) setAudit(data);
@@ -161,9 +175,10 @@ export default function AuditPage({
   // exist (including insufficient-data findings), discrepancies were detected.
   const hasFindings = totalFindingsCount > 0;
 
-  // Data-driven: if findings exist, the audit is effectively complete
+  // Data-driven: if non-empty findings exist, the audit is effectively complete.
+  // An empty array may be a DB default, not actual results.
   const hasResultData =
-    Array.isArray(audit.free_findings) && audit.free_findings !== null;
+    Array.isArray(audit.free_findings) && audit.free_findings.length > 0;
   const isComplete = status === "completed" || (hasResultData && status !== "error");
   const isProcessing =
     (status === "pending" || status === "processing") && !hasResultData;

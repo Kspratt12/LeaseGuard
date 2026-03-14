@@ -550,6 +550,13 @@ export async function POST(req: NextRequest) {
       lease_url: leaseUrlData.publicUrl,
       recon_url: reconUrlData.publicUrl,
       status: "pending",
+      // Explicitly null so DB defaults (e.g. []) don't make the client
+      // think processing already completed before it even started.
+      free_findings: null,
+      paid_findings: null,
+      savings_estimate: null,
+      estimated_overcharge: null,
+      overcharge_breakdown: null,
     });
 
     if (dbErr) {

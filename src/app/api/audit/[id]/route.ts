@@ -28,15 +28,19 @@ export async function GET(
     return NextResponse.json({ error: "Audit not found" }, { status: 404 });
   }
 
-  console.log(`[audit/${id}] Found — status=${audit.status}, has_findings=${!!audit.free_findings}`);
+  const findingsCount = Array.isArray(audit.free_findings) ? audit.free_findings.length : 0;
+  const paidCount = Array.isArray(audit.paid_findings) ? audit.paid_findings.length : 0;
+  console.log(`[audit/${id}] Found — status=${audit.status}, free=${findingsCount}, paid=${paidCount}, savings=${audit.savings_estimate ?? "null"}`);
 
   // Auto-heal: if the audit has result data but status is still "processing",
   // the background job completed but the status update was lost (e.g. serverless
   // function terminated). Fix the status in-place and persist it.
+  // IMPORTANT: Only treat non-empty findings as evidence of completion.
+  // An empty array [] may be a DB column default, not actual results.
   if (
     audit.status === "processing" &&
-    audit.free_findings != null &&
-    Array.isArray(audit.free_findings)
+    Array.isArray(audit.free_findings) &&
+    audit.free_findings.length > 0
   ) {
     console.warn(
       `[audit/${id}] Auto-healing stuck audit: has findings but status was "processing" — setting to "completed"`,
