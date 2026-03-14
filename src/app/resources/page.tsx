@@ -20,6 +20,13 @@ export const metadata: Metadata = {
 
 const articles = [
   {
+    slug: "commercial-tenant-cam-audit-guide",
+    href: "/commercial-tenant-cam-audit-guide",
+    title: "The Commercial Tenant CAM Audit Guide",
+    description:
+      "A comprehensive guide covering what CAM audits are, why they matter, common overcharges, how reconciliation works, and how to perform an audit step by step.",
+  },
+  {
     slug: "cam-charges-explained",
     title: "What Are CAM Charges in Commercial Leases?",
     description:
@@ -117,7 +124,7 @@ export default function ResourcesPage() {
           {articles.map((article) => (
             <Link
               key={article.slug}
-              href={`/resources/${article.slug}`}
+              href={article.href || `/resources/${article.slug}`}
               className="group block rounded-xl border border-gray-200 p-6 sm:p-8 hover:border-blue-200 hover:shadow-md transition-all"
             >
               <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
