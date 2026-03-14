@@ -17,11 +17,14 @@ export function AuditResultsFree({
     );
   }
 
+  // Show up to 3 visible findings
+  const visibleFindings = findings.slice(0, 3);
+
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Free Findings</h2>
+      <h2 className="text-lg font-semibold">Audit Findings</h2>
       <ul className="space-y-4">
-        {findings.map((f, i) => (
+        {visibleFindings.map((f, i) => (
           <li
             key={i}
             className={`flex items-start gap-4 rounded-xl border p-5 ${

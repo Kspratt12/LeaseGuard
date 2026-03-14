@@ -312,16 +312,14 @@ export default function AuditPage({
             {/* Free findings */}
             <AuditResultsFree findings={freeFindings} />
 
-            {/* Paid findings (locked) — only show if premium findings exist */}
-            {paidFindings.length > 0 && (
-              <AuditResultsPaid
-                findings={paidFindings}
-                premiumSavings={paidFindings
-                  .filter((f) => !f.insufficientData)
-                  .reduce((sum, f) => sum + f.potential_savings, 0)}
-                overchargeBreakdown={overchargeBreakdown}
-              />
-            )}
+            {/* Locked findings with conversion CTA — always shown */}
+            <AuditResultsPaid
+              findings={paidFindings}
+              premiumSavings={paidFindings
+                .filter((f) => !f.insufficientData)
+                .reduce((sum, f) => sum + f.potential_savings, 0)}
+              overchargeBreakdown={overchargeBreakdown}
+            />
           </>
         )}
 
