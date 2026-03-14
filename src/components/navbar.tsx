@@ -62,6 +62,12 @@ export function Navbar() {
               </a>
             ))}
           <Link
+            href="/cam-audit"
+            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            CAM Audit
+          </Link>
+          <Link
             href="/resources"
             className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
           >
@@ -103,6 +109,13 @@ export function Navbar() {
                 {link.label}
               </a>
             ))}
+          <Link
+            href="/cam-audit"
+            onClick={() => setMobileOpen(false)}
+            className="block rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+          >
+            CAM Audit
+          </Link>
           <Link
             href="/resources"
             onClick={() => setMobileOpen(false)}
