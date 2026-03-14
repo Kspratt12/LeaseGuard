@@ -17,6 +17,12 @@ import {
   type ExtractionMethod,
   type ExtractionResult,
 } from "@/services/ocr-extractor";
+import {
+  extractLeaseFieldsWithAI,
+  extractReconFieldsWithAI,
+  type AILeaseFields,
+  type AIReconFields,
+} from "@/services/ai-extraction";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1217,8 +1223,37 @@ export async function validateDocuments(
   }
 
   // 5. Extract fields (always attempt, even on weak classification)
-  const leaseFields = extractFields(leaseText);
-  const reconFields = extractFields(reconText);
+  let leaseFields = extractFields(leaseText);
+  let reconFields = extractFields(reconText);
+
+  // 5b. AI-powered extraction: supplement regex results with Claude analysis.
+  // Runs in parallel for both documents. Falls back gracefully if no API key.
+  try {
+    console.log("[validator] Attempting AI-powered field extraction...");
+    const [aiLease, aiRecon] = await Promise.all([
+      extractLeaseFieldsWithAI(leaseText),
+      extractReconFieldsWithAI(reconText),
+    ]);
+
+    if (aiLease) {
+      console.log("[validator] AI lease extraction successful:", JSON.stringify(aiLease));
+      leaseFields = mergeLeaseFields(leaseFields, aiLease);
+    } else {
+      console.log("[validator] AI lease extraction skipped (no API key or failed)");
+    }
+
+    if (aiRecon) {
+      console.log("[validator] AI recon extraction successful:", JSON.stringify(aiRecon));
+      reconFields = mergeReconFields(reconFields, aiRecon);
+    } else {
+      console.log("[validator] AI recon extraction skipped (no API key or failed)");
+    }
+  } catch (err) {
+    console.warn(
+      "[validator] AI extraction failed (falling back to regex only):",
+      err instanceof Error ? err.message : err,
+    );
+  }
 
   // 6. Determine audit mode based on classification tier + extracted fields
   const auditMode = determineAuditMode(
@@ -1332,6 +1367,98 @@ export async function validateDocuments(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// AI extraction merge helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Merge AI-extracted lease fields into regex-extracted fields.
+ * AI values take priority when the regex value is null/empty.
+ * When both exist, AI overrides only if the regex value looks suspicious.
+ */
+function mergeLeaseFields(
+  regex: ExtractedFields,
+  ai: AILeaseFields,
+): ExtractedFields {
+  return {
+    ...regex,
+    camCapPercentage: ai.camCapPercentage ?? regex.camCapPercentage,
+    adminFeePercentage: ai.adminFeePercentage ?? regex.adminFeePercentage,
+    managementFee: ai.managementFee ?? regex.managementFee,
+    proRataShare: ai.proRataShare ?? regex.proRataShare,
+    tenantPremisesSqFt: ai.tenantPremisesSqFt ?? regex.tenantPremisesSqFt,
+    buildingTotalSqFt: ai.buildingTotalSqFt ?? regex.buildingTotalSqFt,
+    statedTenantSharePercent:
+      ai.statedTenantSharePercent ?? regex.statedTenantSharePercent,
+    excludedTerms:
+      ai.excludedTerms.length > 0
+        ? [...new Set([...regex.excludedTerms, ...ai.excludedTerms])]
+        : regex.excludedTerms,
+  };
+}
+
+/**
+ * Merge AI-extracted reconciliation fields into regex-extracted fields.
+ * AI values take priority when the regex value is null/empty.
+ */
+function mergeReconFields(
+  regex: ExtractedFields,
+  ai: AIReconFields,
+): ExtractedFields {
+  // For dollar amounts, AI provides them as "$53,444.13" — strip to match regex format
+  const cleanDollar = (v: string | null): string | null => {
+    if (!v) return null;
+    // Keep the numeric format: remove only leading $, keep commas and decimals
+    return v.replace(/^\$\s*/, "").trim() || null;
+  };
+
+  // Merge line items: combine regex + AI, deduplicate by category
+  const mergedLineItems = [...regex.lineItems];
+  if (ai.lineItems.length > 0) {
+    const existingCats = new Set(
+      regex.lineItems.map((li) => li.category.toLowerCase().trim()),
+    );
+    for (const aiItem of ai.lineItems) {
+      const cat = aiItem.category.toLowerCase().trim();
+      if (!existingCats.has(cat)) {
+        // Clean the amount: strip $, keep commas
+        const cleanedAmount = aiItem.amount.replace(/^\$\s*/, "").trim();
+        mergedLineItems.push({
+          category: cat,
+          amount: cleanedAmount,
+          rawLine: `${aiItem.category}: $${cleanedAmount}`,
+        });
+        existingCats.add(cat);
+      }
+    }
+  }
+
+  // Merge expense categories from AI line items
+  const mergedExpenseCategories = [...regex.expenseCategories];
+  for (const li of ai.lineItems) {
+    const cat = li.category.toLowerCase().trim();
+    if (!mergedExpenseCategories.includes(cat)) {
+      mergedExpenseCategories.push(cat);
+    }
+  }
+
+  return {
+    ...regex,
+    totalCamCharges:
+      cleanDollar(ai.totalCamCharges) ?? regex.totalCamCharges,
+    reconciliationTotal:
+      cleanDollar(ai.reconciliationTotal) ?? regex.reconciliationTotal,
+    priorYearTotal:
+      cleanDollar(ai.priorYearTotal) ?? regex.priorYearTotal,
+    reconciliationYear: ai.reconciliationYear ?? regex.reconciliationYear,
+    proRataShare: ai.proRataShare ?? regex.proRataShare,
+    adminFeePercentage: ai.adminFeePercentage ?? regex.adminFeePercentage,
+    managementFee: ai.managementFee ?? regex.managementFee,
+    lineItems: mergedLineItems,
+    expenseCategories: mergedExpenseCategories,
+  };
+}
 
 function unknownClassification(): DocumentClassification {
   return { type: "unknown", confidence: 0, tier: "unknown", matchedKeywords: [] };

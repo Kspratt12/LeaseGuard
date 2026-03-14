@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useCallback } from "react";
 import { Menu, X } from "lucide-react";
+import { useAuditDraft } from "@/components/audit-draft-context";
 
 const navLinks = [
   { href: "/#features", label: "Features" },
@@ -17,9 +18,23 @@ export function Navbar() {
   const pathname = usePathname();
   const isLanding = pathname === "/";
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { clearDraft } = useAuditDraft();
+
+  /**
+   * Clear the upload draft when navigating away from the upload page.
+   * This ensures files don't persist when the user clicks Logo, CAM Audit,
+   * Resources, or any other non-upload link. Files only persist for
+   * the back-button flow (browser back doesn't trigger navbar clicks).
+   */
+  const handleNavAway = useCallback(() => {
+    clearDraft();
+    setMobileOpen(false);
+  }, [clearDraft]);
 
   const handleAnchorClick = useCallback(
     (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+      // Clear draft when navigating away via anchor links
+      clearDraft();
       if (isLanding && href.startsWith("/#")) {
         e.preventDefault();
         const id = href.replace("/#", "");
@@ -30,14 +45,14 @@ export function Navbar() {
         setMobileOpen(false);
       }
     },
-    [isLanding]
+    [isLanding, clearDraft]
   );
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-gray-200/60 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between px-4 sm:px-6">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+        {/* Logo — clears draft when clicked */}
+        <Link href="/" onClick={handleNavAway} className="flex items-center gap-2.5 shrink-0">
           <Image
             src="/leaseguard-logo.png"
             alt="LeaseGuard CAM audit software logo"
@@ -63,12 +78,14 @@ export function Navbar() {
             ))}
           <Link
             href="/cam-audit"
+            onClick={handleNavAway}
             className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
           >
             CAM Audit
           </Link>
           <Link
             href="/resources"
+            onClick={handleNavAway}
             className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
           >
             Resources
@@ -111,14 +128,14 @@ export function Navbar() {
             ))}
           <Link
             href="/cam-audit"
-            onClick={() => setMobileOpen(false)}
+            onClick={handleNavAway}
             className="block rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
           >
             CAM Audit
           </Link>
           <Link
             href="/resources"
-            onClick={() => setMobileOpen(false)}
+            onClick={handleNavAway}
             className="block rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
           >
             Resources

@@ -159,6 +159,9 @@ async function processAudit(
     const { extractTextFromPdf, extractFields, normalizeNumber } = await import(
       "@/services/document-validator"
     );
+    const { extractReconFieldsWithAI } = await import(
+      "@/services/ai-extraction"
+    );
 
     let multiYearReconciliations:
       | Array<{
@@ -206,7 +209,25 @@ async function processAudit(
           console.log(`[process:${auditId}] Extra recon "${extra.name}": extracted ${extraction.text.length} chars via ${extraction.method}`);
           console.log(`[process:${auditId}] Extra recon "${extra.name}" text preview: ${extraction.text.substring(0, 200).replace(/[\n\r]+/g, " | ")}`);
 
-          const fields = extractFields(extraction.text);
+          let fields = extractFields(extraction.text);
+
+          // Supplement with AI extraction for extra recons too
+          try {
+            const aiFields = await extractReconFieldsWithAI(extraction.text);
+            if (aiFields) {
+              console.log(`[process:${auditId}] Extra recon "${extra.name}" AI extraction successful`);
+              // Merge AI fields: AI takes priority for missing regex fields
+              fields = {
+                ...fields,
+                totalCamCharges: (aiFields.totalCamCharges?.replace(/^\$\s*/, "") ?? null) || fields.totalCamCharges,
+                reconciliationTotal: (aiFields.reconciliationTotal?.replace(/^\$\s*/, "") ?? null) || fields.reconciliationTotal,
+                reconciliationYear: aiFields.reconciliationYear ?? fields.reconciliationYear,
+              };
+            }
+          } catch (aiErr) {
+            console.warn(`[process:${auditId}] Extra recon "${extra.name}" AI extraction failed:`, aiErr);
+          }
+
           const yr = fields.reconciliationYear;
           const tot = fields.totalCamCharges
             ? normalizeNumber(fields.totalCamCharges)

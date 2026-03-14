@@ -44,10 +44,13 @@ export function AuditResultsPaid({
   const evidenceItems =
     overchargeBreakdown?.filter((r) => r.sourceEvidence) ?? [];
 
+  // Only show real savings from actual findings — never from placeholders
   const totalLockedSavings =
     premiumSavings > 0
       ? premiumSavings
-      : lockedFindings.reduce((s, f) => s + f.potential_savings, 0);
+      : count > 0
+        ? lockedFindings.reduce((s, f) => s + f.potential_savings, 0)
+        : 0;
 
   return (
     <div className="space-y-6">

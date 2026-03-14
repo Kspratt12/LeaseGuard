@@ -12,7 +12,7 @@ import Tesseract from "tesseract.js";
 import { PDFDocument } from "pdf-lib";
 
 /** Minimum text length to consider pdf-parse output sufficient. */
-export const OCR_TEXT_THRESHOLD = 50;
+export const OCR_TEXT_THRESHOLD = 30;
 
 export type ExtractionMethod = "pdf_text" | "ocr";
 
@@ -22,13 +22,13 @@ export interface ExtractionResult {
 }
 
 /** Maximum number of pages to OCR (prevents multi-page PDFs from timing out). */
-const MAX_OCR_PAGES = 5;
+const MAX_OCR_PAGES = 8;
 
 /** Per-page OCR timeout in milliseconds. */
-const PER_PAGE_TIMEOUT_MS = 20_000;
+const PER_PAGE_TIMEOUT_MS = 30_000;
 
 /** Total OCR timeout in milliseconds. */
-const TOTAL_OCR_TIMEOUT_MS = 60_000;
+const TOTAL_OCR_TIMEOUT_MS = 90_000;
 
 /** Race a promise against a timeout, returning null on timeout instead of throwing. */
 function ocrWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
@@ -82,7 +82,9 @@ export async function extractTextWithOcr(
       singlePagePdf.addPage(copiedPage);
       const singlePageBytes = await singlePagePdf.save();
 
-      // Run Tesseract on the single-page PDF bytes with per-page timeout
+      // Run Tesseract on the single-page PDF bytes with per-page timeout.
+      // PSM 6 (uniform block of text) works best for document pages.
+      // OEM 1 (LSTM neural net) is most accurate for varied quality.
       const result = await ocrWithTimeout(
         Tesseract.recognize(
           Buffer.from(singlePageBytes),
