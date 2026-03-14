@@ -468,7 +468,11 @@ export function extractFields(text: string): ExtractedFields {
   // -----------------------------------------------------------------
   const tenantSqFtPatterns = [
     // "Premises square footage: 8,500", "Premises consisting of 8,500 sq ft"
-    /(?:premises\s*(?:square\s*footage|area|consisting\s*of|contains?|comprising))[\s:]*(?:approximately\s*)?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:sq(?:uare)?\s*(?:ft|feet)|rsf|rentable\s*sq)/i,
+    /(?:premises\s*(?:square\s*footage|area|consisting\s*of|contains?|containing|comprising))[\s:]*(?:approximately\s*)?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:sq(?:uare)?\s*(?:ft|feet)|rsf|rentable\s*sq)/i,
+    // "consisting of approximately 4,200 rentable square feet" (after Premises with punctuation gap)
+    /(?:premises)[^.]{0,20}consisting\s*of\s*(?:approximately\s*)?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:rentable\s*)?(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)/i,
+    // "4,200 rentable square feet within the Building" (tenant context)
+    /(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:rentable\s*)?(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)\s*(?:within|in)\s*the\s*(?:building|property)/i,
     // "Tenant's Premises: 8,500 SF", "Tenant premises ... 8,500 RSF"
     /(?:tenant(?:'s)?\s*premises)[\s:].{0,40}?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)/i,
     // "8,500 rentable square feet of premises", "8,500 sq ft of demised premises"
@@ -491,12 +495,14 @@ export function extractFields(text: string): ExtractedFields {
     /(?:(?:total\s*)?building\s*(?:rentable\s*)?(?:area|square\s*footage))[\s:]*(?:approximately\s*)?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)?/i,
     // "Total rentable area of the Building: 100,000"
     /(?:(?:total\s*)?rentable\s*area\s*(?:of\s*)?(?:the\s*)?building)[\s:]*(?:approximately\s*)?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)/i,
-    // "Building contains 100,000 rentable square feet"
-    /(?:building\s*(?:contains?|comprising|consisting\s*of))[\s:]*(?:approximately\s*)?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:rentable\s*)?(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)/i,
+    // "Building containing/contains 100,000 rentable square feet"
+    /(?:building\s*(?:contains?|containing|comprising|consisting\s*of))[\s:]*(?:approximately\s*)?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:rentable\s*)?(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)/i,
     // "Building RSF: 100,000", "Building SF: 100,000"
     /(?:building\s*(?:rsf|sf))[\s:]*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)/i,
     // "100,000 total rentable square feet" (building context)
     /(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:total\s*)?(?:rentable\s*)?(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)\s*(?:of\s*)?(?:total\s*)?(?:building|property)/i,
+    // "52,000 rentable square feet of leasable area" (in building context)
+    /(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:rentable\s*)?(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)\s*(?:of\s*)?(?:leasable|rentable|gross)\s*area/i,
   ];
   let buildingTotalSqFt: string | null = null;
   for (const pat of buildingSqFtPatterns) {
@@ -737,17 +743,72 @@ export function extractFields(text: string): ExtractedFields {
 
   // -----------------------------------------------------------------
   // Line item amounts — detect category: $amount pairs
+  // Supports single-column ("Category: $X") AND multi-column tables
+  // ("Category  $Budget  $Actual") by capturing the LAST dollar amount
+  // on each line when multiple are present.
   // -----------------------------------------------------------------
-  const lineItemPattern = /(?:^|[\n\r])[\s]*([A-Za-z][A-Za-z &\-\/]+?)[\s:.]+\$?\s*([\d,]+(?:\.\d{1,2})?)\s*(?:$|[\n\r])/gm;
   const lineItems: LineItem[] = [];
+
+  // Strategy: split into lines, then for each line detect a leading
+  // text category followed by one or more dollar amounts.  Keep the
+  // LAST amount (typically the "Actual" column in Budget/Actual tables).
+  const textLines = text.split(/[\n\r]+/);
+  const categoryPattern = /^[\s]*([A-Za-z][A-Za-z0-9 ()&\-\/,.:;%]+?)\s{2,}/;
+  const amountPattern = /\$?\s*([\d,]+(?:\.\d{1,2})?)/g;
+
+  // Also handle dotted-leader lines: "Category .............. $Amount"
+  const dottedLeaderPattern = /^[\s]*([A-Za-z][A-Za-z0-9 ()&\-\/,:%]+?)\s*\.{2,}\s*/;
+
+  for (const line of textLines) {
+    // Try multi-space separator first, then dotted-leader
+    const catMatch = line.match(categoryPattern) || line.match(dottedLeaderPattern);
+    if (!catMatch) continue;
+
+    // Strip trailing dots, dashes, colons, and whitespace from category
+    const cat = catMatch[1].replace(/[\s.\-:;]+$/, "").trim().toLowerCase();
+    if (cat.length <= 2 || cat.length >= 60) continue;
+
+    // Find all dollar amounts on the line after the category
+    const afterCategory = line.slice(catMatch[0].length);
+    const amounts: string[] = [];
+    let amtMatch;
+    amountPattern.lastIndex = 0;
+    while ((amtMatch = amountPattern.exec(afterCategory)) !== null) {
+      amounts.push(amtMatch[1]);
+    }
+
+    // Use the last amount on the line (Actual column in Budget/Actual tables)
+    const amt = amounts.length > 0 ? amounts[amounts.length - 1] : null;
+    if (!amt) continue;
+
+    const numVal = parseFloat(amt.replace(/,/g, ""));
+    if (numVal >= 100) {
+      // Deduplicate: skip if same category and amount already captured
+      const alreadyCaptured = lineItems.some(
+        (li) => li.category === cat && li.amount === amt,
+      );
+      if (!alreadyCaptured) {
+        lineItems.push({ category: cat, amount: amt, rawLine: line.trim() });
+      }
+    }
+  }
+
+  // Also try the original single-column pattern for lines the above may miss
+  // (e.g. "Category: $X" with colon separator and less whitespace)
+  const singleColPattern = /(?:^|[\n\r])[\s]*([A-Za-z][A-Za-z &\-\/]+?)[\s:.]+\$?\s*([\d,]+(?:\.\d{1,2})?)\s*(?:$|[\n\r])/gm;
   let lineMatch;
-  while ((lineMatch = lineItemPattern.exec(text)) !== null) {
+  while ((lineMatch = singleColPattern.exec(text)) !== null) {
     const cat = lineMatch[1].trim().toLowerCase();
     const amt = lineMatch[2];
-    // Only keep if amount looks financial (> $100)
     const numVal = parseFloat(amt.replace(/,/g, ""));
     if (numVal >= 100 && cat.length > 2 && cat.length < 60) {
-      lineItems.push({ category: cat, amount: amt, rawLine: lineMatch[0].trim() });
+      // Only add if not already captured
+      const alreadyExists = lineItems.some(
+        (li) => li.category === cat && li.amount === amt,
+      );
+      if (!alreadyExists) {
+        lineItems.push({ category: cat, amount: amt, rawLine: lineMatch[0].trim() });
+      }
     }
   }
 

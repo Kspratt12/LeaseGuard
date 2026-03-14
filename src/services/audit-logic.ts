@@ -249,6 +249,12 @@ export async function runAudit(
       ? normalizeNumber(reconFields.reconciliationTotal)
       : null;
 
+  // Building-level total (used for fee percentage calculations where fees
+  // are applied to building expenses, not the tenant's share)
+  const buildingTotal = reconFields.reconciliationTotal
+    ? normalizeNumber(reconFields.reconciliationTotal)
+    : reconTotal;
+
   // ------------------------------------------------------------------
   // 1. CAM Cap Exceeded
   // ------------------------------------------------------------------
@@ -925,11 +931,18 @@ export async function runAudit(
       }
 
       if (adminFeeAmount > 0) {
-        const adminPercent = (adminFeeAmount / reconTotal) * 100;
+        // Use building-level total for fee percentage since management fees
+        // are applied to building operating expenses, not the tenant's share.
+        const feeBaseTotal = buildingTotal ?? reconTotal;
+        const adminPercent = feeBaseTotal != null && feeBaseTotal > 0
+          ? (adminFeeAmount / feeBaseTotal) * 100
+          : null;
 
-        if (adminPercent > adminFeeCap) {
-          const allowedAmount = reconTotal * (adminFeeCap / 100);
-          const adminOvercharge = Math.round(adminFeeAmount - allowedAmount);
+        if (adminPercent != null && adminPercent > adminFeeCap) {
+          // Calculate tenant-level overcharge: excess fee % × tenant's total
+          const tenantTotal = reconTotal ?? feeBaseTotal!;
+          const excessPercent = adminPercent - adminFeeCap;
+          const adminOvercharge = Math.round(tenantTotal * (excessPercent / 100));
 
           // Build evidence
           const adminValEvidence: SourceEvidence[] = [];
@@ -962,9 +975,9 @@ export async function runAudit(
 
           const adminValDesc =
             `Administrative Fee Cap Exceeded: The admin/management fee detected in the reconciliation ` +
-            `is $${adminFeeAmount.toLocaleString()}, which represents ${adminPercent.toFixed(2)}% of total charges ` +
-            `($${reconTotal.toLocaleString()}). The lease caps this fee at ${adminFeeCap}%. ` +
-            `Difference: ${(adminPercent - adminFeeCap).toFixed(2)}%. ` +
+            `is $${adminFeeAmount.toLocaleString()}, which represents ${adminPercent.toFixed(2)}% of building operating expenses ` +
+            `($${feeBaseTotal!.toLocaleString()}). The lease caps this fee at ${adminFeeCap}%. ` +
+            `Difference: ${excessPercent.toFixed(2)}%. ` +
             `Estimated overcharge: $${adminOvercharge.toLocaleString()}.`;
 
           paidFindings.push({
