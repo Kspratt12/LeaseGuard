@@ -38,13 +38,27 @@ export default function AuditPage({
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
+    const startedAt = Date.now();
+    let pollCount = 0;
+
+    // After 5 minutes of polling with no terminal state, show a timeout error
+    const MAX_POLL_DURATION_MS = 5 * 60 * 1000;
 
     async function fetchAudit() {
       try {
-        const res = await fetch(`/api/audit/${id}`, {
+        pollCount++;
+        // Cache-bust to prevent stale responses from CDN or browser cache
+        const res = await fetch(`/api/audit/${id}?_t=${Date.now()}`, {
           cache: "no-store",
+          headers: { "Cache-Control": "no-cache" },
         });
         if (!res.ok) {
+          // On transient server errors (5xx), keep polling instead of giving up
+          if (res.status >= 500 && !cancelled) {
+            console.warn(`[poll] audit=${id} got ${res.status}, retrying...`);
+            timer = setTimeout(fetchAudit, 3000);
+            return;
+          }
           setNotFound(true);
           return;
         }
@@ -53,16 +67,30 @@ export default function AuditPage({
         const isTerminal =
           data.status === "completed" || data.status === "error";
         console.log(
-          `[poll] audit=${id} status=${data.status} terminal=${isTerminal}`,
+          `[poll] audit=${id} status=${data.status} terminal=${isTerminal} poll#=${pollCount}`,
         );
 
         if (!cancelled) setAudit(data);
 
         // Keep polling while not terminal
         if (!cancelled && !isTerminal) {
+          // Failsafe: if polling exceeds max duration, stop and show error
+          if (Date.now() - startedAt > MAX_POLL_DURATION_MS) {
+            console.error(`[poll] audit=${id} polling timed out after ${MAX_POLL_DURATION_MS / 1000}s`);
+            if (!cancelled) {
+              setAudit({
+                ...data,
+                status: "error",
+                error_message:
+                  "Processing is taking longer than expected. Please refresh the page to check for results, or try uploading again.",
+              });
+            }
+            return;
+          }
           timer = setTimeout(fetchAudit, 2000);
         }
-      } catch {
+      } catch (err) {
+        console.warn(`[poll] audit=${id} fetch error:`, err);
         if (!cancelled) {
           timer = setTimeout(fetchAudit, 3000);
         }

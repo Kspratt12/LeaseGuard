@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -465,35 +465,45 @@ export async function POST(req: NextRequest) {
     // The client will poll GET /api/audit/[id] to track progress.
     console.log(`[upload:${auditId}] Returning response, starting background processing...`);
 
-    // Fire-and-forget: wrap in overall timeout so a hung step cannot leave
-    // the row in "processing" forever.
-    withTimeout(
-      processAudit(
-        auditId,
-        leaseBuffer,
-        reconBuffer,
-        supabase,
-        { leaseDocName: lease.name, reconDocName: recon.name },
-        extraReconFiles.length > 0 ? extraReconFiles : undefined,
-      ),
-      PROCESSING_TIMEOUT_MS,
-      "overall processing",
-    ).catch(async (err) => {
-      // Safety net: if the overall timeout fires and processAudit's own
-      // catch didn't run, force the row to error.
-      console.error(`[process:${auditId}] Overall timeout/error:`, err);
+    // Use after() to keep the serverless function alive until processing
+    // completes. Without this, Vercel may terminate the function after
+    // the response is sent, leaving the audit stuck in "processing".
+    const capturedAuditId = auditId;
+    const capturedLeaseDocName = lease.name;
+    const capturedReconDocName = recon.name;
+    const capturedExtraRecons = extraReconFiles.length > 0 ? extraReconFiles : undefined;
+
+    after(async () => {
       try {
-        await supabase
-          .from("audits")
-          .update({
-            status: "error",
-            error_message: err instanceof Error ? err.message : "Processing timed out",
-          })
-          .eq("id", auditId);
-      } catch { /* best-effort */ }
+        await withTimeout(
+          processAudit(
+            capturedAuditId,
+            leaseBuffer,
+            reconBuffer,
+            supabase,
+            { leaseDocName: capturedLeaseDocName, reconDocName: capturedReconDocName },
+            capturedExtraRecons,
+          ),
+          PROCESSING_TIMEOUT_MS,
+          "overall processing",
+        );
+      } catch (err) {
+        // Safety net: if the overall timeout fires and processAudit's own
+        // catch didn't run, force the row to error.
+        console.error(`[process:${capturedAuditId}] Overall timeout/error:`, err);
+        try {
+          await supabase
+            .from("audits")
+            .update({
+              status: "error",
+              error_message: err instanceof Error ? err.message : "Processing timed out",
+            })
+            .eq("id", capturedAuditId);
+        } catch { /* best-effort */ }
+      }
     });
 
-    return NextResponse.json({ success: true, id: auditId });
+    return NextResponse.json({ success: true, id: capturedAuditId });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : String(err);
