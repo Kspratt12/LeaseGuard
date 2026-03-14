@@ -10,7 +10,7 @@
  *   UNKNOWN          → rejected
  */
 
-import { PDFParse } from "pdf-parse";
+import pdfParse from "pdf-parse";
 import {
   extractTextWithOcr,
   OCR_TEXT_THRESHOLD,
@@ -230,11 +230,10 @@ export async function extractTextFromPdf(
   // Step 1: Try standard pdf-parse text extraction
   let pdfText = "";
   try {
-    const parser = new PDFParse({ data: new Uint8Array(buffer) });
-    const result = await parser.getText();
-    await parser.destroy();
+    const result = await pdfParse(buffer);
     pdfText = result.text ?? "";
-  } catch {
+  } catch (err) {
+    console.warn("[pdf-parse] Failed to extract text:", err instanceof Error ? err.message : err);
     pdfText = "";
   }
 
