@@ -123,7 +123,7 @@ export default function AuditPage({
           We couldn&apos;t locate this audit. It may have been removed or the
           link is incorrect.
         </p>
-        <Link href="/" className="text-blue-700 underline">
+        <Link href="/upload" className="text-blue-700 underline">
           Start a new audit
         </Link>
       </main>
@@ -179,7 +179,7 @@ export default function AuditPage({
               </p>
             )}
             <Link
-              href="/"
+              href="/upload"
               className="inline-block mt-4 text-sm text-blue-700 underline"
             >
               Try again
@@ -378,7 +378,7 @@ export default function AuditPage({
         </p>
 
         <div className="text-center">
-          <Link href="/" className="text-sm text-blue-700 underline">
+          <Link href="/upload" className="text-sm text-blue-700 underline">
             Run another audit
           </Link>
         </div>

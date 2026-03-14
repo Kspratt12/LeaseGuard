@@ -12,9 +12,10 @@ export function AuditResultsFree({
   if (findings.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 text-center text-gray-500">
-        <p>No free findings to display yet.</p>
+        <p>No overcharges detected in the free preview.</p>
         <p className="text-sm mt-1">
-          Check back once the audit has been processed.
+          The uploaded documents did not trigger any free-tier audit flags.
+          Additional checks may be available in the full report below.
         </p>
       </div>
     );

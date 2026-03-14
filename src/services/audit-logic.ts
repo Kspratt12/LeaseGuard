@@ -1193,6 +1193,33 @@ export async function runAudit(
     (f) => f.insufficientData || f.description.length > 0,
   );
 
+  // ---------------------------------------------------------------------------
+  // Promote paid findings to free preview when free findings are empty
+  // ---------------------------------------------------------------------------
+  // If no free-tier checks triggered but real paid findings exist, promote
+  // up to 2 substantive findings so the preview is never misleadingly empty.
+  if (
+    verifiedFree.length === 0 &&
+    verifiedPaid.filter((f) => !f.insufficientData).length > 0
+  ) {
+    const promotable = verifiedPaid.filter((f) => !f.insufficientData);
+    const toPromote = promotable.slice(0, 2);
+    for (const f of toPromote) {
+      verifiedFree.push(f);
+      // Remove from paid so it doesn't appear in both sections
+      const idx = verifiedPaid.indexOf(f);
+      if (idx !== -1) verifiedPaid.splice(idx, 1);
+    }
+  }
+
+  // If free findings are STILL empty (only insufficient-data paid findings),
+  // promote up to 1 insufficient-data finding as informational.
+  if (verifiedFree.length === 0 && verifiedPaid.length > 0) {
+    const infoFinding = verifiedPaid[0];
+    verifiedFree.push(infoFinding);
+    verifiedPaid.splice(0, 1);
+  }
+
   // Calculate savings only from verified, non-insufficient findings
   // Include estimated overcharge from excluded categories
   const findingSavings = [...verifiedFree, ...verifiedPaid]
