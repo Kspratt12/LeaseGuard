@@ -193,13 +193,32 @@ function findPageForText(fullText: string, searchText: string): number | null {
 function extractSnippet(
   text: string,
   searchTerm: string,
-  contextChars: number = 60,
+  contextChars: number = 100,
 ): string {
   const lower = text.toLowerCase();
   const idx = lower.indexOf(searchTerm.toLowerCase());
   if (idx === -1) return "";
-  const start = Math.max(0, idx - contextChars);
-  const end = Math.min(text.length, idx + searchTerm.length + contextChars);
+
+  // Expand to word boundaries to avoid mid-word cuts
+  let start = Math.max(0, idx - contextChars);
+  let end = Math.min(text.length, idx + searchTerm.length + contextChars);
+
+  // Snap start forward to next word boundary (space or newline)
+  if (start > 0) {
+    const nextSpace = text.indexOf(" ", start);
+    if (nextSpace !== -1 && nextSpace < idx) {
+      start = nextSpace + 1;
+    }
+  }
+
+  // Snap end backward to previous word boundary
+  if (end < text.length) {
+    const prevSpace = text.lastIndexOf(" ", end);
+    if (prevSpace > idx + searchTerm.length) {
+      end = prevSpace;
+    }
+  }
+
   let snippet = text.slice(start, end).replace(/\s+/g, " ").trim();
   if (start > 0) snippet = "..." + snippet;
   if (end < text.length) snippet = snippet + "...";

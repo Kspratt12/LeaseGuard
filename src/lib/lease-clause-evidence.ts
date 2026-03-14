@@ -28,7 +28,7 @@ export function getLeaseClauseEvidence(
     if (summary.camCap) {
       return {
         section: "CAM Expense Cap",
-        text: `Tenant shall not be responsible for annual CAM increases exceeding ${summary.camCap} of prior year expenses.`,
+        text: `Annual CAM or controllable operating expense increases shall not exceed ${summary.camCap} of prior year expenses per the lease agreement.`,
       };
     }
   }
@@ -38,7 +38,7 @@ export function getLeaseClauseEvidence(
     if (summary.adminFeeCap) {
       return {
         section: "Administrative Fee Cap",
-        text: `Administrative fees shall not exceed ${summary.adminFeeCap} of total CAM expenses billed to tenant.`,
+        text: `The lease limits administrative fees to ${summary.adminFeeCap} of total CAM or operating expenses billed to the tenant.`,
       };
     }
   }
@@ -48,7 +48,7 @@ export function getLeaseClauseEvidence(
     if (summary.managementFeeCap) {
       return {
         section: "Management Fee Cap",
-        text: `Management fees shall not exceed ${summary.managementFeeCap} of total operating expenses.`,
+        text: `Property management fees are capped at ${summary.managementFeeCap} of total operating expenses per the lease terms.`,
       };
     }
   }
@@ -61,13 +61,13 @@ export function getLeaseClauseEvidence(
   ) {
     if (summary.tenantProRataShare) {
       const parts: string[] = [
-        `Tenant pro-rata share is ${summary.tenantProRataShare}`,
+        `Tenant's pro-rata share is specified as ${summary.tenantProRataShare}`,
       ];
       if (summary.tenantSquareFootage) {
         parts.push(`based on tenant premises of ${summary.tenantSquareFootage} sq ft`);
       }
       if (summary.buildingSquareFootage) {
-        parts.push(`within a building of ${summary.buildingSquareFootage} sq ft`);
+        parts.push(`within a total building area of ${summary.buildingSquareFootage} sq ft`);
       }
       return {
         section: "Tenant Pro-Rata Share",
@@ -91,7 +91,7 @@ export function getLeaseClauseEvidence(
     if (summary.excludedCategories.length > 0) {
       return {
         section: "Excluded Expense Categories",
-        text: `The following categories are excluded from tenant reimbursement: ${summary.excludedCategories.join(", ")}.`,
+        text: `The lease excludes the following categories from tenant reimbursement: ${summary.excludedCategories.join(", ")}. These expenses should not appear in the tenant's CAM reconciliation charges.`,
       };
     }
   }

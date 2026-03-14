@@ -143,16 +143,16 @@ export function AuditResultsPaid({
       </div>
 
       {/* Conversion CTA */}
-      <div className="rounded-xl border border-blue-200 bg-gradient-to-b from-blue-50 to-white p-8 text-center">
-        <div className="flex items-center justify-center h-14 w-14 rounded-full bg-blue-100 mx-auto mb-5">
-          <Lock className="h-6 w-6 text-blue-700" />
+      <div className="rounded-xl border border-blue-200 bg-gradient-to-b from-blue-50 to-white p-5 sm:p-8 text-center">
+        <div className="flex items-center justify-center h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-blue-100 mx-auto mb-4 sm:mb-5">
+          <Lock className="h-5 w-5 sm:h-6 sm:w-6 text-blue-700" />
         </div>
 
-        <h3 className="text-xl font-bold text-gray-900 mb-3">
+        <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 sm:mb-3">
           Unlock Your Full CAM Audit Report
         </h3>
 
-        <p className="text-sm text-gray-600 leading-relaxed mb-6 max-w-sm mx-auto">
+        <p className="text-sm text-gray-600 leading-relaxed mb-5 sm:mb-6 max-w-sm mx-auto">
           Upgrade to view all discrepancies, see clause references, and
           download the full evidence report.
           {totalLockedSavings > 0 && (
@@ -168,7 +168,7 @@ export function AuditResultsPaid({
         </p>
 
         {/* Feature bullets */}
-        <ul className="flex flex-col gap-3 text-left text-sm text-gray-600 mb-8 w-full max-w-xs mx-auto">
+        <ul className="flex flex-col gap-2.5 sm:gap-3 text-left text-sm text-gray-600 mb-6 sm:mb-8 w-full max-w-xs mx-auto">
           <li className="flex items-center gap-3">
             <FileText className="h-4 w-4 text-blue-600 shrink-0" />
             <span>Document source references with page numbers</span>
@@ -185,13 +185,13 @@ export function AuditResultsPaid({
 
         <button
           disabled
-          className="group inline-flex items-center gap-2 px-8 py-3.5 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-500 hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          className="group inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-500 hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm sm:text-base"
         >
           Unlock Full Report – $49
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </button>
 
-        <p className="text-xs text-gray-400 mt-4">
+        <p className="text-xs text-gray-400 mt-3 sm:mt-4">
           One-time purchase · Instant access · PDF download included
         </p>
       </div>

@@ -385,11 +385,11 @@ function AuditResultsRenderer({
   hasFindings: boolean;
 }) {
   return (
-    <main className="flex flex-col items-center px-4 py-16 sm:py-24">
-      <div className="w-full max-w-2xl space-y-8">
+    <main className="flex flex-col items-center px-4 py-10 sm:py-24">
+      <div className="w-full max-w-2xl space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">Audit Results</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Audit Results</h1>
           <StatusBadge status={isComplete && showResults ? "completed" : isComplete ? "processing" : status} />
         </div>
 
@@ -432,12 +432,16 @@ function AuditResultsRenderer({
 
             {/* Limited audit mode banner */}
             {audit.audit_mode === "limited" && (
-              <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 flex items-start gap-3">
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 sm:p-4 flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
-                <p className="text-sm text-blue-800">
-                  Limited Review: Some checks could not be completed due to
-                  missing or unclear data.
-                </p>
+                <div>
+                  <p className="text-sm font-medium text-blue-800">
+                    Limited Review
+                  </p>
+                  <p className="text-xs text-blue-700 mt-0.5">
+                    Some checks could not be completed due to missing or unclear data in the uploaded documents.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -482,12 +486,12 @@ function AuditResultsRenderer({
 
             {/* Savings estimate / Overcharge detected */}
             {hasOvercharge ? (
-              <div className="rounded-xl bg-red-50 border border-red-200 p-8">
-                <div className="text-center space-y-3">
+              <div className="rounded-xl bg-red-50 border border-red-200 p-5 sm:p-8">
+                <div className="text-center space-y-2 sm:space-y-3">
                   <p className="text-xs text-red-800 font-semibold uppercase tracking-widest">
                     Estimated Recoverable Overcharges
                   </p>
-                  <p className="text-5xl font-bold text-red-700">
+                  <p className="text-4xl sm:text-5xl font-bold text-red-700">
                     ${estimatedOvercharge.toLocaleString()}
                   </p>
                   <p className="text-sm text-red-600 leading-relaxed max-w-md mx-auto">
@@ -496,15 +500,15 @@ function AuditResultsRenderer({
                 </div>
 
                 {/* Overcharge breakdown table */}
-                <div className="mt-8 overflow-x-auto">
-                  <table className="w-full text-sm border-separate" style={{ borderSpacing: "0 0" }}>
+                <div className="mt-6 sm:mt-8 overflow-x-auto -mx-2 sm:mx-0">
+                  <table className="w-full text-xs sm:text-sm border-separate min-w-[480px]" style={{ borderSpacing: "0 0" }}>
                     <thead>
                       <tr className="border-b-2 border-red-200">
-                        <th className="pb-3 pr-4 font-semibold text-red-800 text-left w-[28%]">Category</th>
-                        <th className="pb-3 px-3 font-semibold text-red-800 text-right w-[18%]">Total Expense</th>
-                        <th className="pb-3 px-3 font-semibold text-red-800 text-center w-[14%]">Tenant Share</th>
-                        <th className="pb-3 px-3 font-semibold text-red-800 text-right w-[18%]">Tenant Charge</th>
-                        <th className="pb-3 pl-4 font-semibold text-red-800 text-left w-[22%]">Reason</th>
+                        <th className="pb-2 sm:pb-3 pr-3 sm:pr-4 font-semibold text-red-800 text-left w-[28%]">Category</th>
+                        <th className="pb-2 sm:pb-3 px-2 sm:px-3 font-semibold text-red-800 text-right w-[18%]">Total Expense</th>
+                        <th className="pb-2 sm:pb-3 px-2 sm:px-3 font-semibold text-red-800 text-center w-[14%]">Tenant Share</th>
+                        <th className="pb-2 sm:pb-3 px-2 sm:px-3 font-semibold text-red-800 text-right w-[18%]">Tenant Charge</th>
+                        <th className="pb-2 sm:pb-3 pl-3 sm:pl-4 font-semibold text-red-800 text-left w-[22%]">Reason</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -545,11 +549,11 @@ function AuditResultsRenderer({
                 )}
               </div>
             ) : savingsEstimate > 0 ? (
-              <div className="rounded-xl bg-green-50 border border-green-200 p-8 text-center space-y-3">
+              <div className="rounded-xl bg-green-50 border border-green-200 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
                 <p className="text-xs text-green-800 font-semibold uppercase tracking-widest">
                   Estimated Recoverable Overcharges
                 </p>
-                <p className="text-5xl font-bold text-green-700">
+                <p className="text-4xl sm:text-5xl font-bold text-green-700">
                   ${savingsEstimate.toLocaleString()}
                 </p>
                 <p className="text-sm text-green-600 leading-relaxed max-w-md mx-auto">
@@ -557,7 +561,7 @@ function AuditResultsRenderer({
                 </p>
               </div>
             ) : hasFindings ? (
-              <div className="rounded-xl bg-amber-50 border border-amber-200 p-8 text-center space-y-3">
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
                 <p className="text-xs text-amber-800 font-semibold uppercase tracking-widest">
                   Potential Discrepancies Detected
                 </p>
@@ -569,7 +573,7 @@ function AuditResultsRenderer({
                 </p>
               </div>
             ) : (
-              <div className="rounded-xl bg-gray-50 border border-gray-200 p-8 text-center space-y-3">
+              <div className="rounded-xl bg-gray-50 border border-gray-200 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
                 <p className="text-xs text-gray-600 font-semibold uppercase tracking-widest">
                   No Clear Overcharges Detected
                 </p>
@@ -618,12 +622,18 @@ function AuditResultsRenderer({
           accounting advice.
         </p>
 
-        <div className="text-center space-x-4">
-          <Link href="/upload" className="text-sm text-blue-700 underline">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+          <Link
+            href="/upload"
+            className="text-sm text-blue-700 underline font-medium py-2 px-4"
+          >
             Back to Upload
           </Link>
-          <span className="text-xs text-gray-300">|</span>
-          <Link href="/upload" className="text-sm text-gray-500 underline">
+          <span className="hidden sm:inline text-xs text-gray-300">|</span>
+          <Link
+            href="/upload"
+            className="text-sm text-gray-500 underline py-2 px-4"
+          >
             Run another audit
           </Link>
         </div>
@@ -818,7 +828,7 @@ function LeaseClausesSection({ summary }: { summary: LeaseClauseSummary }) {
       </div>
 
       {clauses.length > 0 && (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 sm:gap-y-3 mb-4">
           {clauses.map((c, i) => (
             <div key={i} className="flex justify-between items-baseline border-b border-gray-100 pb-2">
               <span className="text-xs text-gray-500">{c.label}</span>

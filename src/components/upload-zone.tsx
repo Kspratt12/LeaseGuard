@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, FileText, Loader2, X, Camera, Image as ImageIcon } from "lucide-react";
+import { Upload, FileText, Loader2, X, Camera, Image as ImageIcon, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { imagesToPdf } from "@/lib/images-to-pdf";
 import { useAuditDraft } from "@/components/audit-draft-context";
@@ -205,6 +205,14 @@ export function UploadZone() {
 
   const handleAddReconFiles = useCallback(
     (files: File[]) => {
+      // Debug: log each file add operation for mobile parity diagnosis
+      console.log("[upload-zone] handleAddReconFiles called:", {
+        newFilesCount: files.length,
+        newFiles: files.map(f => ({ name: f.name, size: f.size, type: f.type })),
+        existingItemsCount: reconItems.length,
+        operation: "append",
+      });
+
       // Check for duplicates
       const existingNames = new Set(
         reconItems.flatMap((r) => r.sources.map((s) => s.name)),
@@ -305,6 +313,31 @@ export function UploadZone() {
 
     setUploading(true);
     setError(null);
+
+    // Debug: log complete file state before submission
+    console.log("[upload-zone] Submitting audit with file state:", {
+      lease: {
+        name: leaseItem.pdf.name,
+        size: leaseItem.pdf.size,
+        type: leaseItem.pdf.type,
+        label: leaseItem.label,
+        sourceCount: leaseItem.sources.length,
+        wasConverted: leaseItem.previews.length > 0,
+      },
+      reconFiles: reconItems.map((r, i) => ({
+        index: i,
+        name: r.pdf?.name ?? "null",
+        size: r.pdf?.size ?? 0,
+        type: r.pdf?.type ?? "null",
+        label: r.label,
+        sourceCount: r.sources.length,
+        wasConverted: r.previews.length > 0,
+        converting: r.converting,
+      })),
+      totalReconFiles: reconPdfs.length,
+      primaryRecon: reconPdfs[0]?.name,
+      extraRecons: reconPdfs.slice(1).map(f => f.name),
+    });
 
     try {
       const form = new FormData();
@@ -602,12 +635,15 @@ function MultiDocumentDropBox({
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const addMoreInputRef = useRef<HTMLInputElement>(null);
+  const addMoreCameraRef = useRef<HTMLInputElement>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     const accepted = Array.from(files).filter(isAcceptedFile);
     if (accepted.length > 0) onAddFiles(accepted);
+    // Reset so the same file can be re-selected if needed
     e.target.value = "";
   };
 
@@ -645,11 +681,13 @@ function MultiDocumentDropBox({
         )}
         <span className="font-medium text-sm text-center">
           {hasItems
-            ? `${items.length} file${items.length !== 1 ? "s" : ""} selected`
+            ? `${items.length} CAM file${items.length !== 1 ? "s" : ""} added`
             : label}
         </span>
         <span className="text-xs text-gray-500 text-center">
-          {hasItems ? "Click to add more" : hint}
+          {hasItems
+            ? "Tap or click to add another CAM year"
+            : hint}
         </span>
         {!hasItems && subHint && (
           <span className="text-xs text-gray-400 text-center">{subHint}</span>
@@ -667,20 +705,19 @@ function MultiDocumentDropBox({
         />
       </label>
 
-      {/* Camera capture button */}
+      {/* Camera capture button — always visible so mobile users can add photos incrementally */}
       <button
         type="button"
         onClick={() => cameraInputRef.current?.click()}
         className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:border-blue-300 hover:text-blue-600 transition-colors"
       >
         <Camera className="h-4 w-4" />
-        {cameraLabel}
+        {hasItems ? "Take Photo of Another CAM Statement" : cameraLabel}
         <input
           ref={cameraInputRef}
           type="file"
           accept="image/*"
           capture="environment"
-          multiple
           onChange={handleChange}
           className="hidden"
         />
@@ -692,11 +729,13 @@ function MultiDocumentDropBox({
 
       {/* File list with previews */}
       {hasItems && (
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-gray-500">
-            Uploaded CAM Files
-          </p>
-          <ul className="space-y-1">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-gray-500">
+              Uploaded CAM Files ({items.length})
+            </p>
+          </div>
+          <ul className="space-y-1.5">
             {items.map((item, index) => (
               <li key={item.id} className="space-y-1">
                 {/* Image previews */}
@@ -712,7 +751,7 @@ function MultiDocumentDropBox({
                     ))}
                   </div>
                 )}
-                <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded bg-blue-50 border border-blue-200 text-sm">
+                <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-sm">
                   <div className="flex items-center gap-2 min-w-0">
                     {item.converting ? (
                       <Loader2 className="h-4 w-4 text-blue-600 shrink-0 animate-spin" />
@@ -733,7 +772,7 @@ function MultiDocumentDropBox({
                   <button
                     type="button"
                     onClick={() => onRemoveItem(index)}
-                    className="text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                    className="text-gray-400 hover:text-red-500 transition-colors shrink-0 p-1"
                     aria-label={`Remove ${item.label}`}
                   >
                     <X className="h-4 w-4" />
@@ -742,6 +781,54 @@ function MultiDocumentDropBox({
               </li>
             ))}
           </ul>
+
+          {/* Explicit "Add Another" buttons — critical for mobile clarity */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => addMoreInputRef.current?.click()}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-dashed border-blue-300 bg-blue-50/50 text-xs font-medium text-blue-700 hover:bg-blue-50 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Another CAM Year
+              <input
+                ref={addMoreInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,image/*"
+                multiple
+                onChange={handleChange}
+                className="hidden"
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() => addMoreCameraRef.current?.click()}
+              className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border border-dashed border-blue-300 bg-blue-50/50 text-xs font-medium text-blue-700 hover:bg-blue-50 transition-colors"
+            >
+              <Camera className="h-3.5 w-3.5" />
+              Photo
+              <input
+                ref={addMoreCameraRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleChange}
+                className="hidden"
+              />
+            </button>
+          </div>
+
+          {/* Year-over-year hint */}
+          {items.length === 1 && (
+            <p className="text-xs text-blue-600 text-center leading-relaxed">
+              Add a second CAM year to enable year-over-year comparison
+            </p>
+          )}
+          {items.length >= 2 && (
+            <p className="text-xs text-green-600 text-center font-medium">
+              Year-over-year comparison enabled
+            </p>
+          )}
         </div>
       )}
     </div>

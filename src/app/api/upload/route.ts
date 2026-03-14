@@ -511,7 +511,14 @@ export async function POST(req: NextRequest) {
 
     // --- Return immediately, process in background ---
     // The client will poll GET /api/audit/[id] to track progress.
-    console.log(`[upload:${auditId}] LIFECYCLE: Returning response to client, files: lease=${lease.name}, recon=${recon.name}, extraRecons=${extraReconFiles.length}`);
+    // Log comprehensive per-file metadata for mobile/desktop parity debugging
+    console.log(`[upload:${auditId}] LIFECYCLE: Returning response to client`);
+    console.log(`[upload:${auditId}] File metadata:`, JSON.stringify({
+      lease: { name: lease.name, size: lease.size, type: lease.type, bufferSize: leaseBuffer.length },
+      recon: { name: recon.name, size: recon.size, type: recon.type, bufferSize: reconBuffer.length },
+      extraRecons: extraReconFiles.map((f, i) => ({ index: i, name: f.name, bufferSize: f.buffer.length })),
+      totalFiles: 2 + extraReconFiles.length,
+    }));
 
     // Use after() to keep the serverless function alive until processing
     // completes. Without this, Vercel may terminate the function after

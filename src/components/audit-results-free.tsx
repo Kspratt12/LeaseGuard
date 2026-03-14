@@ -31,7 +31,7 @@ export function AuditResultsFree({
         {visibleFindings.map((f, i) => (
           <li
             key={i}
-            className={`flex items-start gap-4 rounded-xl border p-5 ${
+            className={`flex items-start gap-3 sm:gap-4 rounded-xl border p-4 sm:p-5 ${
               f.insufficientData
                 ? "border-amber-200 bg-amber-50"
                 : "border-gray-200 bg-white"

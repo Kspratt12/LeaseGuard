@@ -418,12 +418,12 @@ function normalizeExtractedText(text: string): string {
 const CONCEPT_SYNONYMS: Array<{ canonical: string; variants: RegExp }> = [
   // CAM cap synonyms — do NOT consume "shall not exceed" (would break regex extraction of the percentage)
   { canonical: "CAM cap", variants: /\b(?:controllable\s*(?:expense|cost|operating)\s*cap|operating\s*expense\s*(?:escalation\s*)?cap|expense\s*escalation\s*(?:cap|limit)|annual\s*escalation\s*cap|cam\s*escalation\s*(?:cap|limit)|opex\s*cap|cap\s*on\s*controllable\s*(?:expenses?|costs?)|operating\s*expense\s*increase\s*cap|escalation\s*limitation|expense\s*increase\s*limitation|cost\s*escalation\s*limit)\b/gi },
-  // Pro rata share synonyms — includes percentage share, tenant share, etc.
-  { canonical: "pro-rata share", variants: /\b(?:proportionate\s*share|tenant(?:'s)?\s*(?:allocation|share\s*(?:percentage|pct|%))|cost\s*sharing\s*(?:percentage|ratio)|rentable\s*(?:area\s*)?(?:allocation|share)|sq(?:uare)?\s*(?:ft|foot|footage)\s*allocation|tenant\s*percentage|lessee(?:'s)?\s*share|occupancy\s*(?:share|percentage|ratio)|percentage\s*share|your\s*share|ratable\s*share|pro\s*rata|prorata)\b/gi },
-  // Management fee synonyms — includes mgmt, mgt, PM shorthand
-  { canonical: "management fee", variants: /\b(?:property\s*(?:mgmt|mgt)\s*fee|(?:mgmt|mgt)\s*fee|pm\s*fee|supervisory\s*fee|oversight\s*(?:fee|charge)|supervision\s*fee|management\s*charge|property\s*management\s*charge|mgmt\s*charge|property\s*mgmt\s*charge)\b/gi },
-  // Admin fee synonyms — includes admin, administration shorthand
-  { canonical: "administrative fee", variants: /\b(?:admin\s*(?:charge|cost|overhead)|administrative\s*(?:charge|cost|overhead)|overhead\s*(?:fee|charge)|admin\s*fee|administration\s*(?:fee|charge)|admin\.\s*fee|adm\s*fee|adm\.\s*fee)\b/gi },
+  // Pro rata share synonyms — includes percentage share, tenant share, allocated share, etc.
+  { canonical: "pro-rata share", variants: /\b(?:proportionate\s*(?:operating\s*expense\s*)?share|tenant(?:'s)?\s*(?:allocation|share\s*(?:percentage|pct|%)|percentage\s*(?:share|interest)|allocated\s*share|proportionate\s*share)|cost\s*sharing\s*(?:percentage|ratio)|rentable\s*(?:area\s*)?(?:allocation|share)|sq(?:uare)?\s*(?:ft|foot|footage)\s*allocation|tenant\s*percentage|lessee(?:'s)?\s*share|occupancy\s*(?:share|percentage|ratio)|percentage\s*share|your\s*share|ratable\s*share|pro\s*rata|prorata)\b/gi },
+  // Management fee synonyms — includes mgmt, mgt, PM shorthand, asset management in CAM context
+  { canonical: "management fee", variants: /\b(?:property\s*(?:mgmt|mgt)\s*fee|(?:mgmt|mgt)\s*fee|pm\s*fee|supervisory\s*fee|oversight\s*(?:fee|charge)|supervision\s*fee|management\s*charge|property\s*management\s*charge|mgmt\s*charge|property\s*mgmt\s*charge|asset\s*management\s*fee|property\s*manager\s*fee|manager(?:'s)?\s*fee)\b/gi },
+  // Admin fee synonyms — includes admin, administration shorthand, CAM admin fee, surcharge
+  { canonical: "administrative fee", variants: /\b(?:admin\s*(?:charge|cost|overhead)|administrative\s*(?:charge|cost|overhead|expense\s*fee|surcharge|cost\s*allocation)|overhead\s*(?:fee|charge)|admin\s*fee|administration\s*(?:fee|charge)|admin\.\s*fee|adm\s*fee|adm\.\s*fee|cam\s*admin(?:istrative|istration)?\s*fee|cam\s*administration\s*fee)\b/gi },
   // Excluded expense synonyms
   { canonical: "capital improvement", variants: /\b(?:cap(?:ital)?\s*(?:ex|expenditure|improvement|project)|capex|capital\s*(?:outlay|replacement|upgrade)|major\s*(?:repair|renovation|improvement))\b/gi },
   { canonical: "structural repair", variants: /\b(?:structural\s*(?:work|issue|deficiency|element)|building\s*(?:structure|shell|envelope)\s*(?:repair|maintenance)|structural\s*maintenance)\b/gi },
@@ -978,6 +978,18 @@ export function extractFields(text: string): ExtractedFields {
     /not\s*to\s*exceed\s*(\d+(?:\.\d+)?)\s*%\s*(?:annually|per\s*year|per\s*annum|each\s*year)/i,
     // "10% cap on annual increases"
     /(\d+(?:\.\d+)?)\s*%\s*cap\s*(?:on|for)\s*(?:annual|yearly)\s*(?:increase|escalation)/i,
+    // "Tenant shall not be responsible for annual increases exceeding X%"
+    /tenant\s*shall\s*not\s*be\s*responsible\s*for\s*(?:annual\s*)?increases?\s*exceeding\s*(\d+(?:\.\d+)?)\s*%/i,
+    // "Annual increase in CAM shall not exceed X%"
+    /annual\s*increase\s*in\s*(?:cam|common\s*area|operating)\s*(?:expenses?\s*)?shall\s*not\s*exceed\s*(\d+(?:\.\d+)?)\s*%/i,
+    // "Controllable operating expenses shall not increase by more than X%"
+    /controllable\s*(?:operating\s*)?(?:expenses?|costs?)\s*shall\s*not\s*increase\s*(?:by\s*)?more\s*than\s*(\d+(?:\.\d+)?)\s*%/i,
+    // "Annual CAM increases limited to X%"
+    /annual\s*(?:cam|common\s*area)\s*(?:maintenance\s*)?increases?\s*(?:are\s*)?limited\s*to\s*(\d+(?:\.\d+)?)\s*%/i,
+    // "expense cap of X% per annum"
+    /expense\s*cap\s*(?:of\s*)?(\d+(?:\.\d+)?)\s*%\s*(?:per\s*(?:annum|year)|annually)/i,
+    // "annual controllable expense increase shall not exceed X%"
+    /annual\s*controllable\s*(?:expense|cost)\s*increase\s*shall\s*not\s*exceed\s*(\d+(?:\.\d+)?)\s*%/i,
   ];
   let camCapPercentage: string | null = null;
   for (const pat of camCapPatterns) {
@@ -1001,6 +1013,16 @@ export function extractFields(text: string): ExtractedFields {
     /(\d+(?:\.\d+)?)\s*%\s*(?:admin(?:istrative|istration)?\s*(?:fee|charge))/i,
     // "Administrative Fee Cap: 5% of CAM charges" — bridges descriptive text
     /(?:admin(?:istrative|istration)?\s*fee\s*(?:cap|limit|maximum))\s*[:]\s*[^%]{0,60}?(\d+(?:\.\d+)?)\s*%/i,
+    // "CAM Administrative Fee: 12%", "CAM Administration Fee: 12%"
+    /(?:cam\s*admin(?:istrative|istration)?\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Administrative Expense Fee: 12%"
+    /(?:administrative\s*expense\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Administrative Surcharge: 12%"
+    /(?:administrative\s*surcharge)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Administrative Cost Allocation: 12%"
+    /(?:administrative\s*cost\s*allocation)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Adm. Fee: 12%", "Adm Fee: 12%"
+    /(?:adm\.?\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
   ];
   let adminFeePercentage: string | null = null;
   for (const pat of adminFeePatterns) {
@@ -1027,6 +1049,14 @@ export function extractFields(text: string): ExtractedFields {
     /(?:manager(?:'s|s)?\s*(?:fee|compensation))\s*(?:shall\s*not\s*exceed\s*|not\s*to\s*exceed\s*|[\s:]*)?(\d+(?:\.\d+)?)\s*%/i,
     // "Management Fee Cap: 4% of operating expenses" — bridges descriptive text
     /(?:(?:property\s*)?management\s*fee\s*(?:cap|limit|maximum))\s*[:]\s*[^%]{0,60}?(\d+(?:\.\d+)?)\s*%/i,
+    // "Mgmt Fee: 15%", "Mgmt. Fee: 15%"
+    /(?:mgmt\.?\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Property Manager Fee: 15%"
+    /(?:property\s*manager\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Asset Management Fee: 15%" (in CAM context)
+    /(?:asset\s*management\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "PM Fee: 15%"
+    /(?:pm\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
   ];
   let managementFee: string | null = null;
   for (const pat of mgmtFeePatterns) {
@@ -1056,6 +1086,18 @@ export function extractFields(text: string): ExtractedFields {
     /(?:(?:tenant(?:'s)?\s*)?pro[\s-]*rata\s*share)\s*[:]\s*(\d+(?:\.\d+)?)\s*%/i,
     // "Pro Rata Share: 8.5%" — simple colon-separated
     /(?:pro[\s-]*rata\s*share)\s*[:]\s*(\d+(?:\.\d+)?)\s*%/i,
+    // "Tenant's Proportionate Operating Expense Share: 8.5%"
+    /(?:tenant(?:'s)?\s*proportionate\s*operating\s*expense\s*share)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Tenant's Percentage Share: 8.5%", "Tenant's Percentage Interest: 8.5%"
+    /(?:tenant(?:'s)?\s*percentage\s*(?:share|interest))[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Tenant's Allocated Share: 8.5%"
+    /(?:tenant(?:'s)?\s*allocated\s*share)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Occupancy Ratio: 8.5%", "Occupancy Share: 8.5%"
+    /(?:occupancy\s*(?:ratio|share))[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Lessee's Share: 8.5%"
+    /(?:lessee(?:'s)?\s*share)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Share of Operating Expenses: 8.5%"
+    /(?:share\s*of\s*operating\s*expenses)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
   ];
   let proRataShare: string | null = null;
   for (const pat of proRataPatterns) {
@@ -1706,11 +1748,12 @@ function computeConfidence(
 ): { level: ConfidenceLevel; score: number } {
   let score = 0;
 
-  // Document classification strength (0–30)
-  score += Math.min(leaseClass.confidence * 30, 15);
-  score += Math.min(reconClass.confidence * 30, 15);
+  // Document classification strength (0–25)
+  score += Math.min(leaseClass.confidence * 25, 12.5);
+  score += Math.min(reconClass.confidence * 25, 12.5);
 
-  // Key financial fields present (0–40)
+  // Key financial fields present (0–35)
+  // Weighted: having a CAM total + at least one lease term is the most important
   const keyFields = [
     leaseFields.camCapPercentage,
     leaseFields.adminFeePercentage ?? leaseFields.managementFee,
@@ -1719,23 +1762,39 @@ function computeConfidence(
     reconFields.managementFee ?? reconFields.adminFeePercentage,
   ];
   const fieldsPresent = keyFields.filter(Boolean).length;
-  score += (fieldsPresent / keyFields.length) * 40;
+  score += (fieldsPresent / keyFields.length) * 35;
 
-  // Expense categories detected (0–15)
+  // Expense categories detected (0–12)
   const totalCategories =
     leaseFields.expenseCategories.length + reconFields.expenseCategories.length;
-  score += Math.min(totalCategories / 6, 1) * 15;
+  score += Math.min(totalCategories / 6, 1) * 12;
 
-  // Numeric values present (0–15)
+  // Numeric values present (0–10)
   const totalNumerics =
     leaseFields.numericValues.length + reconFields.numericValues.length;
-  score += Math.min(totalNumerics / 10, 1) * 15;
+  score += Math.min(totalNumerics / 10, 1) * 10;
+
+  // Line items extracted from reconciliation (0–8)
+  // More line items = higher confidence in data quality
+  score += Math.min(reconFields.lineItems.length / 4, 1) * 8;
+
+  // Excluded terms detected in lease (0–5)
+  // Finding excluded terms means meaningful lease clause detection
+  if (leaseFields.excludedTerms.length > 0) {
+    score += Math.min(leaseFields.excludedTerms.length / 3, 1) * 5;
+  }
+
+  // Year detection bonus (0–5)
+  // Having a reconciliation year adds trustworthiness
+  if (reconFields.reconciliationYear) {
+    score += 5;
+  }
 
   score = Math.round(Math.min(score, 100));
 
   let level: ConfidenceLevel;
-  if (score >= 70) level = "high";
-  else if (score >= 40) level = "medium";
+  if (score >= 60) level = "high";
+  else if (score >= 35) level = "medium";
   else level = "low";
 
   return { level, score };
