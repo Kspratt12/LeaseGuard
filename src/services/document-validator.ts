@@ -80,6 +80,8 @@ export interface ExtractedFields {
   priorYearTotal: string | null;
   /** Reconciliation year detected from document text (e.g. 2024). */
   reconciliationYear: number | null;
+  /** True when proRataShare was derived from tenant/building square footage. */
+  derivedProRataShare: boolean;
 }
 
 export interface ValidationIssue {
@@ -165,6 +167,58 @@ const LEASE_KEYWORDS = [
   "usable square",
   "gross leasable",
   "common area",
+  // Expanded real-world commercial lease language
+  "cam charge",
+  "cam charges",
+  "cam reconciliation",
+  "annual reconciliation",
+  "year end reconciliation",
+  "year-end reconciliation",
+  "cam %",
+  "cam percentage",
+  "cam charge cap",
+  "controllable expense cap",
+  "controllable operating",
+  "tenant's share",
+  "tenants share",
+  "tenant proportionate share",
+  "tenant pro rata share",
+  "tenant percentage share",
+  "leasable square",
+  "net rentable",
+  "gla",
+  "nra",
+  "nka",
+  "mgmt fee",
+  "property management fee",
+  "property mgmt",
+  "admin charge",
+  "administrative charge",
+  "overhead fee",
+  "supervision fee",
+  "asset management",
+  "excluded categories",
+  "non-recoverable",
+  "non-pass-through",
+  "capital expenditure",
+  "structural repair",
+  "roof replacement",
+  "legal fees",
+  "professional fees",
+  "marketing",
+  "advertising",
+  "janitorial",
+  "snow removal",
+  "security",
+  "landscaping",
+  "property tax",
+  "insurance",
+  "operating expense escalation",
+  "controllable operating expenses",
+  "excluded expenses",
+  "expense reconciliation",
+  "cam recon",
+  "recon year",
 ];
 
 const RECON_KEYWORDS = [
@@ -232,6 +286,66 @@ const RECON_KEYWORDS = [
   "total operating",
   "net amount",
   "estimated vs actual",
+  // Expanded real-world CAM reconciliation language
+  "cam recon",
+  "recon year",
+  "prior year total",
+  "current year total",
+  "cam reconciliation",
+  "annual cam",
+  "tenant's share",
+  "tenants share",
+  "your share of",
+  "proportionate share",
+  "percentage share",
+  "pro rata share",
+  "pro-rata share",
+  "tenant pro rata",
+  "rsf",
+  "gla",
+  "nra",
+  "rentable area",
+  "leasable area",
+  "mgmt fee",
+  "management charge",
+  "admin charge",
+  "administrative charge",
+  "overhead",
+  "property mgmt",
+  "controllable",
+  "non-controllable",
+  "uncontrollable",
+  "base year",
+  "expense stop",
+  "over base",
+  "above stop",
+  "tenant portion",
+  "owner portion",
+  "landlord portion",
+  "common area expense",
+  "building expense",
+  "building operating",
+  "real estate tax",
+  "property insurance",
+  "liability insurance",
+  "parking expense",
+  "exterior maintenance",
+  "interior maintenance",
+  "window cleaning",
+  "trash removal",
+  "refuse removal",
+  "waste removal",
+  "roofing",
+  "plumbing",
+  "electrical",
+  "general maintenance",
+  "repair and maintenance",
+  "r&m",
+  "contracted services",
+  "service contract",
+  "professional services",
+  "accounting",
+  "audit fee",
 ];
 
 // Expanded expense category list
@@ -239,35 +353,104 @@ const EXPENSE_CATEGORIES = [
   "tax",
   "taxes",
   "property tax",
+  "real estate tax",
   "insurance",
+  "property insurance",
+  "liability insurance",
   "maintenance",
   "repairs",
   "repairs and maintenance",
+  "repair and maintenance",
+  "r&m",
   "landscaping",
+  "landscape maintenance",
+  "grounds maintenance",
+  "lawn care",
   "security",
+  "security patrol",
+  "guard service",
   "utilities",
+  "utility",
   "management fee",
+  "property management",
+  "property management fee",
+  "mgmt fee",
   "admin fee",
   "administrative fee",
+  "administrative charge",
+  "admin charge",
+  "overhead fee",
+  "overhead",
   "legal",
+  "legal fee",
+  "professional fee",
+  "accounting fee",
+  "audit fee",
   "capital improvement",
+  "capital expenditure",
+  "capex",
   "roof repair",
+  "roofing",
   "structural repair",
   "janitorial",
+  "janitor service",
+  "custodial",
+  "cleaning service",
   "snow removal",
+  "snow plowing",
+  "ice removal",
+  "de-icing",
+  "winter maintenance",
   "trash removal",
+  "refuse removal",
+  "waste removal",
+  "waste management",
   "elevator",
+  "elevator maintenance",
   "hvac",
+  "hvac maintenance",
+  "heating",
+  "air conditioning",
   "parking",
+  "parking lot",
   "cleaning",
   "common area",
+  "common area maintenance",
   "water",
+  "water and sewer",
   "electric",
+  "electricity",
+  "electrical",
   "gas",
+  "natural gas",
   "sewer",
   "fire protection",
+  "fire safety",
+  "fire alarm",
+  "sprinkler",
   "pest control",
+  "extermination",
   "window cleaning",
+  "plumbing",
+  "painting",
+  "signage",
+  "marketing",
+  "advertising",
+  "promotional expense",
+  "contracted services",
+  "service contract",
+  "general maintenance",
+  "exterior maintenance",
+  "interior maintenance",
+  "building services",
+  "common area utilities",
+  "supplies",
+  "payroll",
+  "personnel",
+  "staffing",
+  "supervision",
+  "depreciation",
+  "amortization",
 ];
 
 // Lease exclusion terms (capital / non-pass-through items)
@@ -278,45 +461,90 @@ const EXCLUSION_TERMS = [
   "capital cost",
   "capital replacement",
   "capital repair",
+  "capital project",
+  "capital outlay",
+  "capital upgrade",
+  "capex",
   "structural repair",
   "structural maintenance",
   "structural defect",
+  "structural work",
+  "structural element",
+  "building shell",
+  "building envelope",
+  "exterior wall",
   "roof replacement",
   "roof repair",
+  "roofing",
+  "roof restoration",
+  "roof maintenance",
   "foundation",
+  "foundation repair",
   "depreciation",
   "amortization",
   "ground lease",
   "ground rent",
   "leasing commission",
   "brokerage commission",
+  "brokerage fee",
+  "broker fee",
   "tenant improvement",
   "tenant buildout",
+  "tenant build-out",
   "tenant allowance",
+  "tenant fit-out",
+  "ti allowance",
   "condemnation",
   "environmental remediation",
+  "environmental cleanup",
   "hazardous material",
+  "hazmat",
   "asbestos",
+  "asbestos removal",
+  "asbestos abatement",
   "mold remediation",
+  "mold removal",
+  "lead paint",
   "legal fee",
+  "legal expense",
+  "legal cost",
   "litigation",
+  "attorney",
+  "attorney fee",
   "mortgage",
   "debt service",
   "interest expense",
+  "financing cost",
+  "loan payment",
   "above-standard",
   "above standard",
   "professional fee",
+  "professional services",
   "accounting fee",
   "audit expense",
+  "audit cost",
+  "cpa fee",
   "management overhead",
+  "corporate overhead",
   "advertising",
   "promotional expense",
+  "marketing cost",
+  "promotion",
   "charitable contribution",
   "donation",
   "penalty",
   "fine",
   "late fee",
+  "late charge",
   "interest charge",
+  "interest penalty",
+  "major repair",
+  "major renovation",
+  "major improvement",
+  "reconstruction",
+  "demolition",
+  "new construction",
+  "expansion cost",
 ];
 
 // ---------------------------------------------------------------------------
@@ -417,27 +645,31 @@ function normalizeExtractedText(text: string): string {
  */
 const CONCEPT_SYNONYMS: Array<{ canonical: string; variants: RegExp }> = [
   // CAM cap synonyms — do NOT consume "shall not exceed" (would break regex extraction of the percentage)
-  { canonical: "CAM cap", variants: /\b(?:controllable\s*(?:expense|cost|operating)\s*cap|operating\s*expense\s*(?:escalation\s*)?cap|expense\s*escalation\s*(?:cap|limit)|annual\s*escalation\s*cap|cam\s*escalation\s*(?:cap|limit)|opex\s*cap|cap\s*on\s*controllable\s*(?:expenses?|costs?)|operating\s*expense\s*increase\s*cap|escalation\s*limitation|expense\s*increase\s*limitation|cost\s*escalation\s*limit)\b/gi },
+  { canonical: "CAM cap", variants: /\b(?:controllable\s*(?:expense|cost|operating)\s*cap|operating\s*expense\s*(?:escalation\s*)?cap|expense\s*escalation\s*(?:cap|limit)|annual\s*escalation\s*cap|cam\s*escalation\s*(?:cap|limit)|opex\s*cap|cap\s*on\s*controllable\s*(?:expenses?|costs?)|operating\s*expense\s*increase\s*cap|escalation\s*limitation|expense\s*increase\s*limitation|cost\s*escalation\s*limit|cam\s*charge\s*cap|controllable\s*expense\s*cap|controllable\s*cost\s*cap|admin\s*cap|expense\s*increase\s*cap)\b/gi },
   // Pro rata share synonyms — includes percentage share, tenant share, allocated share, etc.
-  { canonical: "pro-rata share", variants: /\b(?:proportionate\s*(?:operating\s*expense\s*)?share|tenant(?:'s)?\s*(?:allocation|share\s*(?:percentage|pct|%)|percentage\s*(?:share|interest)|allocated\s*share|proportionate\s*share)|cost\s*sharing\s*(?:percentage|ratio)|rentable\s*(?:area\s*)?(?:allocation|share)|sq(?:uare)?\s*(?:ft|foot|footage)\s*allocation|tenant\s*percentage|lessee(?:'s)?\s*share|occupancy\s*(?:share|percentage|ratio)|percentage\s*share|your\s*share|ratable\s*share|pro\s*rata|prorata)\b/gi },
+  { canonical: "pro-rata share", variants: /\b(?:proportionate\s*(?:operating\s*expense\s*)?share|tenant(?:'s)?\s*(?:allocation|share\s*(?:percentage|pct|%)|percentage\s*(?:share|interest)|allocated\s*share|proportionate\s*share)|cost\s*sharing\s*(?:percentage|ratio)|rentable\s*(?:area\s*)?(?:allocation|share)|sq(?:uare)?\s*(?:ft|foot|footage)\s*allocation|tenant\s*percentage|lessee(?:'s)?\s*share|occupancy\s*(?:share|percentage|ratio)|percentage\s*share|your\s*share|ratable\s*share|pro\s*rata|prorata|tenant(?:'s)?\s*share\s*of\s*operating|nra\s*share|gla\s*share|rentable\s*area\s*share|leasable\s*area\s*share|rsf\s*(?:share|ratio|percentage|allocation)|percentage\s*of\s*building|occupancy\s*ratio|tenant\s*portion|your\s*portion)\b/gi },
   // Management fee synonyms — includes mgmt, mgt, PM shorthand, asset management in CAM context
-  { canonical: "management fee", variants: /\b(?:property\s*(?:mgmt|mgt)\s*fee|(?:mgmt|mgt)\s*fee|pm\s*fee|supervisory\s*fee|oversight\s*(?:fee|charge)|supervision\s*fee|management\s*charge|property\s*management\s*charge|mgmt\s*charge|property\s*mgmt\s*charge|asset\s*management\s*fee|property\s*manager\s*fee|manager(?:'s)?\s*fee)\b/gi },
+  { canonical: "management fee", variants: /\b(?:property\s*(?:mgmt|mgt)\s*fee|(?:mgmt|mgt)\.?\s*fee|pm\s*fee|supervisory\s*fee|oversight\s*(?:fee|charge)|supervision\s*fee|management\s*charge|property\s*management\s*charge|mgmt\s*charge|property\s*mgmt\s*charge|asset\s*management\s*fee|property\s*manager\s*fee|manager(?:'s)?\s*fee|landlord\s*management\s*fee|management\s*and\s*admin(?:istrative)?\s*fee|mgmt\.?\s*charge|mgt\.?\s*fee|mgt\.?\s*charge)\b/gi },
   // Admin fee synonyms — includes admin, administration shorthand, CAM admin fee, surcharge
-  { canonical: "administrative fee", variants: /\b(?:admin\s*(?:charge|cost|overhead)|administrative\s*(?:charge|cost|overhead|expense\s*fee|surcharge|cost\s*allocation)|overhead\s*(?:fee|charge)|admin\s*fee|administration\s*(?:fee|charge)|admin\.\s*fee|adm\s*fee|adm\.\s*fee|cam\s*admin(?:istrative|istration)?\s*fee|cam\s*administration\s*fee)\b/gi },
+  { canonical: "administrative fee", variants: /\b(?:admin\s*(?:charge|cost|overhead)|administrative\s*(?:charge|cost|overhead|expense\s*fee|surcharge|cost\s*allocation|expense)|overhead\s*(?:fee|charge)|admin\s*fee|administration\s*(?:fee|charge)|admin\.?\s*fee|adm\.?\s*fee|cam\s*admin(?:istrative|istration)?\s*fee|cam\s*administration\s*fee|office\s*admin(?:istration)?\s*(?:fee|charge)?|admin(?:istrative)?\s*charge\s*cap|admin\s*cap|admin(?:istrative)?\s*fee\s*not\s*to\s*exceed)\b/gi },
   // Excluded expense synonyms
   { canonical: "capital improvement", variants: /\b(?:cap(?:ital)?\s*(?:ex|expenditure|improvement|project)|capex|capital\s*(?:outlay|replacement|upgrade)|major\s*(?:repair|renovation|improvement))\b/gi },
   { canonical: "structural repair", variants: /\b(?:structural\s*(?:work|issue|deficiency|element)|building\s*(?:structure|shell|envelope)\s*(?:repair|maintenance)|structural\s*maintenance)\b/gi },
   // Reconciliation total synonyms
   { canonical: "total operating expenses", variants: /\b(?:total\s*(?:opex|op\s*ex)|aggregate\s*(?:operating\s*)?(?:expenses?|charges?|costs?)|combined\s*(?:operating\s*)?(?:expenses?|charges?)|total\s*common\s*area\s*(?:maintenance\s*)?(?:charges?|costs?)|grand\s*total\s*(?:operating\s*)?(?:expenses?|charges?)|total\s*bldg\s*(?:expenses?|charges?))\b/gi },
-  // Square footage synonyms — includes RSF, NRA, GLA
-  { canonical: "rentable square feet", variants: /\b(?:rsf|gross\s*leasable\s*area|gla|net\s*rentable\s*area|nra|usable\s*square\s*(?:feet|footage)|leasable\s*(?:area|square\s*(?:feet|footage))|rentable\s*sf|net\s*sf|gross\s*sf)\b/gi },
+  // Square footage synonyms — includes RSF, NRA, GLA, NKA
+  { canonical: "rentable square feet", variants: /\b(?:rsf|gross\s*leasable\s*area|gla|net\s*rentable\s*area|nra|nka|usable\s*square\s*(?:feet|footage)|leasable\s*(?:area|square\s*(?:feet|footage))|rentable\s*sf|net\s*sf|gross\s*sf|leasable\s*sf|usable\s*sf|building\s*sf|bldg\s*sf)\b/gi },
   // Common area maintenance synonyms — includes comm, com shorthand
   // Note: cam\b uses negative lookahead to avoid breaking "CAM Cap", "CAM Reconciliation", "CAM Charges" patterns
   { canonical: "common area maintenance", variants: /\b(?:cam\b(?!\s*(?:cap|reconcil|charges?|escalat))|common\s*area\s*(?:charges?|costs?|expenses?)|maintenance\s*(?:charges?|costs?)|comm(?:on|ercial)?\s*area\s*(?:maint(?:enance)?|charges?|costs?)|com\.\s*area\s*maint)\b/gi },
   // Operating expenses synonyms — includes OpEx shorthand
-  { canonical: "operating expenses", variants: /\b(?:opex|op\s*ex|op\.\s*ex\.?|operating\s*costs?|building\s*(?:operating\s*)?(?:expenses?|costs?)|bldg\s*(?:operating\s*)?(?:expenses?|costs?))\b/gi },
+  { canonical: "operating expenses", variants: /\b(?:opex|op\s*ex|op\.?\s*ex\.?|operating\s*costs?|building\s*(?:operating\s*)?(?:expenses?|costs?)|bldg\s*(?:operating\s*)?(?:expenses?|costs?)|bldg\s*ops|building\s*ops)\b/gi },
   // Commercial shorthand
   { canonical: "commercial", variants: /\b(?:comm\b|com\b|comm\.\s*(?:lease|property|space))\b/gi },
+  // Reconciliation synonyms
+  { canonical: "reconciliation", variants: /\b(?:cam\s*recon|recon\s*year|annual\s*recon|year[- ]end\s*recon|expense\s*recon|recon\s*statement)\b/gi },
+  // Prior year synonyms
+  { canonical: "prior year total", variants: /\b(?:prior\s*year\s*(?:cam|total|charges?|expenses?)|previous\s*year\s*(?:cam|total|charges?|expenses?)|last\s*year\s*(?:cam|total|charges?|expenses?)|base\s*year\s*(?:total|charges?|expenses?)|preceding\s*year\s*(?:total|charges?))\b/gi },
 ];
 
 /**
@@ -990,6 +1222,20 @@ export function extractFields(text: string): ExtractedFields {
     /expense\s*cap\s*(?:of\s*)?(\d+(?:\.\d+)?)\s*%\s*(?:per\s*(?:annum|year)|annually)/i,
     // "annual controllable expense increase shall not exceed X%"
     /annual\s*controllable\s*(?:expense|cost)\s*increase\s*shall\s*not\s*exceed\s*(\d+(?:\.\d+)?)\s*%/i,
+    // "CAM charge cap: 5%", "CAM charges cap: 5%"
+    /(?:cam\s*charges?\s*cap)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "controllable expense cap of X%"
+    /(?:controllable\s*(?:expense|cost|operating)\s*cap)\s*(?:of\s*)?(\d+(?:\.\d+)?)\s*%/i,
+    // "X% cap on CAM charges"
+    /(\d+(?:\.\d+)?)\s*%\s*cap\s*(?:on|for)\s*(?:cam|common\s*area|operating|controllable)/i,
+    // "expenses shall be capped at X% per annum"
+    /(?:expenses?|costs?|charges?)\s*(?:shall\s*be\s*)?(?:capped|limited)\s*(?:at|to)\s*(\d+(?:\.\d+)?)\s*%\s*(?:per|each|any|annually)/i,
+    // "annual CAM cap of X%"
+    /annual\s*(?:cam|common\s*area)\s*cap\s*(?:of\s*)?(\d+(?:\.\d+)?)\s*%/i,
+    // "operating costs shall not increase by more than X%"
+    /(?:operating|controllable)\s*(?:costs?|expenses?)\s*(?:shall\s*)?not\s*(?:increase|exceed)\s*(?:by\s*)?(?:more\s*than\s*)?(\d+(?:\.\d+)?)\s*%/i,
+    // "X% annual cap"
+    /(\d+(?:\.\d+)?)\s*%\s*annual\s*cap/i,
   ];
   let camCapPercentage: string | null = null;
   for (const pat of camCapPatterns) {
@@ -1023,6 +1269,22 @@ export function extractFields(text: string): ExtractedFields {
     /(?:administrative\s*cost\s*allocation)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
     // "Adm. Fee: 12%", "Adm Fee: 12%"
     /(?:adm\.?\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Overhead Fee: 12%", "Overhead Charge: 12%"
+    /(?:overhead\s*(?:fee|charge))[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Office Administration Fee: 12%", "Office Admin: 12%"
+    /(?:office\s*admin(?:istration)?\s*(?:fee|charge)?)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Management and Administrative Fee: 12%", "Management & Admin Fee: 12%"
+    /(?:management\s*(?:and|&)\s*admin(?:istrative)?\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "administrative fee not to exceed X%"
+    /(?:admin(?:istrative)?\s*(?:fee|charge))\s*not\s*to\s*exceed\s*(\d+(?:\.\d+)?)\s*%/i,
+    // "admin fee cap X%", "administrative charge cap X%"
+    /(?:admin(?:istrative)?\s*(?:fee|charge)\s*cap)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "X% admin fee", "X% administrative charge"
+    /(\d+(?:\.\d+)?)\s*%\s*(?:admin(?:istrative|istration)?\s*(?:fee|charge|cost|overhead))/i,
+    // "Admin. Charge: 12%"
+    /(?:admin\.?\s*charge)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Administrative Expense: 12%"
+    /(?:administrative\s*expense)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
   ];
   let adminFeePercentage: string | null = null;
   for (const pat of adminFeePatterns) {
@@ -1057,6 +1319,22 @@ export function extractFields(text: string): ExtractedFields {
     /(?:asset\s*management\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
     // "PM Fee: 15%"
     /(?:pm\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Landlord Management Fee: 10%"
+    /(?:landlord\s*management\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Supervision Fee: 10%"
+    /(?:supervision\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Management Fee not to exceed X%"
+    /(?:management\s*fee)\s*not\s*to\s*exceed\s*(\d+(?:\.\d+)?)\s*%/i,
+    // "management fee cap X%"
+    /(?:management\s*fee\s*cap)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Mgt Fee: 15%", "Mgt. Fee: 15%"
+    /(?:mgt\.?\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "X% management fee"
+    /(\d+(?:\.\d+)?)\s*%\s*(?:(?:property\s*)?management\s*(?:fee|charge))/i,
+    // "Management and Administrative Fee: 15%"
+    /(?:management\s*(?:and|&)\s*admin(?:istrative)?\s*fee)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Property Mgmt: 15%"
+    /(?:property\s*mgmt)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
   ];
   let managementFee: string | null = null;
   for (const pat of mgmtFeePatterns) {
@@ -1098,6 +1376,26 @@ export function extractFields(text: string): ExtractedFields {
     /(?:lessee(?:'s)?\s*share)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
     // "Share of Operating Expenses: 8.5%"
     /(?:share\s*of\s*operating\s*expenses)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "NRA share: 8.5%", "GLA share: 8.5%"
+    /(?:(?:nra|gla|rsf)\s*share)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Rentable area share: 8.5%", "Leasable area share: 8.5%"
+    /(?:(?:rentable|leasable)\s*area\s*share)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Tenant's Share of Operating Expenses: 8.5%"
+    /(?:tenant(?:'s)?\s*share\s*of\s*(?:operating\s*)?(?:expenses?|costs?|charges?))[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Percentage of Building: 8.5%"
+    /(?:percentage\s*of\s*(?:the\s*)?(?:building|property))[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "CAM %: 8.5" or "CAM Share: 8.5%"
+    /(?:cam\s*(?:%|share|percentage))[\s:]*(\d+(?:\.\d+)?)\s*%?/i,
+    // "Tenant occupies X square feet of Y total" (capture as ratio)
+    // Note: this captures sqft values, not a percentage — handled separately below
+    // "X.XX% of total building area"
+    /(\d+(?:\.\d+)?)\s*%\s*of\s*(?:total\s*)?(?:building|property)\s*(?:area|rentable)/i,
+    // "Tenant's Portion: 8.5%"
+    /(?:tenant(?:'s)?\s*portion)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Your Portion: 8.5%"
+    /(?:your\s*portion)[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Allocated at 8.5%"
+    /(?:allocated\s*at)\s*(\d+(?:\.\d+)?)\s*%/i,
   ];
   let proRataShare: string | null = null;
   for (const pat of proRataPatterns) {
@@ -1159,11 +1457,31 @@ export function extractFields(text: string): ExtractedFields {
   const statedSharePatterns = [
     /(?:tenant(?:'s)?\s*(?:proportionate|pro[\s-]*rata)\s*share)\s*(?:shall\s*be|is|equals?|:)\s*(\d+(?:\.\d+)?)\s*%/i,
     /(?:proportionate\s*share)\s*(?:shall\s*be|is|equals?|:)\s*(\d+(?:\.\d+)?)\s*%/i,
+    /(?:tenant(?:'s)?\s*share)\s*(?:shall\s*be|is|equals?)\s*(\d+(?:\.\d+)?)\s*%/i,
+    /(?:tenant(?:'s)?\s*percentage)\s*(?:shall\s*be|is|equals?|:)\s*(\d+(?:\.\d+)?)\s*%/i,
+    /(?:allocated\s*share)\s*(?:shall\s*be|is|equals?|:)\s*(\d+(?:\.\d+)?)\s*%/i,
+    // "RSF divided by building RSF" style capture — look for the percentage result
+    /(?:rsf|rentable\s*(?:square\s*feet|area))\s*(?:divided\s*by|\/)\s*(?:building|total)\s*(?:rsf|rentable\s*(?:square\s*feet|area))[^%]{0,40}?(\d+(?:\.\d+)?)\s*%/i,
   ];
   let statedTenantSharePercent: string | null = null;
   for (const pat of statedSharePatterns) {
     const m = text.match(pat);
     if (m) { statedTenantSharePercent = m[1]; break; }
+  }
+
+  // Derive pro-rata share from square footage if explicit share is missing
+  // Label clearly as derived — never overwrite explicit values
+  let derivedProRataShare: string | null = null;
+
+  // Derive pro-rata share from square footage when explicit share is missing
+  if (!proRataShare && tenantPremisesSqFt && buildingTotalSqFt) {
+    const tSqFt = parseFloat(tenantPremisesSqFt.replace(/,/g, ""));
+    const bSqFt = parseFloat(buildingTotalSqFt.replace(/,/g, ""));
+    if (!isNaN(tSqFt) && !isNaN(bSqFt) && bSqFt > 0 && tSqFt > 0 && tSqFt < bSqFt) {
+      derivedProRataShare = ((tSqFt / bSqFt) * 100).toFixed(2);
+      proRataShare = derivedProRataShare;
+      console.log(`[extractFields] Derived pro-rata share: ${derivedProRataShare}% (${tSqFt} / ${bSqFt})`);
+    }
   }
 
   // -----------------------------------------------------------------
@@ -1717,6 +2035,7 @@ export function extractFields(text: string): ExtractedFields {
     derivedTotal,
     priorYearTotal,
     reconciliationYear,
+    derivedProRataShare: derivedProRataShare !== null,
   };
 
   // Log detailed extraction diagnostics
@@ -1748,53 +2067,62 @@ function computeConfidence(
 ): { level: ConfidenceLevel; score: number } {
   let score = 0;
 
-  // Document classification strength (0–25)
-  score += Math.min(leaseClass.confidence * 25, 12.5);
-  score += Math.min(reconClass.confidence * 25, 12.5);
+  // Document classification strength (0–20)
+  score += Math.min(leaseClass.confidence * 20, 10);
+  score += Math.min(reconClass.confidence * 20, 10);
 
-  // Key financial fields present (0–35)
-  // Weighted: having a CAM total + at least one lease term is the most important
-  const keyFields = [
-    leaseFields.camCapPercentage,
-    leaseFields.adminFeePercentage ?? leaseFields.managementFee,
-    leaseFields.proRataShare,
-    reconFields.totalCamCharges ?? reconFields.reconciliationTotal,
-    reconFields.managementFee ?? reconFields.adminFeePercentage,
-  ];
-  const fieldsPresent = keyFields.filter(Boolean).length;
-  score += (fieldsPresent / keyFields.length) * 35;
+  // --- Core audit fields — weighted more heavily ---
 
-  // Expense categories detected (0–12)
+  // Explicit lease caps boost confidence significantly (0–15)
+  if (leaseFields.camCapPercentage) score += 8;
+  if (leaseFields.adminFeePercentage || leaseFields.managementFee) score += 4;
+  if (leaseFields.proRataShare) score += 3;
+
+  // Explicit year totals boost confidence significantly (0–12)
+  if (reconFields.totalCamCharges || reconFields.reconciliationTotal) score += 8;
+  if (reconFields.priorYearTotal) score += 4;
+
+  // Excluded categories in lease (0–7)
+  if (leaseFields.excludedTerms.length > 0) {
+    score += Math.min(leaseFields.excludedTerms.length / 3, 1) * 7;
+  }
+
+  // Year detection bonus (0–4)
+  if (reconFields.reconciliationYear) score += 4;
+
+  // Expense categories detected (0–10)
   const totalCategories =
     leaseFields.expenseCategories.length + reconFields.expenseCategories.length;
-  score += Math.min(totalCategories / 6, 1) * 12;
+  score += Math.min(totalCategories / 6, 1) * 10;
 
-  // Numeric values present (0–10)
+  // Line items extracted from reconciliation (0–10)
+  score += Math.min(reconFields.lineItems.length / 4, 1) * 10;
+
+  // Numeric values present (0–7)
   const totalNumerics =
     leaseFields.numericValues.length + reconFields.numericValues.length;
-  score += Math.min(totalNumerics / 10, 1) * 10;
+  score += Math.min(totalNumerics / 10, 1) * 7;
 
-  // Line items extracted from reconciliation (0–8)
-  // More line items = higher confidence in data quality
-  score += Math.min(reconFields.lineItems.length / 4, 1) * 8;
+  // Square footage data present (0–4)
+  if (leaseFields.tenantPremisesSqFt) score += 2;
+  if (leaseFields.buildingTotalSqFt) score += 2;
 
-  // Excluded terms detected in lease (0–5)
-  // Finding excluded terms means meaningful lease clause detection
-  if (leaseFields.excludedTerms.length > 0) {
-    score += Math.min(leaseFields.excludedTerms.length / 3, 1) * 5;
-  }
+  // Stated tenant share (0–3)
+  if (leaseFields.statedTenantSharePercent) score += 3;
 
-  // Year detection bonus (0–5)
-  // Having a reconciliation year adds trustworthiness
-  if (reconFields.reconciliationYear) {
-    score += 5;
-  }
+  // Both documents classified successfully bonus (0–5)
+  if (leaseClass.tier !== "unknown" && reconClass.tier !== "unknown") score += 5;
+
+  // Strong extraction from both documents bonus (0–5)
+  const hasStrongLease = leaseFields.camCapPercentage != null || leaseFields.proRataShare != null;
+  const hasStrongRecon = reconFields.totalCamCharges != null || reconFields.reconciliationTotal != null;
+  if (hasStrongLease && hasStrongRecon) score += 5;
 
   score = Math.round(Math.min(score, 100));
 
   let level: ConfidenceLevel;
-  if (score >= 60) level = "high";
-  else if (score >= 35) level = "medium";
+  if (score >= 55) level = "high";
+  else if (score >= 30) level = "medium";
   else level = "low";
 
   return { level, score };
@@ -2173,5 +2501,6 @@ function emptyFields(): ExtractedFields {
     derivedTotal: false,
     priorYearTotal: null,
     reconciliationYear: null,
+    derivedProRataShare: false,
   };
 }

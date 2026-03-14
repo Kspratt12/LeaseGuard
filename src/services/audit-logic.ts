@@ -189,39 +189,65 @@ function findPageForText(fullText: string, searchText: string): number | null {
 
 /**
  * Extract a short snippet of surrounding context from document text.
+ * Snaps to sentence or clause boundaries when possible to avoid
+ * mid-word cuts and ugly fragments.
  */
 function extractSnippet(
   text: string,
   searchTerm: string,
-  contextChars: number = 100,
+  contextChars: number = 120,
 ): string {
   const lower = text.toLowerCase();
   const idx = lower.indexOf(searchTerm.toLowerCase());
   if (idx === -1) return "";
 
-  // Expand to word boundaries to avoid mid-word cuts
+  // Expand to generous boundaries first
   let start = Math.max(0, idx - contextChars);
   let end = Math.min(text.length, idx + searchTerm.length + contextChars);
 
-  // Snap start forward to next word boundary (space or newline)
+  // Snap start to sentence/clause boundary (period, semicolon, newline)
   if (start > 0) {
-    const nextSpace = text.indexOf(" ", start);
-    if (nextSpace !== -1 && nextSpace < idx) {
-      start = nextSpace + 1;
+    // Look for sentence boundary markers before start but after start-50
+    const searchFrom = Math.max(0, start - 30);
+    const region = text.slice(searchFrom, idx);
+    // Find last sentence-ending punctuation followed by space/newline
+    const sentEnd = region.search(/[.;]\s+(?=[A-Z])/);
+    if (sentEnd !== -1) {
+      start = searchFrom + sentEnd + 2; // skip the ". " part
+    } else {
+      // Fall back to word boundary
+      const nextSpace = text.indexOf(" ", start);
+      if (nextSpace !== -1 && nextSpace < idx) {
+        start = nextSpace + 1;
+      }
     }
   }
 
-  // Snap end backward to previous word boundary
+  // Snap end to sentence/clause boundary
   if (end < text.length) {
-    const prevSpace = text.lastIndexOf(" ", end);
-    if (prevSpace > idx + searchTerm.length) {
-      end = prevSpace;
+    // Look for sentence ending after the match
+    const afterMatch = text.slice(idx + searchTerm.length, end + 40);
+    const sentEndMatch = afterMatch.match(/[.;!]\s/);
+    if (sentEndMatch && sentEndMatch.index !== undefined) {
+      end = idx + searchTerm.length + sentEndMatch.index + 1;
+    } else {
+      // Fall back to word boundary
+      const prevSpace = text.lastIndexOf(" ", end);
+      if (prevSpace > idx + searchTerm.length) {
+        end = prevSpace;
+      }
     }
   }
 
   let snippet = text.slice(start, end).replace(/\s+/g, " ").trim();
-  if (start > 0) snippet = "..." + snippet;
-  if (end < text.length) snippet = snippet + "...";
+
+  // Clean leading/trailing fragments that look ugly
+  // Remove leading lowercase fragments (partial words from mid-sentence)
+  snippet = snippet.replace(/^[a-z][a-z,;:\s]{0,15}\s+(?=[A-Z$\d])/, "");
+
+  if (start > 0 && !snippet.startsWith("...")) snippet = "..." + snippet;
+  if (end < text.length && !snippet.endsWith("...")) snippet = snippet + "...";
+
   return snippet;
 }
 
@@ -293,6 +319,10 @@ export async function runAudit(
     ? normalizeNumber(reconFields.reconciliationTotal)
     : reconTotal;
 
+  // Prior year total (used for year-over-year comparison)
+  const priorYearRaw = reconFields.priorYearTotal;
+  const priorYearTotal = priorYearRaw ? normalizeNumber(priorYearRaw) : null;
+
   // ------------------------------------------------------------------
   // 1. CAM Cap Exceeded
   // ------------------------------------------------------------------
@@ -324,13 +354,37 @@ export async function runAudit(
         });
       }
     }
+    // Build a stronger description depending on available data
+    const totalDisplay = reconFields.totalCamCharges ?? reconFields.reconciliationTotal;
+    let camCapDesc =
+      `The lease limits annual CAM or controllable expense increases to ${leaseFields.camCapPercentage}%. ` +
+      `Total CAM charges of $${totalDisplay ? normalizeNumber(totalDisplay).toLocaleString() : totalDisplay} were detected in the reconciliation statement.`;
+
+    if (priorYearTotal != null && priorYearTotal > 0) {
+      const yoyIncrease = ((reconTotal! - priorYearTotal) / priorYearTotal) * 100;
+      const capPctVal = parseFloat(leaseFields.camCapPercentage!);
+      if (yoyIncrease > capPctVal) {
+        const allowedMax = priorYearTotal * (1 + capPctVal / 100);
+        const excess = reconTotal! - allowedMax;
+        camCapDesc +=
+          ` Year-over-year charges increased ${yoyIncrease.toFixed(1)}% (from $${priorYearTotal.toLocaleString()} to $${reconTotal!.toLocaleString()}), ` +
+          `exceeding the ${leaseFields.camCapPercentage}% cap. ` +
+          `The maximum allowable amount was $${Math.round(allowedMax).toLocaleString()}, ` +
+          `resulting in an estimated overcharge of $${Math.round(excess).toLocaleString()}.`;
+      } else {
+        camCapDesc +=
+          ` Year-over-year charges increased ${yoyIncrease.toFixed(1)}% (from $${priorYearTotal.toLocaleString()}), ` +
+          `which is within the ${leaseFields.camCapPercentage}% cap. Verify prior-year baseline accuracy to confirm.`;
+      }
+    } else {
+      camCapDesc +=
+        ` Compare prior-year charges to confirm whether the increase exceeds the contractual cap. ` +
+        `Upload a prior-year reconciliation for a definitive year-over-year comparison.`;
+    }
+
     freeFindings.push({
       category: "CAM Cap Exceeded",
-      description:
-        `Lease specifies a CAM cap of ${leaseFields.camCapPercentage}%. ` +
-        `Total CAM charges of ${reconFields.totalCamCharges ?? reconFields.reconciliationTotal} were detected in the reconciliation. ` +
-        `If year-over-year charges increased beyond the ${leaseFields.camCapPercentage}% cap, the excess amount may be recoverable. ` +
-        `Compare prior-year charges to confirm the actual overage.`,
+      description: camCapDesc,
       potential_savings: Math.round(estimatedOverage),
       severity: "high",
       sourceEvidence: evidence.length > 0 ? evidence : undefined,
@@ -374,9 +428,6 @@ export async function runAudit(
   // ------------------------------------------------------------------
   // 1b. Year-over-Year CAM Increase Detection
   // ------------------------------------------------------------------
-  const priorYearRaw = reconFields.priorYearTotal;
-  const priorYearTotal = priorYearRaw ? normalizeNumber(priorYearRaw) : null;
-
   if (priorYearTotal != null && priorYearTotal > 0 && reconTotal != null && reconTotal > 0) {
     const increasePercent = ((reconTotal - priorYearTotal) / priorYearTotal) * 100;
     const camCapPct = leaseFields.camCapPercentage ? parseFloat(leaseFields.camCapPercentage) : null;
@@ -571,13 +622,24 @@ export async function runAudit(
           extractedText: reconShareSnippet,
         });
       }
+
+      // Note if the lease share was derived from square footage
+      const derivedNote = leaseFields.derivedProRataShare
+        ? ` (derived from ${leaseFields.tenantPremisesSqFt} tenant sq ft / ${leaseFields.buildingTotalSqFt} building sq ft)`
+        : " based on rentable square footage";
+
+      const shareDirection = reconShare > leaseShare ? "overbilled" : "underbilled";
+      let shareDesc =
+        `The reconciliation applies a tenant share of ${reconShare}%, ` +
+        `but the lease specifies ${leaseShare}%${derivedNote}. ` +
+        `This ${Math.abs(reconShare - leaseShare).toFixed(2)}% difference means the tenant is being ${shareDirection}.`;
+      if (shareSavings > 0) {
+        shareDesc += ` Estimated annual impact: $${shareSavings.toLocaleString()}. Request a correction in the next billing cycle.`;
+      }
+
       paidFindings.push({
         category: "Pro-Rata Share Mismatch",
-        description:
-          `Tenant's pro-rata share calculated at ${reconShare}% in the reconciliation ` +
-          `but lease specifies ${leaseShare}% based on rentable square footage. ` +
-          `The ${Math.abs(reconShare - leaseShare).toFixed(2)}% difference may result in overcharges.` +
-          (shareSavings > 0 ? ` Estimated impact: $${shareSavings.toLocaleString()}.` : ""),
+        description: shareDesc,
         potential_savings: shareSavings,
         severity: "high",
         sourceEvidence: shareEvidence.length > 0 ? shareEvidence : undefined,
@@ -1017,11 +1079,12 @@ export async function runAudit(
           }
 
           const adminValDesc =
-            `Administrative Fee Cap Exceeded: The admin/management fee detected in the reconciliation ` +
-            `is $${adminFeeAmount.toLocaleString()}, which represents ${adminPercent.toFixed(2)}% of building operating expenses ` +
-            `($${feeBaseTotal!.toLocaleString()}). The lease caps this fee at ${adminFeeCap}%. ` +
-            `Difference: ${excessPercent.toFixed(2)}%. ` +
-            `Estimated overcharge: $${adminOvercharge.toLocaleString()}.`;
+            `The admin/management fee in the reconciliation is $${adminFeeAmount.toLocaleString()}, ` +
+            `representing ${adminPercent.toFixed(2)}% of building operating expenses ($${feeBaseTotal!.toLocaleString()}). ` +
+            `The lease limits this fee to ${adminFeeCap}%, creating a ${excessPercent.toFixed(2)}% excess. ` +
+            `Estimated overcharge: $${adminOvercharge.toLocaleString()}. ` +
+            `This fee should be renegotiated or credited in the next reconciliation cycle. ` +
+            `Consider requesting an itemized breakdown of the management fee from the landlord.`;
 
           paidFindings.push({
             category: "Administrative Fee Cap Exceeded",
@@ -1087,13 +1150,22 @@ export async function runAudit(
 
       const parts: string[] = [];
       if (highConf.length > 0) {
+        const excludedList = highConf.map((m) => m.reconCat).join(", ");
         parts.push(
-          `The following categories appear in the reconciliation but are likely excluded under the lease: ` +
-          `${highConf.map((m) => m.reconCat).join(", ")}. ` +
-          (leaseFields.excludedTerms.length > 0
-            ? `The lease excludes: ${leaseFields.excludedTerms.join(", ")}.`
-            : `These appear to be capital or non-pass-through items.`),
+          `The reconciliation includes charges for ${excludedList}, ` +
+          `which should be excluded from tenant pass-through expenses. `,
         );
+        if (leaseFields.excludedTerms.length > 0) {
+          parts.push(
+            `The lease explicitly excludes: ${leaseFields.excludedTerms.slice(0, 8).join(", ")}. ` +
+            `Request removal of these charges from the next reconciliation.`,
+          );
+        } else {
+          parts.push(
+            `These appear to be capital or non-pass-through items that are typically the landlord's responsibility. ` +
+            `Confirm with the lease exclusion provisions.`,
+          );
+        }
       }
       if (medConf.length > 0) {
         parts.push(
@@ -1101,11 +1173,37 @@ export async function runAudit(
         );
       }
 
+      // Build evidence for excluded categories
+      const excludedEvidence: SourceEvidence[] = [];
+      for (const m of highConf.slice(0, 2)) {
+        const snippet = extractSnippet(reconText, m.reconCat);
+        if (snippet) {
+          excludedEvidence.push({
+            document: reconDocName,
+            page: findPageForText(reconText, m.reconCat),
+            extractedText: snippet,
+            findingCategory: "Excluded Category Billed",
+          });
+        }
+      }
+      if (leaseFields.excludedTerms.length > 0) {
+        const exSnippet = extractSnippet(leaseText, leaseFields.excludedTerms[0]);
+        if (exSnippet) {
+          excludedEvidence.push({
+            document: leaseDocName,
+            page: findPageForText(leaseText, leaseFields.excludedTerms[0]),
+            extractedText: exSnippet,
+            findingCategory: "Lease Exclusion Clause",
+          });
+        }
+      }
+
       freeFindings.push({
         category: "Excluded Category Billed",
         description: parts.join(" "),
         potential_savings: 0,
         severity: highConf.length > 0 ? "high" : "medium",
+        sourceEvidence: excludedEvidence.length > 0 ? excludedEvidence : undefined,
       });
     }
   } else if (missingFields.has("expense_categories") && !isLimited) {
@@ -1579,14 +1677,36 @@ export async function runAudit(
   console.log(`[audit-engine] Raw paid (${paidFindings.length}): ${paidFindings.map(f => `${f.category}[$${f.potential_savings}]`).join(", ") || "none"}`);
 
   // ------------------------------------------------------------------
-  // Findings integrity: only keep findings with actual descriptions
+  // Findings integrity and noise reduction
   // ------------------------------------------------------------------
-  const verifiedFree = freeFindings.filter(
-    (f) => f.insufficientData || f.description.length > 0,
+  // Count real substantive findings (not insufficient data)
+  const realFreeFindings = freeFindings.filter(
+    (f) => !f.insufficientData && f.description.length > 0,
   );
-  const verifiedPaid = paidFindings.filter(
-    (f) => f.insufficientData || f.description.length > 0,
+  const realPaidFindings = paidFindings.filter(
+    (f) => !f.insufficientData && f.description.length > 0,
   );
+  const totalRealFindings = realFreeFindings.length + realPaidFindings.length;
+
+  // When we have enough real findings, suppress "insufficient data" noise
+  // to avoid the report feeling weak when meaningful results exist
+  const suppressInsufficient = totalRealFindings >= 2;
+
+  const verifiedFree = freeFindings.filter((f) => {
+    if (f.description.length === 0) return false;
+    // If we have real findings, drop insufficient-data findings that add no value
+    if (suppressInsufficient && f.insufficientData && f.potential_savings === 0) {
+      return false;
+    }
+    return true;
+  });
+  const verifiedPaid = paidFindings.filter((f) => {
+    if (f.description.length === 0) return false;
+    if (suppressInsufficient && f.insufficientData && f.potential_savings === 0) {
+      return false;
+    }
+    return true;
+  });
 
   // ---------------------------------------------------------------------------
   // Promote paid findings to free preview when free findings are empty
@@ -1699,14 +1819,34 @@ export async function runAudit(
       : failedNote;
   }
 
-  // Boost confidence score by +10 if overcharge was successfully calculated
+  // Boost confidence based on actual findings quality
   let adjustedConfidenceScore = confidenceScore;
   let adjustedConfidence = confidence;
+
+  // Boost for overcharge calculation
   if (estimatedOvercharge > 0) {
-    adjustedConfidenceScore = Math.min(adjustedConfidenceScore + 10, 100);
-    if (adjustedConfidenceScore >= 70) adjustedConfidence = "high";
-    else if (adjustedConfidenceScore >= 40) adjustedConfidence = "medium";
+    adjustedConfidenceScore = Math.min(adjustedConfidenceScore + 12, 100);
   }
+
+  // Boost for substantive findings with real savings
+  const substantiveFindings = [...freeFindings, ...paidFindings].filter(
+    (f) => !f.insufficientData && f.potential_savings > 0,
+  );
+  if (substantiveFindings.length >= 2) {
+    adjustedConfidenceScore = Math.min(adjustedConfidenceScore + 8, 100);
+  } else if (substantiveFindings.length >= 1) {
+    adjustedConfidenceScore = Math.min(adjustedConfidenceScore + 5, 100);
+  }
+
+  // Boost for multi-year comparison
+  if (multiYearComparisonRan) {
+    adjustedConfidenceScore = Math.min(adjustedConfidenceScore + 5, 100);
+  }
+
+  // Recalculate confidence level with adjusted thresholds
+  if (adjustedConfidenceScore >= 55) adjustedConfidence = "high";
+  else if (adjustedConfidenceScore >= 30) adjustedConfidence = "medium";
+  else adjustedConfidence = "low";
 
   // ------------------------------------------------------------------
   // Build Lease Clause Summary

@@ -27,8 +27,8 @@ export function getLeaseClauseEvidence(
   ) {
     if (summary.camCap) {
       return {
-        section: "CAM Expense Cap",
-        text: `Annual CAM or controllable operating expense increases shall not exceed ${summary.camCap} of prior year expenses per the lease agreement.`,
+        section: "CAM Expense Cap Provision",
+        text: `The lease limits annual increases in CAM or controllable operating expenses to ${summary.camCap} over the prior year. Any charges exceeding this cap are not the tenant's responsibility.`,
       };
     }
   }
@@ -37,18 +37,31 @@ export function getLeaseClauseEvidence(
   if (cat.includes("admin") && cat.includes("fee")) {
     if (summary.adminFeeCap) {
       return {
-        section: "Administrative Fee Cap",
-        text: `The lease limits administrative fees to ${summary.adminFeeCap} of total CAM or operating expenses billed to the tenant.`,
+        section: "Administrative Fee Limitation",
+        text: `The lease limits administrative or overhead fees to ${summary.adminFeeCap} of total operating expenses. Charges exceeding this percentage should be credited to the tenant.`,
+      };
+    }
+    // Fall through to management fee if admin cap not found
+    if (summary.managementFeeCap) {
+      return {
+        section: "Management/Administrative Fee Cap",
+        text: `The lease caps management and administrative fees at ${summary.managementFeeCap} of operating expenses.`,
       };
     }
   }
 
   // Management fee findings
-  if (cat.includes("management fee")) {
+  if (cat.includes("management fee") || cat.includes("management/admin")) {
     if (summary.managementFeeCap) {
       return {
-        section: "Management Fee Cap",
-        text: `Property management fees are capped at ${summary.managementFeeCap} of total operating expenses per the lease terms.`,
+        section: "Property Management Fee Cap",
+        text: `Property management fees are contractually capped at ${summary.managementFeeCap} of total operating expenses. Any management fee charged above this rate constitutes an overcharge.`,
+      };
+    }
+    if (summary.adminFeeCap) {
+      return {
+        section: "Administrative/Management Fee Cap",
+        text: `The lease limits admin and management fees to ${summary.adminFeeCap} of operating expenses.`,
       };
     }
   }
@@ -57,18 +70,19 @@ export function getLeaseClauseEvidence(
   if (
     cat.includes("allocation") ||
     cat.includes("pro-rata") ||
-    cat.includes("pro rata")
+    cat.includes("pro rata") ||
+    cat.includes("share mismatch")
   ) {
     if (summary.tenantProRataShare) {
       const parts: string[] = [
-        `Tenant's pro-rata share is specified as ${summary.tenantProRataShare}`,
+        `The lease establishes the tenant's pro-rata share at ${summary.tenantProRataShare}`,
       ];
-      if (summary.tenantSquareFootage) {
-        parts.push(`based on tenant premises of ${summary.tenantSquareFootage} sq ft`);
+      if (summary.tenantSquareFootage && summary.buildingSquareFootage) {
+        parts.push(`calculated from ${summary.tenantSquareFootage} of tenant premises within a ${summary.buildingSquareFootage} total building area`);
+      } else if (summary.tenantSquareFootage) {
+        parts.push(`based on tenant premises of ${summary.tenantSquareFootage}`);
       }
-      if (summary.buildingSquareFootage) {
-        parts.push(`within a total building area of ${summary.buildingSquareFootage} sq ft`);
-      }
+      parts.push(`Any billing at a higher share percentage constitutes an overcharge`);
       return {
         section: "Tenant Pro-Rata Share",
         text: parts.join(", ") + ".",
@@ -80,8 +94,8 @@ export function getLeaseClauseEvidence(
   if (cat.includes("gross-up") || cat.includes("occupancy")) {
     if (summary.camCap) {
       return {
-        section: "CAM Expense Cap",
-        text: `Annual CAM escalation is capped at ${summary.camCap} per lease terms.`,
+        section: "CAM Expense Cap / Gross-Up",
+        text: `Annual CAM escalation is capped at ${summary.camCap} per lease terms. Gross-up adjustments must comply with this limitation.`,
       };
     }
   }
@@ -89,9 +103,35 @@ export function getLeaseClauseEvidence(
   // Excluded expense findings
   if (cat.includes("excluded") || cat.includes("non-recoverable")) {
     if (summary.excludedCategories.length > 0) {
+      const displayCats = summary.excludedCategories.slice(0, 10).join(", ");
       return {
         section: "Excluded Expense Categories",
-        text: `The lease excludes the following categories from tenant reimbursement: ${summary.excludedCategories.join(", ")}. These expenses should not appear in the tenant's CAM reconciliation charges.`,
+        text: `The lease explicitly excludes the following from tenant reimbursement: ${displayCats}. Any pass-through of these expenses to the tenant is a breach of the lease exclusion provisions.`,
+      };
+    }
+  }
+
+  // Reconciliation totals / completeness
+  if (cat.includes("reconciliation") || cat.includes("completeness")) {
+    if (summary.camCap) {
+      return {
+        section: "Operating Expense Provisions",
+        text: `The lease establishes a ${summary.camCap} cap on annual CAM increases. Complete reconciliation data is required to verify compliance.`,
+      };
+    }
+  }
+
+  // Document review summary — provide whatever we have
+  if (cat.includes("review summary") || cat.includes("document review")) {
+    const clauseParts: string[] = [];
+    if (summary.camCap) clauseParts.push(`CAM cap: ${summary.camCap}`);
+    if (summary.adminFeeCap) clauseParts.push(`admin fee cap: ${summary.adminFeeCap}`);
+    if (summary.managementFeeCap) clauseParts.push(`management fee cap: ${summary.managementFeeCap}`);
+    if (summary.tenantProRataShare) clauseParts.push(`tenant share: ${summary.tenantProRataShare}`);
+    if (clauseParts.length > 0) {
+      return {
+        section: "Extracted Lease Terms",
+        text: `Key lease provisions detected: ${clauseParts.join(", ")}.`,
       };
     }
   }
