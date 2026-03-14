@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { AuditResultsFree } from "@/components/audit-results-free";
 import { AuditResultsPaid } from "@/components/audit-results-paid";
+import { AuditProgress } from "@/components/audit-progress";
 import { Loader2, Download, AlertTriangle, RefreshCw, FileText } from "lucide-react";
 import Link from "next/link";
 import type { Finding, OverchargeLineItem, SourceEvidence, LeaseClauseSummary } from "@/services/audit-logic";
@@ -120,17 +121,7 @@ export default function AuditPage({
         </div>
 
         {/* Processing state */}
-        {isProcessing && (
-          <div className="flex flex-col items-center py-8 text-center">
-            <Loader2 className="h-10 w-10 animate-spin text-blue-700 mb-4" />
-            <p className="text-gray-600 font-medium">
-              Analyzing your documents…
-            </p>
-            <p className="text-sm text-gray-400 mt-1">
-              This usually takes under a minute.
-            </p>
-          </div>
-        )}
+        {isProcessing && <AuditProgress />}
 
         {/* Error state */}
         {status === "error" && (
