@@ -28,7 +28,33 @@ export async function GET(
     return NextResponse.json({ error: "Audit not found" }, { status: 404 });
   }
 
-  console.log(`[audit/${id}] Found — status=${audit.status}`);
+  console.log(`[audit/${id}] Found — status=${audit.status}, has_findings=${!!audit.free_findings}`);
+
+  // Auto-heal: if the audit has result data but status is still "processing",
+  // the background job completed but the status update was lost (e.g. serverless
+  // function terminated). Fix the status in-place and persist it.
+  if (
+    audit.status === "processing" &&
+    audit.free_findings != null &&
+    Array.isArray(audit.free_findings)
+  ) {
+    console.warn(
+      `[audit/${id}] Auto-healing stuck audit: has findings but status was "processing" — setting to "completed"`,
+    );
+    audit.status = "completed";
+    // Persist the fix so future polls don't need to heal again
+    supabase
+      .from("audits")
+      .update({ status: "completed" })
+      .eq("id", id)
+      .then(({ error: healErr }) => {
+        if (healErr) {
+          console.error(`[audit/${id}] Auto-heal DB update failed:`, healErr.message);
+        } else {
+          console.log(`[audit/${id}] Auto-heal persisted OK`);
+        }
+      });
+  }
 
   return NextResponse.json(audit, {
     headers: {

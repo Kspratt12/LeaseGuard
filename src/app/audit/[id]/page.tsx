@@ -41,8 +41,8 @@ export default function AuditPage({
     const startedAt = Date.now();
     let pollCount = 0;
 
-    // After 5 minutes of polling with no terminal state, show a timeout error
-    const MAX_POLL_DURATION_MS = 5 * 60 * 1000;
+    // After 3 minutes of polling with no terminal state, show a timeout error
+    const MAX_POLL_DURATION_MS = 3 * 60 * 1000;
 
     async function fetchAudit() {
       try {
@@ -64,17 +64,28 @@ export default function AuditPage({
         }
         const data: Audit = await res.json();
 
+        // Data-driven completion: if result data exists, the audit is done
+        // regardless of the status string (handles partial status update failures)
+        const hasResultData =
+          data.free_findings != null && Array.isArray(data.free_findings);
+        if (hasResultData && data.status !== "completed" && data.status !== "error") {
+          console.warn(
+            `[poll] audit=${id} has result data but status="${data.status}" — forcing completed`,
+          );
+          data.status = "completed";
+        }
+
         const isTerminal =
           data.status === "completed" || data.status === "error";
         console.log(
-          `[poll] audit=${id} status=${data.status} terminal=${isTerminal} poll#=${pollCount}`,
+          `[poll] audit=${id} status=${data.status} terminal=${isTerminal} poll#=${pollCount} hasData=${hasResultData} keys=[${Object.keys(data).join(",")}]`,
         );
 
         if (!cancelled) setAudit(data);
 
         // Keep polling while not terminal
         if (!cancelled && !isTerminal) {
-          // Failsafe: if polling exceeds max duration, stop and show error
+          // Failsafe: if polling exceeds max duration, stop and show timeout
           if (Date.now() - startedAt > MAX_POLL_DURATION_MS) {
             console.error(`[poll] audit=${id} polling timed out after ${MAX_POLL_DURATION_MS / 1000}s`);
             if (!cancelled) {
@@ -137,7 +148,12 @@ export default function AuditPage({
   const overchargeBreakdown = audit.overcharge_breakdown ?? [];
   const hasOvercharge = estimatedOvercharge > 0 && overchargeBreakdown.length > 0;
 
-  const isProcessing = status === "pending" || status === "processing";
+  // Data-driven: if findings exist, the audit is effectively complete
+  const hasResultData =
+    Array.isArray(audit.free_findings) && audit.free_findings !== null;
+  const isComplete = status === "completed" || (hasResultData && status !== "error");
+  const isProcessing =
+    (status === "pending" || status === "processing") && !hasResultData;
 
   return (
     <main className="flex flex-col items-center px-4 py-16 sm:py-24">
@@ -145,7 +161,7 @@ export default function AuditPage({
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold">Audit Results</h1>
-          <StatusBadge status={status} />
+          <StatusBadge status={isComplete ? "completed" : status} />
         </div>
 
         {/* Processing state */}
@@ -172,7 +188,7 @@ export default function AuditPage({
         )}
 
         {/* Completed state */}
-        {status === "completed" && (
+        {isComplete && (
           <>
             {/* Document swap warning */}
             {audit.was_swapped && (
