@@ -145,6 +145,103 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Audit Preview ── */}
+      <section className="py-20 sm:py-28 bg-white">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <AnimateOnScroll>
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-600 text-center mb-3">
+              Sample Findings
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-4">
+              See What LeaseGuard Finds in Your Lease
+            </h2>
+            <p className="text-center text-gray-500 mb-16 max-w-2xl mx-auto">
+              LeaseGuard analyzes commercial lease clauses and CAM reconciliation
+              statements to identify potential billing discrepancies, caps, and
+              overcharges.
+            </p>
+          </AnimateOnScroll>
+
+          <div className="grid sm:grid-cols-2 gap-6 mb-16">
+            {[
+              {
+                icon: ShieldCheck,
+                title: "CAM Cap Clause Detected",
+                desc: "Lease includes CAM expense limitations.",
+                status: "Detected",
+                statusType: "detected" as const,
+              },
+              {
+                icon: AlertTriangle,
+                title: "Potential Overcharge",
+                desc: "CAM reconciliation shows management fees exceeding lease terms.",
+                status: "Review Recommended",
+                statusType: "review" as const,
+              },
+              {
+                icon: Percent,
+                title: "Pro Rata Share Review",
+                desc: "Tenant share percentage appears higher than expected.",
+                status: "Review Recommended",
+                statusType: "review" as const,
+              },
+              {
+                icon: Ban,
+                title: "Excluded Expenses Flagged",
+                desc: "Certain capital expenses may not be permitted under lease terms.",
+                status: "Review Recommended",
+                statusType: "review" as const,
+              },
+            ].map(({ icon: Icon, title, desc, status, statusType }) => (
+              <AnimateOnScroll key={title}>
+                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-200 h-full">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 shrink-0">
+                      <Icon className="h-5 w-5 text-blue-700" />
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full ${
+                        statusType === "detected"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {statusType === "detected" ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                      )}
+                      {status}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-semibold text-gray-900 mb-2">
+                    {title}
+                  </h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    {desc}
+                  </p>
+                </div>
+              </AnimateOnScroll>
+            ))}
+          </div>
+
+          <AnimateOnScroll>
+            <div className="text-center">
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">
+                Run Your LeaseGuard CAM Audit
+              </h3>
+              <Link
+                href="/upload"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-lg font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-500 hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all duration-200"
+              >
+                Run 60-Second Audit
+                <ChevronRight className="h-5 w-5" />
+              </Link>
+            </div>
+          </AnimateOnScroll>
+        </div>
+      </section>
+
       {/* ── Trust Bar ── */}
       <AnimateOnScroll>
         <section className="border-b border-gray-100 bg-white py-10">
