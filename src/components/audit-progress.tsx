@@ -79,17 +79,19 @@ export function AuditProgress({ isComplete }: AuditProgressProps) {
     return () => clearTimeout(timer);
   }, [activeStep, isComplete]);
 
-  // Smooth progress bar
+  // Smooth progress bar — caps at 92% when waiting for backend to avoid
+  // long "stuck at 98%" perception. Jumps to 100 instantly on completion.
   useEffect(() => {
     if (isComplete) return;
 
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (activeStep >= steps.length) {
-          // All steps done — ease toward 95% very slowly, never hit 100 until backend says so
-          if (prev >= 95) return 95;
-          const next = prev + 0.05;
-          return Math.min(next, 95);
+          // All animation steps done but backend not finished yet.
+          // Cap at 92% and stop incrementing — avoids sitting at 97-98%.
+          if (prev >= 92) return 92;
+          const next = prev + 0.15;
+          return Math.min(next, 92);
         }
         // Progress proportional to current step
         const stepProgress = ((activeStep + 0.8) / steps.length) * 100;
@@ -195,7 +197,7 @@ export function AuditProgress({ isComplete }: AuditProgressProps) {
       {/* Contextual message */}
       <p className="mt-8 text-center text-xs text-gray-400">
         {waitingForBackend
-          ? "Almost done \u2014 writing results to your audit record\u2026"
+          ? "Waiting for analysis to complete \u2014 this may take a moment\u2026"
           : "This usually takes under a minute"}
       </p>
     </div>

@@ -38,11 +38,69 @@ export default function AuditPage({
   // Track whether we were ever in a processing state (to show progress → results transition)
   const wasProcessingRef = useRef(false);
   const [showResults, setShowResults] = useState(false);
+  const [renderError, setRenderError] = useState<Error | null>(null);
+
+  // Derive state from audit (safe even when audit is null)
+  const freeFindings = audit?.free_findings ?? [];
+  const paidFindings = audit?.paid_findings ?? [];
+  const status = audit?.status ?? "pending";
+
+  const hasResultData =
+    Array.isArray(audit?.free_findings) && audit!.free_findings!.length > 0;
+  const isComplete = status === "completed" || (hasResultData && status !== "error");
+  const isProcessing =
+    (status === "pending" || status === "processing") && !hasResultData;
+
+  // Track processing state for smooth transition
+  if (isProcessing) {
+    wasProcessingRef.current = true;
+  }
 
   // Scroll to top on mount so the user sees the progress from the beginning
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  // When transitioning from processing → complete, delay showing results briefly
+  // so the progress bar can jump to 100% before unmounting.
+  // IMPORTANT: This hook MUST be before any early returns to satisfy Rules of Hooks.
+  useEffect(() => {
+    if (isComplete && !showResults) {
+      if (wasProcessingRef.current) {
+        // Give the progress bar 800ms to show 100% before switching to results
+        const t = setTimeout(() => setShowResults(true), 800);
+        return () => clearTimeout(t);
+      } else {
+        // Direct navigation to a completed audit — show results immediately
+        setShowResults(true);
+      }
+    }
+  }, [isComplete, showResults]);
+
+  // Log the full audit result shape for production debugging
+  useEffect(() => {
+    if (audit && isComplete) {
+      console.log("[audit-result] Full payload for rendering:", {
+        id: audit.id,
+        status: audit.status,
+        audit_mode: audit.audit_mode,
+        confidence: audit.confidence,
+        confidence_score: audit.confidence_score,
+        free_findings_type: typeof audit.free_findings,
+        free_findings_length: Array.isArray(audit.free_findings) ? audit.free_findings.length : "not-array",
+        paid_findings_type: typeof audit.paid_findings,
+        paid_findings_length: Array.isArray(audit.paid_findings) ? audit.paid_findings.length : "not-array",
+        savings_estimate: audit.savings_estimate,
+        estimated_overcharge: audit.estimated_overcharge,
+        overcharge_breakdown_type: typeof audit.overcharge_breakdown,
+        overcharge_breakdown_length: Array.isArray(audit.overcharge_breakdown) ? audit.overcharge_breakdown.length : "not-array",
+        lease_clauses_summary: audit.lease_clauses_summary ? "present" : "null",
+        was_swapped: audit.was_swapped,
+        validation_warning: audit.validation_warning,
+        error_message: audit.error_message,
+      });
+    }
+  }, [audit, isComplete]);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,6 +216,60 @@ export default function AuditPage({
     };
   }, [id, retryKey]);
 
+  // Render error recovery
+  if (renderError) {
+    return (
+      <main className="flex flex-col items-center px-4 py-24 text-center">
+        <AlertTriangle className="h-10 w-10 text-amber-500 mb-4" />
+        <h1 className="text-2xl font-bold mb-2">Something went wrong</h1>
+        <p className="text-gray-500 mb-2 max-w-md">
+          An error occurred while displaying your audit results. Your audit data
+          is safe — try reloading.
+        </p>
+        <p className="text-xs text-gray-400 mb-6 max-w-md font-mono">
+          {renderError.message}
+        </p>
+        <div className="flex flex-col items-center gap-3">
+          <button
+            onClick={() => {
+              setRenderError(null);
+              setShowResults(false);
+              setRetryKey((k) => k + 1);
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-500 transition-colors"
+          >
+            Reload Audit
+          </button>
+          <Link href="/upload" className="text-blue-700 underline text-sm">
+            Start a new audit
+          </Link>
+        </div>
+        {audit && (
+          <details className="mt-6 text-left max-w-md w-full">
+            <summary className="text-xs text-gray-400 cursor-pointer">
+              Debug info
+            </summary>
+            <pre className="mt-2 text-xs text-gray-400 bg-gray-50 p-3 rounded overflow-auto max-h-40">
+              {JSON.stringify(
+                {
+                  id: audit.id,
+                  status: audit.status,
+                  audit_mode: audit.audit_mode,
+                  free_findings: audit.free_findings?.length ?? null,
+                  paid_findings: audit.paid_findings?.length ?? null,
+                  savings_estimate: audit.savings_estimate,
+                  estimated_overcharge: audit.estimated_overcharge,
+                },
+                null,
+                2,
+              )}
+            </pre>
+          </details>
+        )}
+      </main>
+    );
+  }
+
   if (notFound) {
     return (
       <main className="flex flex-col items-center px-4 py-24 text-center">
@@ -194,17 +306,11 @@ export default function AuditPage({
     );
   }
 
-  const status = audit.status;
-  const freeFindings = audit.free_findings ?? [];
-  const paidFindings = audit.paid_findings ?? [];
-
   const estimatedOvercharge = audit.estimated_overcharge ?? 0;
   const overchargeBreakdown = audit.overcharge_breakdown ?? [];
   const hasOvercharge = estimatedOvercharge > 0 && overchargeBreakdown.length > 0;
 
   // Summary must reflect ALL findings, not just preview/free-tier findings.
-  // Calculate effective savings from the full findings set so savings are never
-  // zeroed out just because preview findings are limited.
   const totalFindings = [...freeFindings, ...paidFindings];
   const totalFindingsCount = totalFindings.length;
   const totalSavingsFromFindings = totalFindings
@@ -212,41 +318,72 @@ export default function AuditPage({
   const dbSavings = audit.savings_estimate ?? 0;
   const savingsEstimate = Math.max(dbSavings, totalSavingsFromFindings);
 
-  // The summary state is determined by total findings count — if any findings
-  // exist (including insufficient-data findings), discrepancies were detected.
   const hasFindings = totalFindingsCount > 0;
-
-  // Data-driven: if non-empty findings exist, the audit is effectively complete.
-  // An empty array may be a DB default, not actual results.
-  const hasResultData =
-    Array.isArray(audit.free_findings) && audit.free_findings.length > 0;
-  const isComplete = status === "completed" || (hasResultData && status !== "error");
-  const isProcessing =
-    (status === "pending" || status === "processing") && !hasResultData;
-
-  // Track processing state for smooth transition
-  if (isProcessing) {
-    wasProcessingRef.current = true;
-  }
-
-  // When transitioning from processing → complete, delay showing results briefly
-  // so the progress bar can jump to 100% before unmounting.
-  useEffect(() => {
-    if (isComplete && !showResults) {
-      if (wasProcessingRef.current) {
-        // Give the progress bar 800ms to show 100% before switching to results
-        const t = setTimeout(() => setShowResults(true), 800);
-        return () => clearTimeout(t);
-      } else {
-        // Direct navigation to a completed audit — show results immediately
-        setShowResults(true);
-      }
-    }
-  }, [isComplete, showResults]);
 
   // Show progress during processing OR during the brief completion transition
   const showProgress = isProcessing || (isComplete && wasProcessingRef.current && !showResults);
 
+  // Wrap the results rendering in a try/catch boundary at the component level
+  try {
+    return (
+      <AuditResultsRenderer
+        audit={audit}
+        freeFindings={freeFindings}
+        paidFindings={paidFindings}
+        status={status}
+        isComplete={isComplete}
+        isProcessing={isProcessing}
+        showProgress={showProgress}
+        showResults={showResults}
+        estimatedOvercharge={estimatedOvercharge}
+        overchargeBreakdown={overchargeBreakdown}
+        hasOvercharge={hasOvercharge}
+        savingsEstimate={savingsEstimate}
+        hasFindings={hasFindings}
+      />
+    );
+  } catch (err) {
+    console.error("[audit-page] Render error caught:", err);
+    // Use setTimeout to avoid setState-during-render
+    setTimeout(() => setRenderError(err instanceof Error ? err : new Error(String(err))), 0);
+    return (
+      <main className="flex flex-col items-center justify-center px-4 py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-700" />
+        <p className="mt-4 text-gray-500">Loading audit…</p>
+      </main>
+    );
+  }
+}
+
+function AuditResultsRenderer({
+  audit,
+  freeFindings,
+  paidFindings,
+  status,
+  isComplete,
+  isProcessing,
+  showProgress,
+  showResults,
+  estimatedOvercharge,
+  overchargeBreakdown,
+  hasOvercharge,
+  savingsEstimate,
+  hasFindings,
+}: {
+  audit: Audit;
+  freeFindings: Finding[];
+  paidFindings: Finding[];
+  status: string;
+  isComplete: boolean;
+  isProcessing: boolean;
+  showProgress: boolean;
+  showResults: boolean;
+  estimatedOvercharge: number;
+  overchargeBreakdown: OverchargeLineItem[];
+  hasOvercharge: boolean;
+  savingsEstimate: number;
+  hasFindings: boolean;
+}) {
   return (
     <main className="flex flex-col items-center px-4 py-16 sm:py-24">
       <div className="w-full max-w-2xl space-y-8">
