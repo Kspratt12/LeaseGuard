@@ -242,6 +242,16 @@ export async function runAudit(
   // Track which required fields were flagged as missing
   const missingFields = new Set(issues.map((i: ValidationIssue) => i.field));
 
+  // --- Diagnostic logging: trace extracted fields ---
+  console.log(`[audit-engine] === Extracted Fields ===`);
+  console.log(`[audit-engine] Lease — camCap: ${leaseFields.camCapPercentage ?? "NULL"}, adminFee: ${leaseFields.adminFeePercentage ?? "NULL"}, mgmtFee: ${leaseFields.managementFee ?? "NULL"}, proRata: ${leaseFields.proRataShare ?? "NULL"}`);
+  console.log(`[audit-engine] Lease — tenantSqFt: ${leaseFields.tenantPremisesSqFt ?? "NULL"}, buildingSqFt: ${leaseFields.buildingTotalSqFt ?? "NULL"}, excludedTerms: [${leaseFields.excludedTerms.join(", ")}]`);
+  console.log(`[audit-engine] Recon — totalCam: ${reconFields.totalCamCharges ?? "NULL"}, reconTotal: ${reconFields.reconciliationTotal ?? "NULL"}, derivedTotal: ${reconFields.derivedTotal}`);
+  console.log(`[audit-engine] Recon — proRata: ${reconFields.proRataShare ?? "NULL"}, adminFee: ${reconFields.adminFeePercentage ?? "NULL"}, mgmtFee: ${reconFields.managementFee ?? "NULL"}`);
+  console.log(`[audit-engine] Recon — lineItems: ${reconFields.lineItems.length}, expenseCategories: ${reconFields.expenseCategories.length}`);
+  console.log(`[audit-engine] Recon — priorYearTotal: ${reconFields.priorYearTotal ?? "NULL"}, reconYear: ${reconFields.reconciliationYear ?? "NULL"}`);
+  console.log(`[audit-engine] Mode: ${auditMode}, Confidence: ${confidence} (${confidenceScore}/100)`);
+
   // Parse dollar amounts for savings calculations
   const reconTotal = reconFields.totalCamCharges
     ? normalizeNumber(reconFields.totalCamCharges)
@@ -1659,6 +1669,13 @@ export async function runAudit(
       };
     }
   }
+
+  // --- Diagnostic logging: trace final results ---
+  console.log(`[audit-engine] === Final Results ===`);
+  console.log(`[audit-engine] findingSavings: $${findingSavings}, estimatedOvercharge: $${estimatedOvercharge}, total savings: $${savings}`);
+  console.log(`[audit-engine] Free findings (${verifiedFree.length}): ${verifiedFree.map(f => `${f.category}[$${f.potential_savings}]${f.insufficientData ? "(insufficient)" : ""}`).join(", ") || "none"}`);
+  console.log(`[audit-engine] Paid findings (${verifiedPaid.length}): ${verifiedPaid.map(f => `${f.category}[$${f.potential_savings}]${f.insufficientData ? "(insufficient)" : ""}`).join(", ") || "none"}`);
+  console.log(`[audit-engine] Overcharge breakdown (${overchargeBreakdown.length}): ${overchargeBreakdown.map(r => `${r.category}=$${r.tenant_charge}`).join(", ") || "none"}`);
 
   return {
     savings_estimate: savings,

@@ -148,6 +148,11 @@ export default function AuditPage({
   const overchargeBreakdown = audit.overcharge_breakdown ?? [];
   const hasOvercharge = estimatedOvercharge > 0 && overchargeBreakdown.length > 0;
 
+  // Check if there are substantive (non-insufficient-data) findings even when savings=0
+  const hasSubstantiveFindings =
+    freeFindings.some((f) => !f.insufficientData) ||
+    paidFindings.some((f) => !f.insufficientData);
+
   // Data-driven: if findings exist, the audit is effectively complete
   const hasResultData =
     Array.isArray(audit.free_findings) && audit.free_findings !== null;
@@ -327,6 +332,16 @@ export default function AuditPage({
                   Based on detected discrepancies across uploaded lease and CAM documents. Professional review recommended to confirm.
                 </p>
               </div>
+            ) : hasSubstantiveFindings ? (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-8 text-center space-y-3">
+                <p className="text-xs text-amber-800 font-semibold uppercase tracking-widest">
+                  Potential Issues Identified
+                </p>
+                <p className="text-sm text-amber-700 leading-relaxed max-w-md mx-auto">
+                  The audit detected potential issues in your lease and CAM documents that warrant further review.
+                  Savings could not be quantified from the available data, but the findings below may indicate recoverable overcharges.
+                </p>
+              </div>
             ) : (
               <div className="rounded-xl bg-gray-50 border border-gray-200 p-8 text-center space-y-3">
                 <p className="text-xs text-gray-600 font-semibold uppercase tracking-widest">
@@ -377,8 +392,12 @@ export default function AuditPage({
           accounting advice.
         </p>
 
-        <div className="text-center">
+        <div className="text-center space-x-4">
           <Link href="/upload" className="text-sm text-blue-700 underline">
+            Back to Upload
+          </Link>
+          <span className="text-xs text-gray-300">|</span>
+          <Link href="/upload" className="text-sm text-gray-500 underline">
             Run another audit
           </Link>
         </div>

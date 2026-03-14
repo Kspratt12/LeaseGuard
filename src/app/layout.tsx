@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { AuditDraftProvider } from "@/components/audit-draft-context";
 import { SITE_URL } from "@/lib/constants";
 import "./globals.css";
 
@@ -116,9 +117,11 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen antialiased flex flex-col font-sans">
-        <Navbar />
-        <div className="flex-1">{children}</div>
-        <Footer />
+        <AuditDraftProvider>
+          <Navbar />
+          <div className="flex-1">{children}</div>
+          <Footer />
+        </AuditDraftProvider>
       </body>
     </html>
   );

@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, FileText, Loader2, X, Camera, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { imagesToPdf } from "@/lib/images-to-pdf";
+import { useAuditDraft } from "@/components/audit-draft-context";
 
 const ACCEPTED_TYPES = [
   "application/pdf",
@@ -49,11 +50,75 @@ function uid() {
 
 export function UploadZone() {
   const router = useRouter();
+  const {
+    draft,
+    setLease: setDraftLease,
+    addRecons: addDraftRecons,
+    removeRecon: removeDraftRecon,
+    setLastAuditId,
+  } = useAuditDraft();
   const [leaseItem, setLeaseItem] = useState<UploadItem | null>(null);
   const [reconItems, setReconItems] = useState<UploadItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [duplicateNotice, setDuplicateNotice] = useState<string | null>(null);
+  const restoredRef = useRef(false);
+
+  // Restore files from draft context (persisted across navigation)
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+
+    // Restore lease from draft context (File objects survive client-side navigation)
+    if (draft.lease && !leaseItem) {
+      if (draft.lease.file) {
+        // File object available (client-side navigation, not page refresh)
+        setLeaseItem({
+          id: draft.lease.id,
+          pdf: draft.lease.file,
+          sources: [draft.lease.file],
+          previews: [],
+          converting: false,
+          label: draft.lease.label,
+        });
+      } else {
+        // Metadata only (page refresh) — show filename but require re-selection
+        setLeaseItem({
+          id: draft.lease.id,
+          pdf: null,
+          sources: [],
+          previews: [],
+          converting: false,
+          label: `${draft.lease.meta.name} (re-select to rerun)`,
+        });
+      }
+    }
+
+    // Restore recon files from draft context
+    if (draft.recons.length > 0 && reconItems.length === 0) {
+      const restored: UploadItem[] = draft.recons.map((r) => {
+        if (r.file) {
+          return {
+            id: r.id,
+            pdf: r.file,
+            sources: [r.file],
+            previews: [],
+            converting: false,
+            label: r.label,
+          };
+        }
+        return {
+          id: r.id,
+          pdf: null,
+          sources: [],
+          previews: [],
+          converting: false,
+          label: `${r.meta.name} (re-select to rerun)`,
+        };
+      });
+      setReconItems(restored);
+    }
+  }, [draft, leaseItem, reconItems.length]);
 
   /** Convert images to PDF and update the item in place */
   const convertImages = useCallback(
@@ -62,6 +127,7 @@ export function UploadZone() {
       setItem: (updater: (prev: UploadItem | null) => UploadItem | null) => void,
       itemId: string,
       filename: string,
+      isLease?: boolean,
     ) => {
       try {
         const pdf = await imagesToPdf(images, filename);
@@ -69,6 +135,10 @@ export function UploadZone() {
           if (!prev || prev.id !== itemId) return prev;
           return { ...prev, pdf, converting: false };
         });
+        // Sync converted PDF to draft context
+        if (isLease) {
+          setDraftLease(pdf, filename);
+        }
       } catch {
         setItem((prev) => {
           if (!prev || prev.id !== itemId) return prev;
@@ -76,7 +146,7 @@ export function UploadZone() {
         });
       }
     },
-    [],
+    [setDraftLease],
   );
 
   /** Create an UploadItem from files (PDF or images) */
@@ -85,6 +155,7 @@ export function UploadZone() {
       files: File[],
       defaultFilename: string,
       setItem: (updater: (prev: UploadItem | null) => UploadItem | null) => void,
+      isLease?: boolean,
     ): UploadItem => {
       const id = uid();
       const previews = files
@@ -116,7 +187,7 @@ export function UploadZone() {
             : `${files.length} photos → PDF`,
       };
 
-      convertImages(files, setItem, id, defaultFilename);
+      convertImages(files, setItem, id, defaultFilename, isLease);
       return item;
     },
     [convertImages],
@@ -127,18 +198,26 @@ export function UploadZone() {
       if (files.length === 0) return;
       // Revoke old preview URLs
       if (leaseItem) leaseItem.previews.forEach(URL.revokeObjectURL);
-      const item = createItem(files, "lease-photos.pdf", (fn) =>
-        setLeaseItem(fn),
+      const item = createItem(
+        files,
+        "lease-photos.pdf",
+        (fn) => setLeaseItem(fn),
+        true, // isLease — for draft sync on image conversion
       );
       setLeaseItem(item);
+      // Sync to draft context (if PDF is ready; images sync after conversion)
+      if (item.pdf) {
+        setDraftLease(item.pdf, item.label);
+      }
     },
-    [createItem, leaseItem],
+    [createItem, leaseItem, setDraftLease],
   );
 
   const handleClearLease = useCallback(() => {
     if (leaseItem) leaseItem.previews.forEach(URL.revokeObjectURL);
     setLeaseItem(null);
-  }, [leaseItem]);
+    setDraftLease(null);
+  }, [leaseItem, setDraftLease]);
 
   const handleAddReconFiles = useCallback(
     (files: File[]) => {
@@ -193,6 +272,8 @@ export function UploadZone() {
               r.id === id ? { ...r, pdf, converting: false } : r,
             ),
           );
+          // Sync converted PDF to draft
+          addDraftRecons([{ file: pdf, label: "recon-photos.pdf" }]);
         }).catch(() => {
           setReconItems((prev) =>
             prev.map((r) =>
@@ -203,8 +284,16 @@ export function UploadZone() {
       }
 
       setReconItems((prev) => [...prev, ...newItems]);
+
+      // Sync to draft context — only items with File objects
+      const draftItems = newItems
+        .filter((item) => item.pdf)
+        .map((item) => ({ file: item.pdf!, label: item.label }));
+      if (draftItems.length > 0) {
+        addDraftRecons(draftItems);
+      }
     },
-    [reconItems],
+    [reconItems, addDraftRecons],
   );
 
   const handleRemoveReconItem = useCallback((index: number) => {
@@ -213,7 +302,8 @@ export function UploadZone() {
       if (removed) removed.previews.forEach(URL.revokeObjectURL);
       return prev.filter((_, i) => i !== index);
     });
-  }, []);
+    removeDraftRecon(index);
+  }, [removeDraftRecon]);
 
   const handleSubmit = useCallback(async () => {
     if (!leaseItem?.pdf || reconItems.length === 0) return;
@@ -265,6 +355,9 @@ export function UploadZone() {
       if (typeof json.id !== "string") {
         throw new Error("Upload succeeded but no audit ID was returned.");
       }
+
+      // Save audit ID to draft so back navigation knows which audit to reference
+      setLastAuditId(json.id as string);
 
       router.push(`/audit/${json.id}`);
     } catch (err: unknown) {

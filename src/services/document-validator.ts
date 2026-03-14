@@ -532,6 +532,41 @@ export function extractFields(text: string): ExtractedFields {
   const flexSep = `[\\s:.·\\-]*`;
   const dollarCapture = `(\\$?\\s*[\\d,]+(?:\\.\\d{1,2})?)`;
 
+  /**
+   * Given a regex match result, find the LAST dollar-sign-prefixed amount
+   * on the same line as the match. This handles multi-column PDF tables
+   * (Budget | Actual) where the first amount is Budget and the last is Actual.
+   * Also skips bare percentages that the simple capture group might grab.
+   */
+  function extractBestDollarAmount(
+    fullText: string,
+    match: RegExpMatchArray,
+  ): string | null {
+    // Find the line containing this match
+    const matchIdx = match.index ?? fullText.indexOf(match[0]);
+    const lineStart = fullText.lastIndexOf("\n", matchIdx) + 1;
+    let lineEnd = fullText.indexOf("\n", matchIdx + match[0].length);
+    if (lineEnd === -1) lineEnd = fullText.length;
+    const fullLine = fullText.slice(lineStart, lineEnd);
+
+    // Find all $-prefixed amounts on this line (definitive dollar amounts)
+    const dollarAmounts = [...fullLine.matchAll(/\$\s*[\d,]+(?:\.\d{1,2})?/g)];
+    if (dollarAmounts.length > 0) {
+      // Return the LAST dollar amount (Actual column in Budget|Actual tables)
+      return dollarAmounts[dollarAmounts.length - 1][0];
+    }
+
+    // No $-prefixed amounts found — use the regex capture but validate it
+    const captured = match[1]?.trim() ?? null;
+    if (captured) {
+      const val = parseFloat(captured.replace(/[$,%\s]/g, ""));
+      // If < 100, it's likely a misidentified percentage (e.g. "8.08%")
+      if (!isNaN(val) && val >= 100) return captured;
+    }
+
+    return null;
+  }
+
   const totalCamPatterns = [
     // "Total CAM Charges: $53,444", "Total CAM: $40,570", "CAM Total: $40,570"
     new RegExp(
@@ -559,8 +594,9 @@ export function extractFields(text: string): ExtractedFields {
       "i",
     ),
     // "Tenant's Share (8.08%): $53,444" or "Your Share (7.00%): $33,508"
+    // Skip bare percentage values — only capture $-prefixed amounts
     new RegExp(
-      `(?:tenant(?:'s)?\\s*share|your\\s*(?:share|portion))\\s*(?:\\([^)]*\\)\\s*)?${flexSep}${dollarCapture}`,
+      `(?:tenant(?:'s)?\\s*share|your\\s*(?:share|portion))\\s*(?:\\([^)]*\\)\\s*)?(?:\\s*\\d+(?:\\.\\d+)?\\s*%\\s*)?${flexSep}${dollarCapture}`,
       "i",
     ),
     // "Total Amount Due: $12,560", "Amount Due by Tenant: $12,560"
@@ -618,7 +654,12 @@ export function extractFields(text: string): ExtractedFields {
   let totalCamCharges: string | null = null;
   for (const pat of totalCamPatterns) {
     const m = text.match(pat);
-    if (m) { totalCamCharges = m[1]?.trim() ?? null; break; }
+    if (m) {
+      totalCamCharges = extractBestDollarAmount(text, m);
+      if (totalCamCharges) break;
+      // If extractBestDollarAmount returned null (misidentified percentage),
+      // continue to next pattern
+    }
   }
 
   // Reconciliation total — broader building-level totals
@@ -662,7 +703,10 @@ export function extractFields(text: string): ExtractedFields {
   let reconciliationTotal: string | null = null;
   for (const pat of reconTotalPatterns) {
     const m = text.match(pat);
-    if (m) { reconciliationTotal = m[1]?.trim() ?? null; break; }
+    if (m) {
+      reconciliationTotal = extractBestDollarAmount(text, m);
+      if (reconciliationTotal) break;
+    }
   }
 
   // -----------------------------------------------------------------
@@ -865,6 +909,23 @@ export function extractFields(text: string): ExtractedFields {
         reconciliationTotal = sum.toFixed(2);
         derivedTotal = true;
       }
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // Post-extraction validation: ensure totals are real dollar amounts
+  // A value < $100 is almost certainly a misidentified percentage (e.g. 8.08%)
+  // -----------------------------------------------------------------
+  if (totalCamCharges) {
+    const val = normalizeNumber(totalCamCharges);
+    if (isNaN(val) || val < 100) {
+      totalCamCharges = null;
+    }
+  }
+  if (reconciliationTotal && !derivedTotal) {
+    const val = normalizeNumber(reconciliationTotal);
+    if (isNaN(val) || val < 100) {
+      reconciliationTotal = null;
     }
   }
 
