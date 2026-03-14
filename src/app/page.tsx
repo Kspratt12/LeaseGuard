@@ -45,6 +45,26 @@ const faqItems = [
     q: "How accurate are the results?",
     a: "Accuracy depends on the clarity and structure of your uploaded documents. LeaseGuard uses text extraction and AI analysis to identify discrepancies, and each finding includes a confidence indicator. Results should always be reviewed by a qualified professional.",
   },
+  {
+    q: "What are CAM charges in commercial leases?",
+    a: "CAM charges are common area maintenance expenses that commercial tenants share with other tenants in a property. These can include maintenance, landscaping, security, insurance, and other operating costs related to shared areas of the property.",
+  },
+  {
+    q: "What is a CAM reconciliation statement?",
+    a: "A CAM reconciliation statement compares estimated CAM expenses paid during the year to the actual costs incurred by the landlord. If the actual costs are higher, tenants may receive an additional bill.",
+  },
+  {
+    q: "Can commercial tenants dispute CAM charges?",
+    a: "Yes. Many commercial leases include audit rights that allow tenants to review CAM reconciliation statements and challenge expenses that do not comply with the lease terms.",
+  },
+  {
+    q: "How does a CAM audit work?",
+    a: "A CAM audit reviews lease clauses and reconciliation statements to identify discrepancies such as improper expenses, incorrect pro rata share calculations, or charges that exceed lease limits.",
+  },
+  {
+    q: "How long does a CAM audit take with LeaseGuard?",
+    a: "LeaseGuard analyzes lease clauses and CAM reconciliation statements automatically and generates a report highlighting potential issues in about 60 seconds.",
+  },
 ];
 
 const faqJsonLd = {
@@ -589,13 +609,18 @@ export default function Home() {
               Frequently Asked Questions
             </h2>
           </AnimateOnScroll>
-          <div className="space-y-5">
+          <div className="space-y-4">
             {faqItems.map(({ q, a }) => (
               <AnimateOnScroll key={q}>
-                <div className="rounded-xl border border-gray-200 bg-white p-6 hover:shadow-sm transition-shadow">
-                  <h3 className="font-semibold text-gray-900 mb-2">{q}</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">{a}</p>
-                </div>
+                <details className="group rounded-xl border border-gray-200 bg-white hover:shadow-sm transition-shadow">
+                  <summary className="flex cursor-pointer items-center justify-between gap-4 p-6 font-semibold text-gray-900 list-none [&::-webkit-details-marker]:hidden">
+                    {q}
+                    <ChevronRight className="h-5 w-5 text-gray-400 shrink-0 transition-transform duration-200 group-open:rotate-90" />
+                  </summary>
+                  <div className="px-6 pb-6 -mt-2">
+                    <p className="text-sm text-gray-500 leading-relaxed">{a}</p>
+                  </div>
+                </details>
               </AnimateOnScroll>
             ))}
           </div>
