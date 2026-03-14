@@ -10,13 +10,15 @@
  *   UNKNOWN          → rejected
  */
 
-import pdfParse from "pdf-parse";
+// pdf-parse is loaded dynamically to avoid module-init failures on Vercel
+// (its internal require('./test/data/...') can break in bundled environments)
 import {
   extractTextWithOcr,
   OCR_TEXT_THRESHOLD,
   type ExtractionMethod,
   type ExtractionResult,
 } from "@/services/ocr-extractor";
+import { extractTextFromRawBuffer } from "@/services/raw-pdf-extractor";
 import {
   extractLeaseFieldsWithAI,
   extractReconFieldsWithAI,
@@ -32,7 +34,17 @@ export type DocumentType = "lease" | "reconciliation" | "unknown";
 export type ConfidenceLevel = "high" | "medium" | "low";
 export type ClassificationTier = "high_confidence" | "likely_match" | "unknown";
 export type AuditMode = "full" | "limited" | "rejected";
+export type QualityTier = "good" | "fair" | "poor" | "empty";
 export type { ExtractionMethod } from "@/services/ocr-extractor";
+
+/** Per-extractor result for pipeline diagnostics */
+export interface ExtractorAttempt {
+  method: string;
+  textLength: number;
+  wordCount: number;
+  timingMs: number;
+  error: string | null;
+}
 
 export interface DocumentClassification {
   type: DocumentType;
@@ -133,6 +145,26 @@ const LEASE_KEYWORDS = [
   "controllable expenses",
   "tenant improvement",
   "proportionate share",
+  // Additional synonyms for real-world documents
+  "opex",
+  "op ex",
+  "admin fee",
+  "administrative fee",
+  "management fee",
+  "escalation",
+  "expense cap",
+  "expense stop",
+  "occupancy",
+  "sublease",
+  "assignment",
+  "default",
+  "indemnification",
+  "commencement date",
+  "expiration date",
+  "rsf",
+  "usable square",
+  "gross leasable",
+  "common area",
 ];
 
 const RECON_KEYWORDS = [
@@ -175,6 +207,31 @@ const RECON_KEYWORDS = [
   "subtotal",
   "gross-up",
   "landlord",
+  // Additional synonyms for real-world documents
+  "opex",
+  "op ex",
+  "recoverable expenses",
+  "reimbursable expenses",
+  "cam charges",
+  "operating statement",
+  "expense reconciliation",
+  "year-end reconciliation",
+  "annual statement",
+  "property management",
+  "snow removal",
+  "landscaping",
+  "elevator",
+  "security",
+  "cleaning",
+  "fire protection",
+  "pest control",
+  "water",
+  "electric",
+  "sewer",
+  "hvac",
+  "total operating",
+  "net amount",
+  "estimated vs actual",
 ];
 
 // Expanded expense category list
@@ -288,30 +345,68 @@ function wordCount(text: string): number {
  */
 function normalizeExtractedText(text: string): string {
   let result = text;
-  // Insert space between lowercase and uppercase: "feeCap" → "fee Cap", "totalCam" → "total Cam"
+
+  // ── Spacing repairs ────────────────────────────────────────────────
+  // Insert space between lowercase and uppercase: "feeCap" → "fee Cap"
   result = result.replace(/([a-z])([A-Z])/g, "$1 $2");
   // Insert space before $ when preceded by letter: "Charges$69" → "Charges $69"
   result = result.replace(/([A-Za-z])\$/g, "$1 $");
+  // Insert space after $ when followed by letter (OCR artifact): "$Total" → "$ Total"
+  result = result.replace(/\$([A-Za-z])/g, "$ $1");
   // Insert space between digit+% and letter: "10%annually" → "10% annually"
   result = result.replace(/(\d%)([A-Za-z])/g, "$1 $2");
-  // Insert space between colon and letter when no space: "Cap:controllable" → "Cap: controllable"
+  // Insert space between colon and letter: "Cap:controllable" → "Cap: controllable"
   result = result.replace(/:([A-Za-z])/g, ": $1");
-  // Insert space between digit and letter: "5percent" → "5 percent", "100sf" → "100 sf"
+  // Insert space between digit and letter: "5percent" → "5 percent"
   result = result.replace(/(\d)([A-Za-z])/g, "$1 $2");
-  // Insert space between letter and digit when no space: "Suite240" → "Suite 240"
+  // Insert space between letter and digit: "Suite240" → "Suite 240"
   result = result.replace(/([A-Za-z])(\d)/g, "$1 $2");
-  // Normalize common OCR artifacts: l → I, O → 0 in numeric contexts
-  result = result.replace(/\bl(\d)/g, "1$1"); // "l5%" → "15%"
-  result = result.replace(/(\d)O(\d)/g, "$10$2"); // "1O0" → "100"
-  // Normalize multiple spaces to single space
-  result = result.replace(/ {2,}/g, " ");
-  // Normalize common dotted leaders (used in tables): "Category..........$X" → "Category $X"
+  // Insert space between closing paren and letter: ")the" → ") the"
+  result = result.replace(/\)([A-Za-z])/g, ") $1");
+  // Insert space between letter and opening paren: "fee(15%" → "fee (15%"
+  result = result.replace(/([A-Za-z])\(/g, "$1 (");
+
+  // ── OCR noise cleanup ─────────────────────────────────────────────
+  // l → 1 in numeric contexts: "l5%" → "15%", "l,234" → "1,234"
+  result = result.replace(/\bl(\d)/g, "1$1");
+  // O → 0 in numeric contexts: "1O0" → "100", "$1O,000" → "$10,000"
+  result = result.replace(/(\d)O(\d)/g, "$10$2");
+  // Fix common OCR of 'S' as '$' in non-monetary context: "$ection" → "Section"
+  result = result.replace(/\$(?:ection|hall|hare|quare|uite|ubject|ublease)/gi, (m) => "S" + m.slice(1));
+  // Fix 'I' misread as 'l' in common words
+  result = result.replace(/\blnsurance\b/g, "Insurance");
+  result = result.replace(/\blandlord\b/g, "landlord");
+  // Fix '0' misread as 'O' in common words like "Operating"
+  result = result.replace(/\b0perating\b/gi, "Operating");
+
+  // ── Dotted leaders and table artifacts ─────────────────────────────
   result = result.replace(/\.{3,}/g, " ");
-  // Normalize em/en dashes to regular dashes
-  result = result.replace(/[\u2013\u2014\u2015]/g, "-");
-  // Normalize smart quotes to regular quotes
-  result = result.replace(/[\u201C\u201D\u201E]/g, '"');
-  result = result.replace(/[\u2018\u2019\u201A]/g, "'");
+  result = result.replace(/_{3,}/g, " ");
+  result = result.replace(/-{3,}/g, " ");
+
+  // ── Unicode normalization ─────────────────────────────────────────
+  // Em/en dashes to regular dashes
+  result = result.replace(/[\u2013\u2014\u2015\u2012]/g, "-");
+  // Smart quotes to regular quotes
+  result = result.replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB]/g, '"');
+  result = result.replace(/[\u2018\u2019\u201A\u201B]/g, "'");
+  // Non-breaking spaces and other whitespace to regular space
+  result = result.replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000]/g, " ");
+  // Bullet points and list markers
+  result = result.replace(/[\u2022\u2023\u25E6\u2043\u2219]/g, "- ");
+  // Fix fraction characters
+  result = result.replace(/\u00BD/g, "1/2");
+  result = result.replace(/\u00BC/g, "1/4");
+  result = result.replace(/\u00BE/g, "3/4");
+
+  // ── Whitespace normalization ──────────────────────────────────────
+  // Collapse multiple spaces to single space
+  result = result.replace(/ {2,}/g, " ");
+  // Remove trailing spaces on lines
+  result = result.replace(/ +$/gm, "");
+  // Collapse 3+ blank lines to 2
+  result = result.replace(/\n{4,}/g, "\n\n\n");
+
   return result;
 }
 
@@ -322,18 +417,24 @@ function normalizeExtractedText(text: string): string {
  */
 const CONCEPT_SYNONYMS: Array<{ canonical: string; variants: RegExp }> = [
   // CAM cap synonyms
-  { canonical: "CAM cap", variants: /\b(?:controllable\s*(?:expense|cost|operating)\s*cap|operating\s*expense\s*(?:escalation\s*)?cap|expense\s*escalation\s*(?:cap|limit)|annual\s*escalation\s*cap|cam\s*escalation\s*(?:cap|limit)|opex\s*cap)\b/gi },
+  { canonical: "CAM cap", variants: /\b(?:controllable\s*(?:expense|cost|operating)\s*cap|operating\s*expense\s*(?:escalation\s*)?cap|expense\s*escalation\s*(?:cap|limit)|annual\s*escalation\s*cap|cam\s*escalation\s*(?:cap|limit)|opex\s*cap|cap\s*on\s*controllable\s*(?:expenses?|costs?)|controllable\s*operating\s*expenses?\s*shall\s*not\s*exceed|operating\s*expense\s*increase\s*cap)\b/gi },
   // Pro rata share synonyms
-  { canonical: "pro-rata share", variants: /\b(?:proportionate\s*share|tenant(?:'s)?\s*(?:allocation|share\s*(?:percentage|pct|%))|cost\s*sharing\s*(?:percentage|ratio)|rentable\s*(?:area\s*)?(?:allocation|share)|sq(?:uare)?\s*(?:ft|foot|footage)\s*allocation)\b/gi },
+  { canonical: "pro-rata share", variants: /\b(?:proportionate\s*share|tenant(?:'s)?\s*(?:allocation|share\s*(?:percentage|pct|%))|cost\s*sharing\s*(?:percentage|ratio)|rentable\s*(?:area\s*)?(?:allocation|share)|sq(?:uare)?\s*(?:ft|foot|footage)\s*allocation|tenant\s*percentage|lessee(?:'s)?\s*share|occupancy\s*(?:share|percentage|ratio))\b/gi },
   // Management fee synonyms
-  { canonical: "management fee", variants: /\b(?:property\s*(?:mgmt|mgt)\s*fee|(?:mgmt|mgt)\s*fee|pm\s*fee|supervisory\s*fee|oversight\s*(?:fee|charge))\b/gi },
+  { canonical: "management fee", variants: /\b(?:property\s*(?:mgmt|mgt)\s*fee|(?:mgmt|mgt)\s*fee|pm\s*fee|supervisory\s*fee|oversight\s*(?:fee|charge)|supervision\s*fee|management\s*charge|property\s*management\s*charge)\b/gi },
   // Admin fee synonyms
-  { canonical: "administrative fee", variants: /\b(?:admin\s*(?:charge|cost|overhead)|administrative\s*(?:charge|cost|overhead)|overhead\s*(?:fee|charge))\b/gi },
+  { canonical: "administrative fee", variants: /\b(?:admin\s*(?:charge|cost|overhead)|administrative\s*(?:charge|cost|overhead)|overhead\s*(?:fee|charge)|admin\s*fee|administration\s*(?:fee|charge))\b/gi },
   // Excluded expense synonyms
-  { canonical: "capital improvement", variants: /\b(?:cap(?:ital)?\s*(?:ex|expenditure|improvement|project)|capex|capital\s*(?:outlay|replacement|upgrade))\b/gi },
-  { canonical: "structural repair", variants: /\b(?:structural\s*(?:work|issue|deficiency|element)|building\s*(?:structure|shell|envelope)\s*(?:repair|maintenance))\b/gi },
+  { canonical: "capital improvement", variants: /\b(?:cap(?:ital)?\s*(?:ex|expenditure|improvement|project)|capex|capital\s*(?:outlay|replacement|upgrade)|major\s*(?:repair|renovation|improvement))\b/gi },
+  { canonical: "structural repair", variants: /\b(?:structural\s*(?:work|issue|deficiency|element)|building\s*(?:structure|shell|envelope)\s*(?:repair|maintenance)|structural\s*maintenance)\b/gi },
   // Reconciliation total synonyms
-  { canonical: "total operating expenses", variants: /\b(?:total\s*(?:opex|op\s*ex)|aggregate\s*(?:operating\s*)?(?:expenses?|charges?|costs?)|combined\s*(?:operating\s*)?(?:expenses?|charges?))\b/gi },
+  { canonical: "total operating expenses", variants: /\b(?:total\s*(?:opex|op\s*ex)|aggregate\s*(?:operating\s*)?(?:expenses?|charges?|costs?)|combined\s*(?:operating\s*)?(?:expenses?|charges?)|total\s*common\s*area\s*(?:maintenance\s*)?(?:charges?|costs?))\b/gi },
+  // Square footage synonyms
+  { canonical: "rentable square feet", variants: /\b(?:rsf|gross\s*leasable\s*area|gla|net\s*rentable\s*area|nra|usable\s*square\s*(?:feet|footage)|leasable\s*(?:area|square\s*(?:feet|footage)))\b/gi },
+  // Common area maintenance synonyms
+  { canonical: "common area maintenance", variants: /\b(?:cam\b|common\s*area\s*(?:charges?|costs?|expenses?)|maintenance\s*(?:charges?|costs?))\b/gi },
+  // Operating expenses synonyms
+  { canonical: "operating expenses", variants: /\b(?:opex|op\s*ex|operating\s*costs?|building\s*(?:operating\s*)?(?:expenses?|costs?))\b/gi },
 ];
 
 /**
@@ -348,6 +449,66 @@ function applyConceptNormalization(text: string): string {
   return result;
 }
 
+// ---------------------------------------------------------------------------
+// Extraction quality scoring
+// ---------------------------------------------------------------------------
+
+/** Business terms that indicate meaningful lease/CAM content */
+const BUSINESS_TERMS = [
+  "lease", "tenant", "landlord", "rent", "cam", "operating", "expense",
+  "reconciliation", "maintenance", "insurance", "tax", "property",
+  "management", "fee", "share", "square", "building", "premises",
+  "total", "annual", "charges", "cap", "increase", "budget", "actual",
+  "pro rata", "proportionate", "excluded", "capital", "improvement",
+];
+
+/** Score extraction quality based on extracted text content */
+export function scoreExtractionQuality(text: string): { score: number; tier: QualityTier } {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return { score: 0, tier: "empty" };
+
+  let score = 0;
+  const lower = trimmed.toLowerCase();
+
+  // Text length (0-25 points)
+  if (trimmed.length >= 5000) score += 25;
+  else if (trimmed.length >= 2000) score += 20;
+  else if (trimmed.length >= 500) score += 15;
+  else if (trimmed.length >= 200) score += 10;
+  else score += 5;
+
+  // Business terms found (0-30 points)
+  const termsFound = BUSINESS_TERMS.filter((t) => lower.includes(t)).length;
+  score += Math.min(Math.round((termsFound / 10) * 30), 30);
+
+  // Financial values found (0-25 points)
+  const dollarMatches = trimmed.match(/\$[\d,]+(?:\.\d{1,2})?/g) ?? [];
+  const percentMatches = trimmed.match(/\d+(?:\.\d+)?\s*%/g) ?? [];
+  const financialCount = dollarMatches.length + percentMatches.length;
+  score += Math.min(Math.round((financialCount / 8) * 25), 25);
+
+  // Word quality — well-spaced text vs garbled (0-10 points)
+  const words = wordCount(trimmed);
+  const avgWordLen = trimmed.length / Math.max(words, 1);
+  if (avgWordLen >= 3 && avgWordLen <= 12) score += 10;
+  else if (avgWordLen >= 2 && avgWordLen <= 20) score += 5;
+
+  // Text doesn't look garbled (0-10 points)
+  const printableRatio = (trimmed.match(/[a-zA-Z0-9 .,;:$%\-'"()\n\r\t]/g)?.length ?? 0) / trimmed.length;
+  if (printableRatio > 0.9) score += 10;
+  else if (printableRatio > 0.7) score += 5;
+
+  score = Math.min(score, 100);
+
+  let tier: QualityTier;
+  if (score >= 60) tier = "good";
+  else if (score >= 35) tier = "fair";
+  else if (score > 0) tier = "poor";
+  else tier = "empty";
+
+  return { score, tier };
+}
+
 export async function extractTextFromPdf(
   buffer: Buffer,
 ): Promise<ExtractionResult> {
@@ -357,13 +518,12 @@ export async function extractTextFromPdf(
     console.warn(`[extractText] Buffer does not start with %PDF header (got "${header}"). Size: ${buffer.length} bytes`);
   }
 
-  // Always try BOTH extractors and pick the higher-quality result.
-  // Previously pdfjs-dist returned early when it had >= 30 chars, but
-  // garbled text (no spaces between words) could pass that threshold
-  // while being completely unparseable by downstream regex patterns.
+  const pipeline: ExtractorAttempt[] = [];
 
+  // ── Stage 1: pdfjs-dist ────────────────────────────────────────────
   let pdfjsText = "";
   let pdfjsError: string | null = null;
+  const pdfjsStart = Date.now();
   try {
     pdfjsText = await extractWithPdfjsDist(buffer);
     console.log(`[extractText] pdfjs-dist extracted ${pdfjsText.trim().length} chars, ${wordCount(pdfjsText)} words`);
@@ -377,10 +537,21 @@ export async function extractTextFromPdf(
       console.warn("[extractText] pdfjs-dist stack:", err.stack.split("\n").slice(0, 3).join(" > "));
     }
   }
+  pipeline.push({
+    method: "pdfjs-dist",
+    textLength: pdfjsText.trim().length,
+    wordCount: wordCount(pdfjsText),
+    timingMs: Date.now() - pdfjsStart,
+    error: pdfjsError,
+  });
 
+  // ── Stage 2: pdf-parse (dynamic import — avoids module-init crash) ─
   let legacyText = "";
   let legacyError: string | null = null;
+  const legacyStart = Date.now();
   try {
+    const pdfParseModule = await import("pdf-parse");
+    const pdfParse = pdfParseModule.default ?? pdfParseModule;
     const result = await pdfParse(buffer);
     legacyText = result.text ?? "";
     console.log(`[extractText] pdf-parse extracted ${legacyText.trim().length} chars, ${wordCount(legacyText)} words`);
@@ -390,48 +561,87 @@ export async function extractTextFromPdf(
   } catch (err) {
     legacyError = err instanceof Error ? err.message : String(err);
     console.warn("[extractText] pdf-parse failed:", legacyError);
+    if (err instanceof Error && err.stack) {
+      console.warn("[extractText] pdf-parse stack:", err.stack.split("\n").slice(0, 3).join(" > "));
+    }
   }
+  pipeline.push({
+    method: "pdf-parse",
+    textLength: legacyText.trim().length,
+    wordCount: wordCount(legacyText),
+    timingMs: Date.now() - legacyStart,
+    error: legacyError,
+  });
 
-  // Log diagnostic summary when both extractors fail or return little text
-  if (pdfjsText.trim().length < 30 && legacyText.trim().length < 30) {
+  // ── Stage 3: Raw buffer extraction (zero-dependency fallback) ──────
+  let rawText = "";
+  let rawError: string | null = null;
+  const rawStart = Date.now();
+  try {
+    rawText = extractTextFromRawBuffer(buffer);
+    console.log(`[extractText] raw-buffer extracted ${rawText.trim().length} chars, ${wordCount(rawText)} words`);
+    if (rawText.trim().length > 0) {
+      console.log(`[extractText] raw-buffer first 200 chars: ${rawText.substring(0, 200).replace(/[\n\r]+/g, " | ")}`);
+    }
+  } catch (err) {
+    rawError = err instanceof Error ? err.message : String(err);
+    console.warn("[extractText] raw-buffer failed:", rawError);
+  }
+  pipeline.push({
+    method: "raw-buffer",
+    textLength: rawText.trim().length,
+    wordCount: wordCount(rawText),
+    timingMs: Date.now() - rawStart,
+    error: rawError,
+  });
+
+  // Log diagnostic summary when all extractors return little text
+  if (pdfjsText.trim().length < 30 && legacyText.trim().length < 30 && rawText.trim().length < 30) {
     console.error(
-      `[extractText] CRITICAL: Both extractors returned minimal text. ` +
+      `[extractText] CRITICAL: All three extractors returned minimal text. ` +
       `pdfjs=${pdfjsText.trim().length} chars (error: ${pdfjsError ?? "none"}), ` +
-      `pdf-parse=${legacyText.trim().length} chars (error: ${legacyError ?? "none"}). ` +
+      `pdf-parse=${legacyText.trim().length} chars (error: ${legacyError ?? "none"}), ` +
+      `raw-buffer=${rawText.trim().length} chars (error: ${rawError ?? "none"}). ` +
       `Buffer: ${buffer.length} bytes, header: "${buffer.slice(0, 10).toString("ascii").replace(/[^\x20-\x7E]/g, "?")}"`
     );
   }
 
-  // Pick the extractor with more words (better spacing = more useful text).
-  // Fall back to char length as tiebreaker.
-  let pdfText: string;
-  const pdfjsWords = wordCount(pdfjsText);
-  const legacyWords = wordCount(legacyText);
-  if (pdfjsWords > legacyWords) {
-    pdfText = pdfjsText;
-    console.log(`[extractText] Chose pdfjs-dist (${pdfjsWords} words > ${legacyWords} words)`);
-  } else if (legacyWords > pdfjsWords) {
-    pdfText = legacyText;
-    console.log(`[extractText] Chose pdf-parse (${legacyWords} words > ${pdfjsWords} words)`);
-  } else {
-    // Same word count — pick whichever has more chars
-    pdfText = pdfjsText.trim().length >= legacyText.trim().length ? pdfjsText : legacyText;
-    console.log(`[extractText] Tie — chose ${pdfText === pdfjsText ? "pdfjs-dist" : "pdf-parse"} (${pdfText.trim().length} chars)`);
-  }
+  // ── Pick the best result by word count, then char length ───────────
+  const candidates = [
+    { name: "pdfjs-dist", text: pdfjsText },
+    { name: "pdf-parse", text: legacyText },
+    { name: "raw-buffer", text: rawText },
+  ];
+  candidates.sort((a, b) => {
+    const wDiff = wordCount(b.text) - wordCount(a.text);
+    if (wDiff !== 0) return wDiff;
+    return b.text.trim().length - a.text.trim().length;
+  });
+  let pdfText = candidates[0].text;
+  const chosenMethod = candidates[0].name;
+  console.log(
+    `[extractText] Chose ${chosenMethod} (${wordCount(pdfText)} words, ${pdfText.trim().length} chars). ` +
+    `Runners-up: ${candidates.slice(1).map((c) => `${c.name}=${wordCount(c.text)}w/${c.text.trim().length}c`).join(", ")}`
+  );
 
   // Normalize text: inject spaces at common garbled boundaries
   pdfText = normalizeExtractedText(pdfText);
 
   if (pdfText.trim().length >= OCR_TEXT_THRESHOLD) {
-    return { text: pdfText, method: "pdf_text", ocrTriggered: false, ocrTextLength: 0, ocrError: null };
+    const quality = scoreExtractionQuality(pdfText);
+    return {
+      text: pdfText, method: "pdf_text", ocrTriggered: false, ocrTextLength: 0, ocrError: null,
+      pipeline, qualityScore: quality.score, qualityTier: quality.tier,
+    };
   }
 
-  // Both text extractors returned little text — fall back to OCR
+  // ── Stage 4: OCR fallback ──────────────────────────────────────────
   console.log(
     `[extractText] Text extraction returned ${pdfText.trim().length} chars (< ${OCR_TEXT_THRESHOLD}), attempting OCR fallback...`,
   );
   let ocrText = "";
   let ocrError: string | null = null;
+  const ocrStart = Date.now();
   try {
     const rawOcrText = await extractTextWithOcr(buffer);
     ocrText = normalizeExtractedText(rawOcrText);
@@ -439,18 +649,34 @@ export async function extractTextFromPdf(
     ocrError = err instanceof Error ? err.message : String(err);
     console.error(`[extractText] OCR fallback error: ${ocrError}`);
   }
+  pipeline.push({
+    method: "ocr",
+    textLength: ocrText.trim().length,
+    wordCount: wordCount(ocrText),
+    timingMs: Date.now() - ocrStart,
+    error: ocrError,
+  });
   console.log(
     `[extractText] OCR Fallback Used: true | OCR Extracted Text Length: ${ocrText.trim().length} characters` +
     (ocrError ? ` | Error: ${ocrError}` : ""),
   );
+
   if (ocrText.trim().length > pdfText.trim().length) {
     console.log(
       `[extractText] OCR recovered ${ocrText.trim().length} chars, using OCR text`,
     );
-    return { text: ocrText, method: "ocr", ocrTriggered: true, ocrTextLength: ocrText.trim().length, ocrError };
+    const quality = scoreExtractionQuality(ocrText);
+    return {
+      text: ocrText, method: "ocr", ocrTriggered: true, ocrTextLength: ocrText.trim().length, ocrError,
+      pipeline, qualityScore: quality.score, qualityTier: quality.tier,
+    };
   }
 
-  return { text: pdfText, method: "pdf_text", ocrTriggered: true, ocrTextLength: ocrText.trim().length, ocrError };
+  const quality = scoreExtractionQuality(pdfText);
+  return {
+    text: pdfText, method: "pdf_text", ocrTriggered: true, ocrTextLength: ocrText.trim().length, ocrError,
+    pipeline, qualityScore: quality.score, qualityTier: quality.tier,
+  };
 }
 
 /**
@@ -458,8 +684,30 @@ export async function extractTextFromPdf(
  * Handles modern PDF formats including those generated by pdf-lib.
  */
 async function extractWithPdfjsDist(buffer: Buffer): Promise<string> {
-  // Dynamic import — pdfjs-dist is listed in serverExternalPackages
-  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // Dynamic import — try multiple import paths for Vercel compatibility
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let pdfjsLib: any;
+  const importPaths = [
+    "pdfjs-dist/legacy/build/pdf.mjs",
+    "pdfjs-dist/build/pdf.mjs",
+    "pdfjs-dist/legacy/build/pdf.js",
+    "pdfjs-dist",
+  ];
+  let importError: string | null = null;
+  for (const importPath of importPaths) {
+    try {
+      pdfjsLib = await import(/* webpackIgnore: true */ importPath);
+      console.log(`[pdfjs] Successfully imported from: ${importPath}`);
+      break;
+    } catch (err) {
+      importError = err instanceof Error ? err.message : String(err);
+      console.warn(`[pdfjs] Import failed for ${importPath}: ${importError}`);
+    }
+  }
+  if (!pdfjsLib) {
+    throw new Error(`pdfjs-dist import failed (all paths exhausted). Last error: ${importError}`);
+  }
+
   const path = await import("path");
   const fs = await import("fs");
 
@@ -473,7 +721,7 @@ async function extractWithPdfjsDist(buffer: Buffer): Promise<string> {
     // Vercel .next/server/chunks path
     path.resolve("node_modules/pdfjs-dist/standard_fonts/"),
   ];
-  let fontDataUrl = candidates[0]; // default
+  let fontDataUrl: string | undefined;
   for (const candidate of candidates) {
     try {
       if (fs.existsSync(candidate)) {
@@ -484,15 +732,17 @@ async function extractWithPdfjsDist(buffer: Buffer): Promise<string> {
       // ignore — fs access may fail in edge runtime
     }
   }
-  console.log(`[pdfjs] Using font path: ${fontDataUrl}`);
+  console.log(`[pdfjs] Using font path: ${fontDataUrl ?? "NONE (will use system fonts)"}`);
 
   const data = new Uint8Array(buffer);
   const doc = await pdfjsLib.getDocument({
     data,
     useSystemFonts: true,
-    standardFontDataUrl: fontDataUrl,
+    ...(fontDataUrl ? { standardFontDataUrl: fontDataUrl } : {}),
     // Disable font loading failures from blocking extraction
     disableFontFace: true,
+    // Disable auto-fetch and workers for serverless compatibility
+    isEvalSupported: false,
   }).promise;
 
   const pageTexts: string[] = [];

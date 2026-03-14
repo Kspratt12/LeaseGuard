@@ -9,12 +9,40 @@
  */
 
 import Tesseract from "tesseract.js";
-import { createCanvas } from "@napi-rs/canvas";
+
+// Dynamic import for @napi-rs/canvas — may not be available on all platforms
+// (e.g., Vercel Lambda if the native binary is missing for the target arch)
+let createCanvasFn: typeof import("@napi-rs/canvas").createCanvas | null = null;
+let canvasLoadError: string | null = null;
+
+async function ensureCanvas() {
+  if (createCanvasFn) return createCanvasFn;
+  try {
+    const canvasModule = await import("@napi-rs/canvas");
+    createCanvasFn = canvasModule.createCanvas;
+    console.log("[ocr] @napi-rs/canvas loaded successfully");
+    return createCanvasFn;
+  } catch (err) {
+    canvasLoadError = err instanceof Error ? err.message : String(err);
+    console.error(`[ocr] @napi-rs/canvas failed to load: ${canvasLoadError}`);
+    if (err instanceof Error && err.stack) {
+      console.error(`[ocr] Stack: ${err.stack.split("\n").slice(0, 3).join(" > ")}`);
+    }
+    return null;
+  }
+}
+
+/** Check if canvas is available (for diagnostics) */
+export function getCanvasStatus(): { available: boolean; error: string | null } {
+  return { available: createCanvasFn !== null, error: canvasLoadError };
+}
 
 /** Minimum text length to consider pdf-parse output sufficient. */
 export const OCR_TEXT_THRESHOLD = 200;
 
 export type ExtractionMethod = "pdf_text" | "ocr";
+
+import type { ExtractorAttempt, QualityTier } from "@/services/document-validator";
 
 export interface ExtractionResult {
   text: string;
@@ -25,6 +53,12 @@ export interface ExtractionResult {
   ocrTextLength: number;
   /** OCR error message if OCR failed, null otherwise */
   ocrError: string | null;
+  /** Per-extractor attempt results for diagnostics (optional) */
+  pipeline?: ExtractorAttempt[];
+  /** Extraction quality score 0-100 (optional) */
+  qualityScore?: number;
+  /** Extraction quality tier (optional) */
+  qualityTier?: QualityTier;
 }
 
 /** Maximum number of pages to OCR (prevents multi-page PDFs from timing out). */
@@ -55,23 +89,28 @@ function ocrWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
  * pdfjs-dist calls create() to get a canvas+context pair for rendering.
  */
 class NodeCanvasFactory {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _createCanvas: any;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(createCanvas: any) {
+    this._createCanvas = createCanvas;
+  }
+
   create(width: number, height: number) {
-    const canvas = createCanvas(width, height);
+    const canvas = this._createCanvas(width, height);
     const context = canvas.getContext("2d");
     return { canvas, context };
   }
 
-  reset(
-    canvasAndContext: { canvas: ReturnType<typeof createCanvas> },
-    width: number,
-    height: number,
-  ) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  reset(canvasAndContext: { canvas: any }, width: number, height: number) {
     canvasAndContext.canvas.width = width;
     canvasAndContext.canvas.height = height;
   }
 
-  destroy(canvasAndContext: { canvas: ReturnType<typeof createCanvas> }) {
-    // @napi-rs/canvas doesn't require explicit cleanup
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  destroy(canvasAndContext: { canvas: any }) {
     canvasAndContext.canvas.width = 0;
     canvasAndContext.canvas.height = 0;
   }
@@ -84,12 +123,14 @@ async function renderPageToPng(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pdfDoc: any,
   pageNumber: number,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createCanvas: any,
 ): Promise<Buffer | null> {
   try {
     const page = await pdfDoc.getPage(pageNumber);
     const viewport = page.getViewport({ scale: RENDER_SCALE });
 
-    const canvasFactory = new NodeCanvasFactory();
+    const canvasFactory = new NodeCanvasFactory(createCanvas);
     const { canvas, context } = canvasFactory.create(
       Math.floor(viewport.width),
       Math.floor(viewport.height),
@@ -139,8 +180,34 @@ export async function extractTextWithOcr(
 ): Promise<string> {
   const ocrStart = Date.now();
   try {
-    // Load PDF with pdfjs-dist for rendering
-    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    // Ensure canvas is available for PDF-to-image rendering
+    const createCanvas = await ensureCanvas();
+    if (!createCanvas) {
+      const errMsg = `@napi-rs/canvas is not available (${canvasLoadError ?? "unknown reason"}). ` +
+        `OCR requires canvas for PDF-to-image conversion. ` +
+        `This is expected on some Vercel deployments where native binaries are missing.`;
+      console.error(`[ocr] ${errMsg}`);
+      throw new Error(errMsg);
+    }
+
+    // Load PDF with pdfjs-dist for rendering — try multiple import paths
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let pdfjsLib: any;
+    const importPaths = [
+      "pdfjs-dist/legacy/build/pdf.mjs",
+      "pdfjs-dist/build/pdf.mjs",
+      "pdfjs-dist/legacy/build/pdf.js",
+      "pdfjs-dist",
+    ];
+    for (const p of importPaths) {
+      try {
+        pdfjsLib = await import(/* webpackIgnore: true */ p);
+        break;
+      } catch { /* try next */ }
+    }
+    if (!pdfjsLib) {
+      throw new Error("pdfjs-dist import failed in OCR (all paths exhausted)");
+    }
     const data = new Uint8Array(pdfBuffer);
     const pdfDoc = await pdfjsLib.getDocument({
       data,
@@ -177,7 +244,7 @@ export async function extractTextWithOcr(
       }
 
       // Render PDF page to PNG
-      const pngBuffer = await renderPageToPng(pdfDoc, i);
+      const pngBuffer = await renderPageToPng(pdfDoc, i, createCanvas);
       if (!pngBuffer || pngBuffer.length === 0) {
         console.warn(`[ocr] Page ${i} rendered empty buffer, skipping`);
         continue;
