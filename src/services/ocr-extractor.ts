@@ -1,15 +1,14 @@
 /**
  * OCR fallback for scanned / image-based PDFs.
  *
- * When pdf-parse returns very little text (< 50 chars), this module
- * converts each PDF page to a PNG image and runs Tesseract.js OCR
- * to recover the text content.
+ * When pdf-parse returns very little text (< 200 chars), this module
+ * renders each PDF page to a PNG image using pdfjs-dist + node-canvas,
+ * then runs Tesseract.js OCR to recover the text content.
  *
- * Dependencies: tesseract.js, pdf-lib (already in project)
+ * Dependencies: tesseract.js, pdfjs-dist, canvas (node-canvas)
  */
 
 import Tesseract from "tesseract.js";
-import { PDFDocument } from "pdf-lib";
 
 /** Minimum text length to consider pdf-parse output sufficient. */
 export const OCR_TEXT_THRESHOLD = 200;
@@ -34,6 +33,9 @@ const PER_PAGE_TIMEOUT_MS = 30_000;
 /** Total OCR timeout in milliseconds. */
 const TOTAL_OCR_TIMEOUT_MS = 90_000;
 
+/** Scale factor for rendering PDF pages (1.5 = 150 DPI, good balance of quality vs speed). */
+const RENDER_SCALE = 1.5;
+
 /** Race a promise against a timeout, returning null on timeout instead of throwing. */
 function ocrWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   return new Promise<T | null>((resolve) => {
@@ -46,12 +48,44 @@ function ocrWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 }
 
 /**
- * Run OCR on a PDF buffer by converting each page to a single-page PDF,
- * then feeding the raw bytes to Tesseract (which can handle PDF/image input).
- *
- * Tesseract.js v5+ accepts raw image buffers. We extract each page as a
- * standalone single-page PDF and convert to a PNG-like representation
- * that Tesseract can process.
+ * Render a single PDF page to a PNG buffer using pdfjs-dist and node-canvas.
+ */
+async function renderPageToPng(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pdfDoc: any,
+  pageNumber: number,
+): Promise<Buffer | null> {
+  try {
+    const page = await pdfDoc.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: RENDER_SCALE });
+
+    // Create a node-canvas for rendering
+    const { createCanvas } = await import("canvas");
+    const canvas = createCanvas(viewport.width, viewport.height);
+    const context = canvas.getContext("2d");
+
+    // pdfjs-dist render expects a CanvasRenderingContext2D-like object
+    await page.render({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      canvasContext: context as any,
+      viewport,
+    }).promise;
+
+    const pngBuffer = canvas.toBuffer("image/png");
+    console.log(
+      `[ocr] Page ${pageNumber} rendered to PNG: ${pngBuffer.length} bytes (${Math.round(viewport.width)}x${Math.round(viewport.height)})`,
+    );
+    return pngBuffer;
+  } catch (err) {
+    console.error(`[ocr] Failed to render page ${pageNumber}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Run OCR on a PDF buffer by rendering each page to a PNG image
+ * using pdfjs-dist + node-canvas, then running Tesseract.js OCR
+ * on each rendered image.
  *
  * Limits: processes at most MAX_OCR_PAGES pages, with PER_PAGE_TIMEOUT_MS
  * per page and TOTAL_OCR_TIMEOUT_MS overall to avoid serverless timeouts.
@@ -61,61 +95,82 @@ export async function extractTextWithOcr(
 ): Promise<string> {
   const ocrStart = Date.now();
   try {
-    const pdfDoc = await PDFDocument.load(pdfBuffer);
-    const pageCount = Math.min(pdfDoc.getPageCount(), MAX_OCR_PAGES);
+    // Load PDF with pdfjs-dist for rendering
+    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const data = new Uint8Array(pdfBuffer);
+    const pdfDoc = await pdfjsLib.getDocument({
+      data,
+      disableFontFace: true,
+      useSystemFonts: true,
+    }).promise;
+
+    const totalPages = pdfDoc.numPages;
+    const pageCount = Math.min(totalPages, MAX_OCR_PAGES);
     const pageTexts: string[] = [];
 
-    if (pdfDoc.getPageCount() > MAX_OCR_PAGES) {
+    if (totalPages === 0) {
+      console.warn("[ocr] PDF has 0 pages, nothing to OCR");
+      pdfDoc.destroy();
+      return "";
+    }
+
+    if (totalPages > MAX_OCR_PAGES) {
       console.log(
-        `[ocr] PDF has ${pdfDoc.getPageCount()} pages, limiting OCR to first ${MAX_OCR_PAGES}`,
+        `[ocr] PDF has ${totalPages} pages, limiting OCR to first ${MAX_OCR_PAGES}`,
       );
     }
 
-    for (let i = 0; i < pageCount; i++) {
+    console.log(`[ocr] Starting OCR on ${pageCount} pages...`);
+
+    for (let i = 1; i <= pageCount; i++) {
       // Check total elapsed time
       if (Date.now() - ocrStart > TOTAL_OCR_TIMEOUT_MS) {
         console.warn(
-          `[ocr] Total OCR timeout reached after ${i} pages (${TOTAL_OCR_TIMEOUT_MS / 1000}s), returning partial text`,
+          `[ocr] Total OCR timeout reached after ${i - 1} pages (${TOTAL_OCR_TIMEOUT_MS / 1000}s), returning partial text`,
         );
         break;
       }
 
-      // Create a new single-page PDF for each page
-      const singlePagePdf = await PDFDocument.create();
-      const [copiedPage] = await singlePagePdf.copyPages(pdfDoc, [i]);
-      singlePagePdf.addPage(copiedPage);
-      const singlePageBytes = await singlePagePdf.save();
+      // Render PDF page to PNG
+      const pngBuffer = await renderPageToPng(pdfDoc, i);
+      if (!pngBuffer || pngBuffer.length === 0) {
+        console.warn(`[ocr] Page ${i} rendered empty buffer, skipping`);
+        continue;
+      }
 
-      // Run Tesseract on the single-page PDF bytes with per-page timeout.
-      // PSM 6 (uniform block of text) works best for document pages.
-      // OEM 1 (LSTM neural net) is most accurate for varied quality.
+      // Run Tesseract OCR on the PNG image
       const result = await ocrWithTimeout(
-        Tesseract.recognize(
-          Buffer.from(singlePageBytes),
-          "eng",
-          {
-            logger: () => {}, // suppress progress logs
-          },
-        ),
+        Tesseract.recognize(pngBuffer, "eng", {
+          logger: () => {}, // suppress progress logs
+        }),
         PER_PAGE_TIMEOUT_MS,
       );
 
       if (result == null) {
-        console.warn(`[ocr] Page ${i + 1} timed out after ${PER_PAGE_TIMEOUT_MS / 1000}s, skipping`);
+        console.warn(`[ocr] Page ${i} OCR timed out after ${PER_PAGE_TIMEOUT_MS / 1000}s, skipping`);
         continue;
       }
 
-      if (result.data.text) {
-        pageTexts.push(result.data.text.trim());
+      const pageText = result.data.text?.trim() ?? "";
+      if (pageText.length > 0) {
+        pageTexts.push(pageText);
+        console.log(`[ocr] Page ${i}: ${pageText.length} chars extracted`);
+      } else {
+        console.warn(`[ocr] Page ${i}: Tesseract returned empty text`);
       }
     }
 
+    pdfDoc.destroy();
+
+    const combinedText = pageTexts.join("\n\n");
     console.log(
-      `[ocr] Completed in ${((Date.now() - ocrStart) / 1000).toFixed(1)}s, ${pageTexts.length}/${pageCount} pages extracted`,
+      `[ocr] Completed in ${((Date.now() - ocrStart) / 1000).toFixed(1)}s, ` +
+      `${pageTexts.length}/${pageCount} pages produced text, ` +
+      `${combinedText.length} total chars`,
     );
-    return pageTexts.join("\n\n");
+    return combinedText;
   } catch (err) {
-    console.error("OCR extraction failed:", err);
+    console.error("[ocr] OCR extraction failed:", err);
     return "";
   }
 }
