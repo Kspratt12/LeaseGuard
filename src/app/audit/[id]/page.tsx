@@ -35,6 +35,11 @@ export default function AuditPage({
   const [audit, setAudit] = useState<Audit | null>(null);
   const [notFound, setNotFound] = useState(false);
 
+  // Scroll to top on mount so the user sees the progress from the beginning
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;

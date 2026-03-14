@@ -91,12 +91,27 @@ async function processAudit(
     console.log(
       `[process:${auditId}] Extracted — lease: ${validation.leaseText.length} chars, recon: ${validation.reconText.length} chars`,
     );
+    // Log first 500 chars of each extracted text to diagnose extraction quality
     console.log(
-      `[process:${auditId}] Lease fields — camCap: ${validation.leaseFields.camCapPercentage ?? "NULL"}, proRata: ${validation.leaseFields.proRataShare ?? "NULL"}, adminFee: ${validation.leaseFields.adminFeePercentage ?? "NULL"}`,
+      `[process:${auditId}] Lease text preview: ${validation.leaseText.substring(0, 500).replace(/[\n\r]+/g, " | ")}`,
+    );
+    console.log(
+      `[process:${auditId}] Recon text preview: ${validation.reconText.substring(0, 500).replace(/[\n\r]+/g, " | ")}`,
+    );
+    console.log(
+      `[process:${auditId}] Lease fields — camCap: ${validation.leaseFields.camCapPercentage ?? "NULL"}, proRata: ${validation.leaseFields.proRataShare ?? "NULL"}, adminFee: ${validation.leaseFields.adminFeePercentage ?? "NULL"}, mgmtFee: ${validation.leaseFields.managementFee ?? "NULL"}`,
+    );
+    console.log(
+      `[process:${auditId}] Lease fields — excludedTerms: [${validation.leaseFields.excludedTerms.join(", ")}], lineItems: ${validation.leaseFields.lineItems.length}`,
     );
     console.log(
       `[process:${auditId}] Recon fields — totalCam: ${validation.reconFields.totalCamCharges ?? "NULL"}, reconTotal: ${validation.reconFields.reconciliationTotal ?? "NULL"}, lineItems: ${validation.reconFields.lineItems.length}, year: ${validation.reconFields.reconciliationYear ?? "NULL"}`,
     );
+    if (validation.reconFields.lineItems.length > 0) {
+      console.log(
+        `[process:${auditId}] Recon line items: ${JSON.stringify(validation.reconFields.lineItems.slice(0, 10).map(li => ({ cat: li.category, amt: li.amount })))}`,
+      );
+    }
 
     // Never reject — always proceed to audit.
     // The audit engine generates "Insufficient Data" findings when fields

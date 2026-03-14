@@ -243,6 +243,23 @@ function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
+/**
+ * Normalize extracted text by injecting spaces at common concatenation boundaries.
+ * Handles garbled PDF text where words are merged (e.g. "TotalCAMCharges$69,025").
+ */
+function normalizeExtractedText(text: string): string {
+  let result = text;
+  // Insert space between lowercase and uppercase: "feeCap" → "fee Cap", "totalCam" → "total Cam"
+  result = result.replace(/([a-z])([A-Z])/g, "$1 $2");
+  // Insert space before $ when preceded by letter: "Charges$69" → "Charges $69"
+  result = result.replace(/([A-Za-z])\$/g, "$1 $");
+  // Insert space between digit+% and letter: "10%annually" → "10% annually"
+  result = result.replace(/(\d%)([A-Za-z])/g, "$1 $2");
+  // Insert space between colon and letter when no space: "Cap:controllable" → "Cap: controllable"
+  result = result.replace(/:([A-Za-z])/g, ": $1");
+  return result;
+}
+
 export async function extractTextFromPdf(
   buffer: Buffer,
 ): Promise<ExtractionResult> {
@@ -291,6 +308,9 @@ export async function extractTextFromPdf(
     console.log(`[extractText] Tie — chose ${pdfText === pdfjsText ? "pdfjs-dist" : "pdf-parse"} (${pdfText.trim().length} chars)`);
   }
 
+  // Normalize text: inject spaces at common garbled boundaries
+  pdfText = normalizeExtractedText(pdfText);
+
   if (pdfText.trim().length >= OCR_TEXT_THRESHOLD) {
     return { text: pdfText, method: "pdf_text" };
   }
@@ -299,7 +319,8 @@ export async function extractTextFromPdf(
   console.log(
     `[extractText] Text extraction returned ${pdfText.trim().length} chars (< ${OCR_TEXT_THRESHOLD}), attempting OCR...`,
   );
-  const ocrText = await extractTextWithOcr(buffer);
+  const rawOcrText = await extractTextWithOcr(buffer);
+  const ocrText = normalizeExtractedText(rawOcrText);
   if (ocrText.trim().length > pdfText.trim().length) {
     console.log(
       `[extractText] OCR recovered ${ocrText.trim().length} chars`,
@@ -512,6 +533,10 @@ export function extractFields(text: string): ExtractedFields {
     /cap\s*of\s*(\d+(?:\.\d+)?)\s*%\s*on\s*(?:controllable|operating)/i,
     // "cumulative cap" or "compounding cap" with percentage
     /(?:cumulative|compound(?:ing|ed)?)\s*cap[\s:]*(?:of\s*)?(\d+(?:\.\d+)?)\s*%/i,
+    // "CAM Cap: <any descriptive text> 10%" — bridges up to 120 chars between label and %
+    /(?:cam\s*cap)\s*[:]\s*[^%]{0,120}?(\d+(?:\.\d+)?)\s*%/i,
+    // "controllable operating expenses shall not exceed 10%" (without trailing annual/year qualifier)
+    /(?:controllable\s*(?:operating\s*)?(?:expenses?|costs?))\s*(?:shall\s*)?(?:not\s*)?(?:exceed|increase\s*(?:by\s*)?more\s*than)\s*(?:a\s+)?(\d+(?:\.\d+)?)\s*%/i,
   ];
   let camCapPercentage: string | null = null;
   for (const pat of camCapPatterns) {
@@ -533,6 +558,8 @@ export function extractFields(text: string): ExtractedFields {
     /(?:admin(?:istrative|istration)?\s*fee)\s*(?:not\s*to\s*exceed|shall\s*not\s*exceed|capped\s*at|limited\s*to)\s*(\d+(?:\.\d+)?)\s*%/i,
     // "12% administrative fee"
     /(\d+(?:\.\d+)?)\s*%\s*(?:admin(?:istrative|istration)?\s*(?:fee|charge))/i,
+    // "Administrative Fee Cap: 5% of CAM charges" — bridges descriptive text
+    /(?:admin(?:istrative|istration)?\s*fee\s*(?:cap|limit|maximum))\s*[:]\s*[^%]{0,60}?(\d+(?:\.\d+)?)\s*%/i,
   ];
   let adminFeePercentage: string | null = null;
   for (const pat of adminFeePatterns) {
@@ -557,6 +584,8 @@ export function extractFields(text: string): ExtractedFields {
     /(?:property\s*management\s*fee\s*(?:cap|limit|maximum))[\s:]*(\d+(?:\.\d+)?)\s*%/i,
     // "manager's fee: 15%", "manager's fee shall not exceed 12%"
     /(?:manager(?:'s|s)?\s*(?:fee|compensation))\s*(?:shall\s*not\s*exceed\s*|not\s*to\s*exceed\s*|[\s:]*)?(\d+(?:\.\d+)?)\s*%/i,
+    // "Management Fee Cap: 4% of operating expenses" — bridges descriptive text
+    /(?:(?:property\s*)?management\s*fee\s*(?:cap|limit|maximum))\s*[:]\s*[^%]{0,60}?(\d+(?:\.\d+)?)\s*%/i,
   ];
   let managementFee: string | null = null;
   for (const pat of mgmtFeePatterns) {
@@ -582,6 +611,10 @@ export function extractFields(text: string): ExtractedFields {
     /(?:tenant(?:'s)?\s*share)\s*\(\s*(\d+(?:\.\d+)?)\s*%\s*\)/i,
     // "Your Share of Expenses: 7.00%"
     /(?:your\s*share)[\s:]*(?:of\s*\w+\s*)?[\s:]*(\d+(?:\.\d+)?)\s*%/i,
+    // "Tenant Pro Rata Share: 8.5% of operating expenses" — bridges descriptive text after colon
+    /(?:(?:tenant(?:'s)?\s*)?pro[\s-]*rata\s*share)\s*[:]\s*(\d+(?:\.\d+)?)\s*%/i,
+    // "Pro Rata Share: 8.5%" — simple colon-separated
+    /(?:pro[\s-]*rata\s*share)\s*[:]\s*(\d+(?:\.\d+)?)\s*%/i,
   ];
   let proRataShare: string | null = null;
   for (const pat of proRataPatterns) {
@@ -912,6 +945,10 @@ export function extractFields(text: string): ExtractedFields {
     /(?:calendar|fiscal)\s+year\s+(\d{4})/i,
     // "Reconciliation Statement 2024", "Reconciliation for 2024"
     /reconciliation\s+(?:statement\s+)?(?:for\s+)?(\d{4})/i,
+    // "Reconciliation for the Year 2024", "Operating Expense Reconciliation for the Year 2025"
+    /reconciliation\s+(?:for\s+)?(?:the\s+)?(?:year\s+)?(\d{4})/i,
+    // "for the Year 2024" (standalone)
+    /for\s+the\s+year\s+(\d{4})/i,
     // "Year 2024 CAM", "2024 Reconciliation"
     /(?:^|\s)(\d{4})\s+(?:CAM|reconciliation|operating\s*expense)/im,
     // "Annual Reconciliation – January 1, 2024 to December 31, 2024"
@@ -998,6 +1035,10 @@ export function extractFields(text: string): ExtractedFields {
   // Also try the original single-column pattern for lines the above may miss
   // (e.g. "Category: $X" with colon separator and less whitespace)
   const singleColPattern = /(?:^|[\n\r])[\s]*([A-Za-z][A-Za-z &\-\/]+?)[\s:.]+\$?\s*([\d,]+(?:\.\d{1,2})?)\s*(?:$|[\n\r])/gm;
+
+  // Dollar-sign separator fallback: "Category $Amount" — the $ acts as delimiter
+  // even when spaces are missing or minimal (e.g. "Administrative Fee$6,500.00")
+  const dollarSepPattern = /(?:^|[\n\r])[\s]*([A-Za-z][A-Za-z0-9 ()&\-\/,%]+?)\s*\$\s*([\d,]+(?:\.\d{1,2})?)\s*(?:$|[\n\r])/gm;
   let lineMatch;
   while ((lineMatch = singleColPattern.exec(text)) !== null) {
     const cat = lineMatch[1].trim().toLowerCase();
@@ -1010,6 +1051,22 @@ export function extractFields(text: string): ExtractedFields {
       );
       if (!alreadyExists) {
         lineItems.push({ category: cat, amount: amt, rawLine: lineMatch[0].trim() });
+      }
+    }
+  }
+
+  // Dollar-sign separator fallback pass
+  let dollarMatch;
+  while ((dollarMatch = dollarSepPattern.exec(text)) !== null) {
+    const cat = dollarMatch[1].replace(/[\s.\-:;]+$/, "").trim().toLowerCase();
+    const amt = dollarMatch[2];
+    const numVal = parseFloat(amt.replace(/,/g, ""));
+    if (numVal >= 100 && cat.length > 2 && cat.length < 60) {
+      const alreadyExists = lineItems.some(
+        (li) => li.category === cat && li.amount === amt,
+      );
+      if (!alreadyExists) {
+        lineItems.push({ category: cat, amount: amt, rawLine: dollarMatch[0].trim() });
       }
     }
   }
@@ -1307,6 +1364,11 @@ export async function validateDocuments(
   // 5. Extract fields (always attempt, even on weak classification)
   let leaseFields = extractFields(leaseText);
   let reconFields = extractFields(reconText);
+
+  // Log regex extraction results for diagnosis
+  console.log(`[validator] Regex lease fields — camCap: ${leaseFields.camCapPercentage ?? "NULL"}, adminFee: ${leaseFields.adminFeePercentage ?? "NULL"}, mgmtFee: ${leaseFields.managementFee ?? "NULL"}, proRata: ${leaseFields.proRataShare ?? "NULL"}`);
+  console.log(`[validator] Regex lease fields — excludedTerms: [${leaseFields.excludedTerms.join(", ")}], lineItems: ${leaseFields.lineItems.length}`);
+  console.log(`[validator] Regex recon fields — totalCam: ${reconFields.totalCamCharges ?? "NULL"}, reconTotal: ${reconFields.reconciliationTotal ?? "NULL"}, lineItems: ${reconFields.lineItems.length}, year: ${reconFields.reconciliationYear ?? "NULL"}, expenseCats: ${reconFields.expenseCategories.length}`);
 
   // 5b. AI-powered extraction: supplement regex results with Claude analysis.
   // Runs in parallel for both documents. Falls back gracefully if no API key.
