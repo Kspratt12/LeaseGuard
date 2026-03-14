@@ -49,6 +49,42 @@ const articles = [
     description:
       "Discover the most frequently overlooked CAM billing errors that cost commercial tenants thousands of dollars each year.",
   },
+  {
+    slug: "commercial-lease-audit-checklist",
+    title: "Commercial Lease Audit Checklist",
+    description:
+      "A practical checklist for commercial tenants auditing their lease charges — covering CAM reconciliation, operating expenses, proportionate share, and lease compliance.",
+  },
+  {
+    slug: "triple-net-lease-expenses",
+    title: "Triple Net Lease Expenses Explained",
+    description:
+      "Understand the three expense categories in a triple net (NNN) lease: property taxes, insurance, and common area maintenance — and how to verify your charges.",
+  },
+  {
+    slug: "cam-reconciliation-statement-example",
+    title: "CAM Reconciliation Statement Example",
+    description:
+      "A line-by-line walkthrough of a CAM reconciliation statement with practical examples and red flags to watch for.",
+  },
+  {
+    slug: "what-landlords-can-include-in-cam",
+    title: "What Landlords Can Include in CAM Charges",
+    description:
+      "Learn what expenses landlords are allowed to include in CAM charges, what is typically excluded, and how to verify charges against your lease.",
+  },
+  {
+    slug: "can-landlords-charge-capital-expenses",
+    title: "Can Landlords Charge Capital Expenses to Tenants?",
+    description:
+      "Understand when landlords can and cannot pass capital expenditures to commercial tenants, including amortization rules and common misclassification issues.",
+  },
+  {
+    slug: "hidden-costs-in-nnn-leases",
+    title: "Hidden Costs in NNN Leases",
+    description:
+      "Uncover the hidden costs that commercial tenants often miss in triple net leases — from management fee markups to vacant space subsidies.",
+  },
 ];
 
 export default function ResourcesPage() {
