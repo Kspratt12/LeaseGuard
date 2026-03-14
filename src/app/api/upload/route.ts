@@ -355,7 +355,7 @@ async function processAudit(
       console.log(`[process:${auditId}] Analytics fields written OK`);
     }
 
-    console.log(`[process:${auditId}] ✓ Audit record updated — status: completed`);
+    console.log(`[process:${auditId}] ✓ LIFECYCLE COMPLETE — status: completed, savings: $${result.savings_estimate}, free: ${result.free_findings.length}, paid: ${result.paid_findings.length}`);
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Unknown processing error";
@@ -508,11 +508,11 @@ export async function POST(req: NextRequest) {
         { status: 500 },
       );
     }
-    console.log(`[upload:${auditId}] Audit row created OK`);
+    console.log(`[upload:${auditId}] LIFECYCLE: Audit row created — id=${auditId}, status=pending`);
 
     // --- Return immediately, process in background ---
     // The client will poll GET /api/audit/[id] to track progress.
-    console.log(`[upload:${auditId}] Returning response, starting background processing...`);
+    console.log(`[upload:${auditId}] LIFECYCLE: Returning response to client, files: lease=${lease.name}, recon=${recon.name}, extraRecons=${extraReconFiles.length}`);
 
     // Use after() to keep the serverless function alive until processing
     // completes. Without this, Vercel may terminate the function after
@@ -552,6 +552,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    console.log(`[upload:${capturedAuditId}] LIFECYCLE: Response sent — client should navigate to /audit/${capturedAuditId}`);
     return NextResponse.json({ success: true, id: capturedAuditId });
   } catch (err: unknown) {
     const message =

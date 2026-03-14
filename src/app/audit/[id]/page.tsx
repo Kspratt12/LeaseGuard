@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, useRef, use } from "react";
 import { AuditResultsFree } from "@/components/audit-results-free";
 import { AuditResultsPaid } from "@/components/audit-results-paid";
 import { AuditProgress } from "@/components/audit-progress";
@@ -34,6 +34,10 @@ export default function AuditPage({
   const { id } = use(params);
   const [audit, setAudit] = useState<Audit | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+  // Track whether we were ever in a processing state (to show progress → results transition)
+  const wasProcessingRef = useRef(false);
+  const [showResults, setShowResults] = useState(false);
 
   // Scroll to top on mount so the user sees the progress from the beginning
   useEffect(() => {
@@ -45,9 +49,13 @@ export default function AuditPage({
     let timer: ReturnType<typeof setTimeout>;
     const startedAt = Date.now();
     let pollCount = 0;
+    let notFoundCount = 0;
 
-    // After 3 minutes of polling with no terminal state, show a timeout error
-    const MAX_POLL_DURATION_MS = 3 * 60 * 1000;
+    // After 4 minutes of polling with no terminal state, show a timeout error
+    const MAX_POLL_DURATION_MS = 4 * 60 * 1000;
+
+    // How many consecutive 404s before declaring truly not found
+    const MAX_NOT_FOUND_RETRIES = 5;
 
     async function fetchAudit() {
       try {
@@ -64,9 +72,23 @@ export default function AuditPage({
             timer = setTimeout(fetchAudit, 3000);
             return;
           }
+          // On 404: retry several times before giving up — the row may not
+          // be readable yet due to replication lag or insert timing.
+          notFoundCount++;
+          const elapsed = Date.now() - startedAt;
+          console.warn(
+            `[poll] audit=${id} got ${res.status}, notFoundCount=${notFoundCount}/${MAX_NOT_FOUND_RETRIES}, elapsed=${Math.round(elapsed / 1000)}s`,
+          );
+          if (notFoundCount < MAX_NOT_FOUND_RETRIES && !cancelled) {
+            // Back off: 1s, 2s, 3s, 4s...
+            timer = setTimeout(fetchAudit, notFoundCount * 1000);
+            return;
+          }
           setNotFound(true);
           return;
         }
+        // Reset not-found counter on any successful response
+        notFoundCount = 0;
         const data: Audit = await res.json();
 
         // Data-driven completion: if result data exists, the audit is done
@@ -106,13 +128,13 @@ export default function AuditPage({
         if (!cancelled && !isTerminal) {
           // Failsafe: if polling exceeds max duration, stop and show timeout
           if (Date.now() - startedAt > MAX_POLL_DURATION_MS) {
-            console.error(`[poll] audit=${id} polling timed out after ${MAX_POLL_DURATION_MS / 1000}s`);
+            console.error(`[poll] audit=${id} polling timed out after ${MAX_POLL_DURATION_MS / 1000}s, last status=${data.status}`);
             if (!cancelled) {
               setAudit({
                 ...data,
                 status: "error",
                 error_message:
-                  "Processing is taking longer than expected. Please refresh the page to check for results, or try uploading again.",
+                  "Processing is taking longer than expected. Your audit may still be processing — please refresh the page in a moment to check for results.",
               });
             }
             return;
@@ -134,19 +156,31 @@ export default function AuditPage({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [id]);
+  }, [id, retryKey]);
 
   if (notFound) {
     return (
       <main className="flex flex-col items-center px-4 py-24 text-center">
         <h1 className="text-2xl font-bold mb-2">Audit not found</h1>
-        <p className="text-gray-500 mb-6">
-          We couldn&apos;t locate this audit. It may have been removed or the
-          link is incorrect.
+        <p className="text-gray-500 mb-4">
+          We couldn&apos;t locate this audit after multiple attempts. It may
+          have been removed or the link is incorrect.
         </p>
-        <Link href="/upload" className="text-blue-700 underline">
-          Start a new audit
-        </Link>
+        <div className="flex flex-col items-center gap-3">
+          <button
+            onClick={() => {
+              setNotFound(false);
+              setAudit(null);
+              setRetryKey((k) => k + 1);
+            }}
+            className="text-blue-700 underline text-sm"
+          >
+            Retry loading this audit
+          </button>
+          <Link href="/upload" className="text-blue-700 underline text-sm">
+            Start a new audit
+          </Link>
+        </div>
       </main>
     );
   }
@@ -190,17 +224,40 @@ export default function AuditPage({
   const isProcessing =
     (status === "pending" || status === "processing") && !hasResultData;
 
+  // Track processing state for smooth transition
+  if (isProcessing) {
+    wasProcessingRef.current = true;
+  }
+
+  // When transitioning from processing → complete, delay showing results briefly
+  // so the progress bar can jump to 100% before unmounting.
+  useEffect(() => {
+    if (isComplete && !showResults) {
+      if (wasProcessingRef.current) {
+        // Give the progress bar 800ms to show 100% before switching to results
+        const t = setTimeout(() => setShowResults(true), 800);
+        return () => clearTimeout(t);
+      } else {
+        // Direct navigation to a completed audit — show results immediately
+        setShowResults(true);
+      }
+    }
+  }, [isComplete, showResults]);
+
+  // Show progress during processing OR during the brief completion transition
+  const showProgress = isProcessing || (isComplete && wasProcessingRef.current && !showResults);
+
   return (
     <main className="flex flex-col items-center px-4 py-16 sm:py-24">
       <div className="w-full max-w-2xl space-y-8">
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold">Audit Results</h1>
-          <StatusBadge status={isComplete ? "completed" : status} />
+          <StatusBadge status={isComplete && showResults ? "completed" : isComplete ? "processing" : status} />
         </div>
 
-        {/* Processing state — pass isComplete so progress jumps to 100% when backend finishes */}
-        {isProcessing && <AuditProgress isComplete={false} />}
+        {/* Processing state — keep mounted during transition so progress bar can animate to 100% */}
+        {showProgress && <AuditProgress isComplete={isComplete} />}
 
         {/* Error state */}
         {status === "error" && (
@@ -222,8 +279,8 @@ export default function AuditPage({
           </div>
         )}
 
-        {/* Completed state */}
-        {isComplete && (
+        {/* Completed state — only render after transition delay */}
+        {isComplete && showResults && (
           <>
             {/* Document swap warning */}
             {audit.was_swapped && (

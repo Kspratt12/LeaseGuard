@@ -4,6 +4,36 @@ import { createServiceClient } from "@/lib/supabase";
 // Prevent Next.js from caching this route
 export const dynamic = "force-dynamic";
 
+/** Retry a Supabase query with short backoff to handle replication lag. */
+async function fetchAuditWithRetry(
+  supabase: ReturnType<typeof createServiceClient>,
+  id: string,
+  maxAttempts = 3,
+) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const { data: audit, error } = await supabase
+      .from("audits")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (audit) return { audit, error: null };
+
+    // On last attempt, return the error
+    if (attempt === maxAttempts) {
+      return { audit: null, error };
+    }
+
+    // Brief backoff before retry (200ms, 500ms)
+    const backoff = attempt * 250;
+    console.warn(
+      `[audit/${id}] Attempt ${attempt}/${maxAttempts} returned no row (code=${error?.code}), retrying in ${backoff}ms...`,
+    );
+    await new Promise((r) => setTimeout(r, backoff));
+  }
+  return { audit: null, error: new Error("Exhausted retries") as unknown };
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -13,24 +43,24 @@ export async function GET(
 
   const supabase = createServiceClient();
 
-  const { data: audit, error } = await supabase
-    .from("audits")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const { audit, error } = await fetchAuditWithRetry(supabase, id);
 
   if (error) {
-    console.error(`[audit/${id}] Supabase error: code=${error.code} message=${error.message} details=${error.details}`);
+    console.error(`[audit/${id}] Supabase error after retries: ${JSON.stringify(error)}`);
   }
 
   if (error || !audit) {
-    console.log(`[audit/${id}] Not found — error=${!!error}, audit=${!!audit}`);
+    console.log(`[audit/${id}] Not found after retries — error=${!!error}, audit=${!!audit}`);
     return NextResponse.json({ error: "Audit not found" }, { status: 404 });
   }
 
   const findingsCount = Array.isArray(audit.free_findings) ? audit.free_findings.length : 0;
   const paidCount = Array.isArray(audit.paid_findings) ? audit.paid_findings.length : 0;
-  console.log(`[audit/${id}] Found — status=${audit.status}, free=${findingsCount}, paid=${paidCount}, savings=${audit.savings_estimate ?? "null"}`);
+  const findingsFieldType = audit.free_findings === null ? "null" : Array.isArray(audit.free_findings) ? `array[${audit.free_findings.length}]` : typeof audit.free_findings;
+  const paidFieldType = audit.paid_findings === null ? "null" : Array.isArray(audit.paid_findings) ? `array[${audit.paid_findings.length}]` : typeof audit.paid_findings;
+  console.log(
+    `[audit/${id}] Found — status=${audit.status}, free=${findingsFieldType}, paid=${paidFieldType}, savings=${audit.savings_estimate ?? "null"}, overcharge=${audit.estimated_overcharge ?? "null"}, report=${audit.report_pdf_url ? "yes" : "no"}, error=${audit.error_message ?? "none"}`,
+  );
 
   // Auto-heal: if the audit has result data but status is still "processing",
   // the background job completed but the status update was lost (e.g. serverless
