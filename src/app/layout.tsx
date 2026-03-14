@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { SITE_URL } from "@/lib/constants";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://leaseguard.ai"),
+  metadataBase: new URL(SITE_URL),
   title: "LeaseGuard | CAM Audit Tool for Commercial Tenants",
   description:
     "Upload your commercial lease and CAM reconciliation statements. LeaseGuard analyzes clauses and billed expenses to detect potential CAM overcharges in about 60 seconds.",
