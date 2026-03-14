@@ -543,10 +543,17 @@ export function extractFields(text: string): ExtractedFields {
     match: RegExpMatchArray,
   ): string | null {
     // Find the line containing this match
+    // Handle \r\n, \n, and \r line endings
     const matchIdx = match.index ?? fullText.indexOf(match[0]);
-    const lineStart = fullText.lastIndexOf("\n", matchIdx) + 1;
-    let lineEnd = fullText.indexOf("\n", matchIdx + match[0].length);
-    if (lineEnd === -1) lineEnd = fullText.length;
+    const lineBreak = /[\r\n]/;
+    let lineStart = matchIdx;
+    while (lineStart > 0 && !lineBreak.test(fullText[lineStart - 1])) {
+      lineStart--;
+    }
+    let lineEnd = matchIdx + match[0].length;
+    while (lineEnd < fullText.length && !lineBreak.test(fullText[lineEnd])) {
+      lineEnd++;
+    }
     const fullLine = fullText.slice(lineStart, lineEnd);
 
     // Find all $-prefixed amounts on this line (definitive dollar amounts)
@@ -556,7 +563,16 @@ export function extractFields(text: string): ExtractedFields {
       return dollarAmounts[dollarAmounts.length - 1][0];
     }
 
-    // No $-prefixed amounts found — use the regex capture but validate it
+    // No $-prefixed amounts — look for large bare numbers on this line
+    const bareAmounts = [...fullLine.matchAll(/(?<!\d)(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?)(?!\d)/g)];
+    if (bareAmounts.length > 0) {
+      // Return the LAST large bare number (e.g., "53,444.13")
+      const last = bareAmounts[bareAmounts.length - 1][0];
+      const val = parseFloat(last.replace(/,/g, ""));
+      if (!isNaN(val) && val >= 100) return last;
+    }
+
+    // Fallback: use the regex capture but validate it
     const captured = match[1]?.trim() ?? null;
     if (captured) {
       const val = parseFloat(captured.replace(/[$,%\s]/g, ""));
@@ -797,15 +813,19 @@ export function extractFields(text: string): ExtractedFields {
   // text category followed by one or more dollar amounts.  Keep the
   // LAST amount (typically the "Actual" column in Budget/Actual tables).
   const textLines = text.split(/[\n\r]+/);
-  const categoryPattern = /^[\s]*([A-Za-z][A-Za-z0-9 ()&\-\/,.:;%]+?)\s{2,}/;
+  // Match category names followed by whitespace (2+ spaces, tabs, or mix)
+  const categoryPattern = /^[\s]*([A-Za-z][A-Za-z0-9 ()&\-\/,.:;%]+?)(?:\s{2,}|\t+|\s*\t)/;
   const amountPattern = /\$?\s*([\d,]+(?:\.\d{1,2})?)/g;
 
   // Also handle dotted-leader lines: "Category .............. $Amount"
   const dottedLeaderPattern = /^[\s]*([A-Za-z][A-Za-z0-9 ()&\-\/,:%]+?)\s*\.{2,}\s*/;
 
+  // Colon-separated: "Category: $Amount" or "Category:  $Amount"
+  const colonPattern = /^[\s]*([A-Za-z][A-Za-z0-9 ()&\-\/,%]+?)\s*:\s*/;
+
   for (const line of textLines) {
-    // Try multi-space separator first, then dotted-leader
-    const catMatch = line.match(categoryPattern) || line.match(dottedLeaderPattern);
+    // Try multi-space/tab separator first, then dotted-leader, then colon
+    const catMatch = line.match(categoryPattern) || line.match(dottedLeaderPattern) || line.match(colonPattern);
     if (!catMatch) continue;
 
     // Strip trailing dots, dashes, colons, and whitespace from category

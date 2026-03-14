@@ -1207,128 +1207,17 @@ export async function runAudit(
   }
 
   // ------------------------------------------------------------------
-  // Findings integrity: only keep findings with actual descriptions
+  // Multi-Year CAM Reconciliation Escalation Comparison
+  // IMPORTANT: Must run BEFORE filtering so findings are included in
+  // verifiedPaid and counted in savings calculation.
   // ------------------------------------------------------------------
-  const verifiedFree = freeFindings.filter(
-    (f) => f.insufficientData || f.description.length > 0,
-  );
-  const verifiedPaid = paidFindings.filter(
-    (f) => f.insufficientData || f.description.length > 0,
-  );
-
-  // ---------------------------------------------------------------------------
-  // Promote paid findings to free preview when free findings are empty
-  // ---------------------------------------------------------------------------
-  // If no free-tier checks triggered but real paid findings exist, promote
-  // up to 2 substantive findings so the preview is never misleadingly empty.
-  if (
-    verifiedFree.length === 0 &&
-    verifiedPaid.filter((f) => !f.insufficientData).length > 0
-  ) {
-    const promotable = verifiedPaid.filter((f) => !f.insufficientData);
-    const toPromote = promotable.slice(0, 2);
-    for (const f of toPromote) {
-      verifiedFree.push(f);
-      // Remove from paid so it doesn't appear in both sections
-      const idx = verifiedPaid.indexOf(f);
-      if (idx !== -1) verifiedPaid.splice(idx, 1);
-    }
-  }
-
-  // If free findings are STILL empty (only insufficient-data paid findings),
-  // promote up to 1 insufficient-data finding as informational.
-  if (verifiedFree.length === 0 && verifiedPaid.length > 0) {
-    const infoFinding = verifiedPaid[0];
-    verifiedFree.push(infoFinding);
-    verifiedPaid.splice(0, 1);
-  }
-
-  // Calculate savings only from verified, non-insufficient findings
-  // Include estimated overcharge from excluded categories
-  const findingSavings = [...verifiedFree, ...verifiedPaid]
-    .filter((f) => !f.insufficientData)
-    .reduce((sum, f) => sum + f.potential_savings, 0);
-  const savings = findingSavings + Math.round(estimatedOvercharge);
-
-  // Build validation warning — clear, non-alarming messages
-  let validationWarning: string | null = null;
-  if (auditMode === "limited") {
-    validationWarning =
-      "Limited Review: Some checks could not be completed due to missing or unclear data in the uploaded documents.";
-  } else if (issues.length > 0) {
-    // Only surface truly blocking issues, not informational gaps
-    const blockingIssues = issues.filter(
-      (i: ValidationIssue) =>
-        i.field !== "prior_year" && i.field !== "total_cam",
-    );
-    if (blockingIssues.length > 0) {
-      const missingNames = blockingIssues
-        .map((i: ValidationIssue) => i.message)
-        .slice(0, 3);
-      validationWarning = `Some audit checks have limited data: ${missingNames.join(" ")}`;
-    }
-  }
-
-  // Append derived-total note if the reconciliation total was summed from line items
-  if (reconFields.derivedTotal) {
-    const derivedNote = "Total estimated from detected line items.";
-    validationWarning = validationWarning
-      ? `${validationWarning} ${derivedNote}`
-      : derivedNote;
-  }
-
-  // Append CAM cap prior-year note when cap exists but no prior year baseline
-  // Skip this note when multi-year reconciliations were uploaded and comparison ran
   const multiYearRecons = options?.multiYearReconciliations;
   const multiYearComparisonRan = multiYearRecons != null && multiYearRecons.length >= 2;
 
-  if (
-    leaseFields.camCapPercentage &&
-    reconTotal != null &&
-    reconTotal > 0 &&
-    priorYearTotal == null &&
-    !multiYearComparisonRan
-  ) {
-    const camNote =
-      "CAM total detected, but prior year comparison data was not found.";
-    validationWarning = validationWarning
-      ? `${validationWarning} ${camNote}`
-      : camNote;
-  }
-
-  // When multi-year comparison ran successfully, add positive status message
-  if (multiYearComparisonRan) {
-    const multiYearNote =
-      "Multi-year CAM comparison completed. Year-over-year change was analyzed against the lease-defined cap.";
-    validationWarning = validationWarning
-      ? `${validationWarning} ${multiYearNote}`
-      : multiYearNote;
-  }
-
-  // When extra recons were uploaded but could not be parsed into valid comparison data
-  if (options?.multiYearUploadedButFailed) {
-    const failedNote =
-      "Multiple CAM reconciliation documents were uploaded, but year-over-year comparison could not be completed due to missing year or total data in one or more files.";
-    validationWarning = validationWarning
-      ? `${validationWarning} ${failedNote}`
-      : failedNote;
-  }
-
-  // Boost confidence score by +10 if overcharge was successfully calculated
-  let adjustedConfidenceScore = confidenceScore;
-  let adjustedConfidence = confidence;
-  if (estimatedOvercharge > 0) {
-    adjustedConfidenceScore = Math.min(adjustedConfidenceScore + 10, 100);
-    if (adjustedConfidenceScore >= 70) adjustedConfidence = "high";
-    else if (adjustedConfidenceScore >= 40) adjustedConfidence = "medium";
-  }
-
-  // ------------------------------------------------------------------
-  // Multi-Year CAM Reconciliation Escalation Comparison
-  // ------------------------------------------------------------------
   if (multiYearRecons && multiYearRecons.length >= 2) {
     // Sort chronologically
     const sorted = [...multiYearRecons].sort((a, b) => a.year - b.year);
+    console.log(`[audit-engine] Multi-year comparison: ${sorted.map(s => `${s.year}=$${s.total.toLocaleString()}`).join(", ")}`);
 
     const camCapPct = leaseFields.camCapPercentage
       ? parseFloat(leaseFields.camCapPercentage)
@@ -1342,6 +1231,8 @@ export async function runAudit(
 
       const increasePercent =
         ((curr.total - prev.total) / prev.total) * 100;
+
+      console.log(`[audit-engine] Multi-year ${prev.year}→${curr.year}: increase=${increasePercent.toFixed(1)}%, cap=${camCapPct ?? "none"}`);
 
       if (camCapPct != null && increasePercent > camCapPct) {
         const allowedIncrease = prev.total * (camCapPct / 100);
@@ -1388,15 +1279,41 @@ export async function runAudit(
           sourceEvidence: evidence,
         };
 
-        // Add to paid (premium) findings — appears in both Premium and
-        // Identified Findings sections via premiumInIdentified filter in PDF
         paidFindings.push(finding);
+        console.log(`[audit-engine] Multi-year finding: overcharge=$${Math.round(overcharge).toLocaleString()} (${prev.year}→${curr.year})`);
+      } else if (increasePercent > 0) {
+        // Even if within cap or no cap, generate an informational finding for multi-year
+        freeFindings.push({
+          category: "Year-over-Year CAM Change (Multi-Year)",
+          description:
+            `CAM charges changed ${increasePercent.toFixed(1)}% from ${prev.year} ($${prev.total.toLocaleString()}) ` +
+            `to ${curr.year} ($${curr.total.toLocaleString()}).` +
+            (camCapPct != null
+              ? ` This is within the lease CAM cap of ${camCapPct}%.`
+              : ` No CAM cap was detected in the lease to compare against.`),
+          potential_savings: 0,
+          severity: "medium",
+          sourceEvidence: [
+            {
+              document: prev.docName ?? `Reconciliation ${prev.year}`,
+              page: null,
+              extractedText: `${prev.year} Total: $${prev.total.toLocaleString()}`,
+            },
+            {
+              document: curr.docName ?? `Reconciliation ${curr.year}`,
+              page: null,
+              extractedText: `${curr.year} Total: $${curr.total.toLocaleString()}`,
+            },
+          ],
+        });
       }
     }
   }
 
   // ------------------------------------------------------------------
   // 6. Gross-Up Review (heuristic audit module)
+  // IMPORTANT: Must run BEFORE filtering so findings are included in
+  // verifiedPaid and counted in savings calculation.
   // ------------------------------------------------------------------
   {
     // Step 1: Search lease + recon text for gross-up / occupancy-adjustment indicators
@@ -1619,6 +1536,127 @@ export async function runAudit(
         sourceEvidence: grossUpEvidence.length > 0 ? grossUpEvidence : undefined,
       });
     }
+  }
+
+  // ------------------------------------------------------------------
+  // Pre-filter diagnostic: log raw findings before filtering
+  // ------------------------------------------------------------------
+  console.log(`[audit-engine] === Pre-filter findings ===`);
+  console.log(`[audit-engine] Raw free (${freeFindings.length}): ${freeFindings.map(f => `${f.category}[$${f.potential_savings}]`).join(", ") || "none"}`);
+  console.log(`[audit-engine] Raw paid (${paidFindings.length}): ${paidFindings.map(f => `${f.category}[$${f.potential_savings}]`).join(", ") || "none"}`);
+
+  // ------------------------------------------------------------------
+  // Findings integrity: only keep findings with actual descriptions
+  // ------------------------------------------------------------------
+  const verifiedFree = freeFindings.filter(
+    (f) => f.insufficientData || f.description.length > 0,
+  );
+  const verifiedPaid = paidFindings.filter(
+    (f) => f.insufficientData || f.description.length > 0,
+  );
+
+  // ---------------------------------------------------------------------------
+  // Promote paid findings to free preview when free findings are empty
+  // ---------------------------------------------------------------------------
+  // If no free-tier checks triggered but real paid findings exist, promote
+  // up to 2 substantive findings so the preview is never misleadingly empty.
+  if (
+    verifiedFree.length === 0 &&
+    verifiedPaid.filter((f) => !f.insufficientData).length > 0
+  ) {
+    const promotable = verifiedPaid.filter((f) => !f.insufficientData);
+    const toPromote = promotable.slice(0, 2);
+    for (const f of toPromote) {
+      verifiedFree.push(f);
+      // Remove from paid so it doesn't appear in both sections
+      const idx = verifiedPaid.indexOf(f);
+      if (idx !== -1) verifiedPaid.splice(idx, 1);
+    }
+  }
+
+  // If free findings are STILL empty (only insufficient-data paid findings),
+  // promote up to 1 insufficient-data finding as informational.
+  if (verifiedFree.length === 0 && verifiedPaid.length > 0) {
+    const infoFinding = verifiedPaid[0];
+    verifiedFree.push(infoFinding);
+    verifiedPaid.splice(0, 1);
+  }
+
+  // Calculate savings only from verified, non-insufficient findings
+  // Include estimated overcharge from excluded categories
+  const findingSavings = [...verifiedFree, ...verifiedPaid]
+    .filter((f) => !f.insufficientData)
+    .reduce((sum, f) => sum + f.potential_savings, 0);
+  const savings = findingSavings + Math.round(estimatedOvercharge);
+
+  // Build validation warning — clear, non-alarming messages
+  let validationWarning: string | null = null;
+  if (auditMode === "limited") {
+    validationWarning =
+      "Limited Review: Some checks could not be completed due to missing or unclear data in the uploaded documents.";
+  } else if (issues.length > 0) {
+    // Only surface truly blocking issues, not informational gaps
+    const blockingIssues = issues.filter(
+      (i: ValidationIssue) =>
+        i.field !== "prior_year" && i.field !== "total_cam",
+    );
+    if (blockingIssues.length > 0) {
+      const missingNames = blockingIssues
+        .map((i: ValidationIssue) => i.message)
+        .slice(0, 3);
+      validationWarning = `Some audit checks have limited data: ${missingNames.join(" ")}`;
+    }
+  }
+
+  // Append derived-total note if the reconciliation total was summed from line items
+  if (reconFields.derivedTotal) {
+    const derivedNote = "Total estimated from detected line items.";
+    validationWarning = validationWarning
+      ? `${validationWarning} ${derivedNote}`
+      : derivedNote;
+  }
+
+  // Append CAM cap prior-year note when cap exists but no prior year baseline
+  // Skip this note when multi-year reconciliations were uploaded and comparison ran
+  if (
+    leaseFields.camCapPercentage &&
+    reconTotal != null &&
+    reconTotal > 0 &&
+    priorYearTotal == null &&
+    !multiYearComparisonRan
+  ) {
+    const camNote =
+      "CAM total detected, but prior year comparison data was not found.";
+    validationWarning = validationWarning
+      ? `${validationWarning} ${camNote}`
+      : camNote;
+  }
+
+  // When multi-year comparison ran successfully, add positive status message
+  if (multiYearComparisonRan) {
+    const multiYearNote =
+      "Multi-year CAM comparison completed. Year-over-year change was analyzed against the lease-defined cap.";
+    validationWarning = validationWarning
+      ? `${validationWarning} ${multiYearNote}`
+      : multiYearNote;
+  }
+
+  // When extra recons were uploaded but could not be parsed into valid comparison data
+  if (options?.multiYearUploadedButFailed) {
+    const failedNote =
+      "Multiple CAM reconciliation documents were uploaded, but year-over-year comparison could not be completed due to missing year or total data in one or more files.";
+    validationWarning = validationWarning
+      ? `${validationWarning} ${failedNote}`
+      : failedNote;
+  }
+
+  // Boost confidence score by +10 if overcharge was successfully calculated
+  let adjustedConfidenceScore = confidenceScore;
+  let adjustedConfidence = confidence;
+  if (estimatedOvercharge > 0) {
+    adjustedConfidenceScore = Math.min(adjustedConfidenceScore + 10, 100);
+    if (adjustedConfidenceScore >= 70) adjustedConfidence = "high";
+    else if (adjustedConfidenceScore >= 40) adjustedConfidence = "medium";
   }
 
   // ------------------------------------------------------------------

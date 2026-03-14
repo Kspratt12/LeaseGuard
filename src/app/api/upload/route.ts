@@ -84,15 +84,55 @@ async function processAudit(
       `[process:${auditId}] Extraction methods — lease: ${validation.leaseExtractionMethod}, recon: ${validation.reconExtractionMethod}`,
     );
 
-    // Debug: log extracted total fields to diagnose false "total not detected" warnings
-    console.log(
-      `[process:${auditId}] Recon fields — totalCamCharges: ${validation.reconFields.totalCamCharges ?? "NULL"}, reconciliationTotal: ${validation.reconFields.reconciliationTotal ?? "NULL"}, derivedTotal: ${validation.reconFields.derivedTotal}, lineItems: ${validation.reconFields.lineItems.length}`,
-    );
+    // === COMPREHENSIVE DEBUG LOGGING ===
+    // 1. Files being used
+    console.log(`[process:${auditId}] === FILES ===`);
+    console.log(`[process:${auditId}] Lease: "${docNames?.leaseDocName ?? "unknown"}" (${leaseBuffer.length} bytes)`);
+    console.log(`[process:${auditId}] Recon: "${docNames?.reconDocName ?? "unknown"}" (${reconBuffer.length} bytes)`);
+    if (extraRecons && extraRecons.length > 0) {
+      for (const er of extraRecons) {
+        console.log(`[process:${auditId}] Extra recon: "${er.name}" (${er.buffer.length} bytes)`);
+      }
+    }
+
+    // 2-3. Extracted text previews
+    console.log(`[process:${auditId}] === EXTRACTED TEXT ===`);
+    console.log(`[process:${auditId}] Lease text length: ${validation.leaseText.length} chars`);
+    console.log(`[process:${auditId}] Lease text preview: ${validation.leaseText.substring(0, 300).replace(/[\n\r]+/g, " | ")}`);
+    console.log(`[process:${auditId}] Recon text length: ${validation.reconText.length} chars`);
+    console.log(`[process:${auditId}] Recon text preview: ${validation.reconText.substring(0, 300).replace(/[\n\r]+/g, " | ")}`);
+
+    // 4-9. Parsed lease clauses
+    console.log(`[process:${auditId}] === LEASE FIELDS ===`);
+    console.log(`[process:${auditId}] CAM Cap: ${validation.leaseFields.camCapPercentage ?? "NULL"}`);
+    console.log(`[process:${auditId}] Admin Fee: ${validation.leaseFields.adminFeePercentage ?? "NULL"}`);
+    console.log(`[process:${auditId}] Management Fee: ${validation.leaseFields.managementFee ?? "NULL"}`);
+    console.log(`[process:${auditId}] Pro-Rata Share: ${validation.leaseFields.proRataShare ?? "NULL"}`);
+    console.log(`[process:${auditId}] Tenant SqFt: ${validation.leaseFields.tenantPremisesSqFt ?? "NULL"}`);
+    console.log(`[process:${auditId}] Building SqFt: ${validation.leaseFields.buildingTotalSqFt ?? "NULL"}`);
+    console.log(`[process:${auditId}] Excluded Terms: [${validation.leaseFields.excludedTerms.join(", ")}]`);
+    console.log(`[process:${auditId}] Stated Tenant Share: ${validation.leaseFields.statedTenantSharePercent ?? "NULL"}`);
+
+    // 10-11. Parsed CAM data
+    console.log(`[process:${auditId}] === RECON FIELDS ===`);
+    console.log(`[process:${auditId}] Total CAM Charges: ${validation.reconFields.totalCamCharges ?? "NULL"}`);
+    console.log(`[process:${auditId}] Reconciliation Total: ${validation.reconFields.reconciliationTotal ?? "NULL"}`);
+    console.log(`[process:${auditId}] Derived Total: ${validation.reconFields.derivedTotal}`);
+    console.log(`[process:${auditId}] Prior Year Total: ${validation.reconFields.priorYearTotal ?? "NULL"}`);
+    console.log(`[process:${auditId}] Recon Year: ${validation.reconFields.reconciliationYear ?? "NULL"}`);
+    console.log(`[process:${auditId}] Pro-Rata Share: ${validation.reconFields.proRataShare ?? "NULL"}`);
+    console.log(`[process:${auditId}] Admin Fee: ${validation.reconFields.adminFeePercentage ?? "NULL"}`);
+    console.log(`[process:${auditId}] Management Fee: ${validation.reconFields.managementFee ?? "NULL"}`);
+    console.log(`[process:${auditId}] Line Items (${validation.reconFields.lineItems.length}):`);
+    for (const li of validation.reconFields.lineItems.slice(0, 20)) {
+      console.log(`[process:${auditId}]   ${li.category}: $${li.amount}`);
+    }
+    console.log(`[process:${auditId}] Expense Categories: [${validation.reconFields.expenseCategories.join(", ")}]`);
+
+    // If totals not found, log diagnostic info
     if (!validation.reconFields.totalCamCharges && !validation.reconFields.reconciliationTotal) {
-      // Log first 500 chars of recon text for debugging total detection
       const reconPreview = validation.reconText.substring(0, 500).replace(/\n/g, "\\n");
-      console.log(`[process:${auditId}] Recon text preview (total not found): ${reconPreview}`);
-      // Log all lines containing "total" for diagnosis
+      console.log(`[process:${auditId}] WARNING: No totals found. Recon text preview: ${reconPreview}`);
       const totalLines = validation.reconText
         .split(/[\n\r]+/)
         .filter((line: string) => /total/i.test(line))
@@ -163,6 +203,9 @@ async function processAudit(
       for (const extra of extraRecons) {
         try {
           const extraction = await extractTextFromPdf(extra.buffer);
+          console.log(`[process:${auditId}] Extra recon "${extra.name}": extracted ${extraction.text.length} chars via ${extraction.method}`);
+          console.log(`[process:${auditId}] Extra recon "${extra.name}" text preview: ${extraction.text.substring(0, 200).replace(/[\n\r]+/g, " | ")}`);
+
           const fields = extractFields(extraction.text);
           const yr = fields.reconciliationYear;
           const tot = fields.totalCamCharges
@@ -170,6 +213,8 @@ async function processAudit(
             : fields.reconciliationTotal
               ? normalizeNumber(fields.reconciliationTotal)
               : null;
+
+          console.log(`[process:${auditId}] Extra recon "${extra.name}" fields: year=${yr}, totalCam=${fields.totalCamCharges ?? "NULL"}, reconTotal=${fields.reconciliationTotal ?? "NULL"}, lineItems=${fields.lineItems.length}`);
 
           if (yr != null && tot != null && tot > 0) {
             yearEntries.push({
@@ -179,12 +224,20 @@ async function processAudit(
               docName: extra.name,
             });
             console.log(
-              `[process:${auditId}] Extra recon "${extra.name}": year=${yr}, total=$${tot.toLocaleString()}`,
+              `[process:${auditId}] Extra recon "${extra.name}": year=${yr}, total=$${tot.toLocaleString()}, lineItems=${fields.lineItems.length}`,
             );
           } else {
             console.log(
-              `[process:${auditId}] Extra recon "${extra.name}": could not extract year (${yr}) or total (${tot})`,
+              `[process:${auditId}] Extra recon "${extra.name}": FAILED to extract — year=${yr}, total=${tot}`,
             );
+            // Log lines containing "total" or year patterns for diagnosis
+            const totalLines = extraction.text
+              .split(/[\n\r]+/)
+              .filter((line: string) => /total|20\d{2}|reconciliation/i.test(line))
+              .map((line: string) => line.trim().substring(0, 120));
+            if (totalLines.length > 0) {
+              console.log(`[process:${auditId}] Extra recon diagnostic lines: ${JSON.stringify(totalLines.slice(0, 10))}`);
+            }
           }
         } catch (err) {
           console.warn(
@@ -218,9 +271,29 @@ async function processAudit(
       STEP_TIMEOUT_MS,
       "audit analysis",
     );
-    console.log(
-      `[process:${auditId}] Audit complete — savings: $${result.savings_estimate}, findings: ${result.free_findings.length} free / ${result.paid_findings.length} paid`,
-    );
+    // 13-16. Discrepancy detection output, findings, savings
+    console.log(`[process:${auditId}] === AUDIT RESULTS ===`);
+    console.log(`[process:${auditId}] Savings estimate: $${result.savings_estimate}`);
+    console.log(`[process:${auditId}] Estimated overcharge: $${result.estimated_overcharge}`);
+    console.log(`[process:${auditId}] Confidence: ${result.confidence} (${result.confidenceScore}/100)`);
+    console.log(`[process:${auditId}] Audit mode: ${result.auditMode}`);
+    console.log(`[process:${auditId}] Free findings (${result.free_findings.length}):`);
+    for (const f of result.free_findings) {
+      console.log(`[process:${auditId}]   [${f.severity}] ${f.category}: $${f.potential_savings}${f.insufficientData ? " (insufficient)" : ""}`);
+    }
+    console.log(`[process:${auditId}] Paid findings (${result.paid_findings.length}):`);
+    for (const f of result.paid_findings) {
+      console.log(`[process:${auditId}]   [${f.severity}] ${f.category}: $${f.potential_savings}${f.insufficientData ? " (insufficient)" : ""}`);
+    }
+    if (result.overcharge_breakdown.length > 0) {
+      console.log(`[process:${auditId}] Overcharge breakdown:`);
+      for (const ob of result.overcharge_breakdown) {
+        console.log(`[process:${auditId}]   ${ob.category}: total=$${ob.total_expense}, tenant_charge=$${ob.tenant_charge}`);
+      }
+    }
+    if (result.validationWarning) {
+      console.log(`[process:${auditId}] Validation warning: ${result.validationWarning}`);
+    }
 
     // Step 4: Generate PDF report
     console.log(`[process:${auditId}] Generating PDF report...`);
@@ -260,10 +333,16 @@ async function processAudit(
     }
     console.log(`[process:${auditId}] Report uploaded OK`);
 
+    // 17. Final payload stored to DB
     // Step 6: Update audit record with results.
     // Split into core fields (must succeed) and analytics fields (best-effort)
     // so a missing optional column cannot block the audit from completing.
-    console.log(`[process:${auditId}] Updating audit record to completed...`);
+    console.log(`[process:${auditId}] === STORING TO DB ===`);
+    console.log(`[process:${auditId}] savings_estimate: $${result.savings_estimate}`);
+    console.log(`[process:${auditId}] free_findings count: ${result.free_findings.length}`);
+    console.log(`[process:${auditId}] paid_findings count: ${result.paid_findings.length}`);
+    console.log(`[process:${auditId}] estimated_overcharge: $${result.estimated_overcharge}`);
+    console.log(`[process:${auditId}] overcharge_breakdown count: ${result.overcharge_breakdown.length}`);
 
     const coreUpdate = {
       status: "completed" as const,
