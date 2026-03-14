@@ -13,6 +13,7 @@ export function Footer() {
               alt="LeaseGuard CAM audit software logo"
               width={150}
               height={36}
+              loading="lazy"
               className="h-10 w-auto brightness-0 invert"
             />
             <p className="text-sm leading-relaxed">

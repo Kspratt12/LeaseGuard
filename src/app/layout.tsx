@@ -1,8 +1,21 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { SITE_URL } from "@/lib/constants";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#1d4ed8",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -83,8 +96,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <head>
+        <link
+          rel="preload"
+          href="/leaseguard-logo.png"
+          as="image"
+          type="image/png"
+        />
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }}
@@ -94,7 +115,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
       </head>
-      <body className="min-h-screen antialiased flex flex-col">
+      <body className="min-h-screen antialiased flex flex-col font-sans">
         <Navbar />
         <div className="flex-1">{children}</div>
         <Footer />
