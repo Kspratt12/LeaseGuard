@@ -66,6 +66,7 @@ export function Footer() {
                 { href: "/#faq", label: "FAQ" },
                 { href: "/contact", label: "Contact" },
                 { href: "/resources", label: "Resources" },
+                { href: "/about", label: "About" },
               ].map((link) =>
                 link.href.startsWith("/#") ? (
                   <li key={link.href}>
