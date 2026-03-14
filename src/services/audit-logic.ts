@@ -326,7 +326,7 @@ export async function runAudit(
         extractedText: capSnippet,
       }] : undefined,
     });
-  } else if (!leaseFields.camCapPercentage && !isLimited) {
+  } else if (!leaseFields.camCapPercentage) {
     freeFindings.push({
       category: "CAM Cap Compliance",
       description:
@@ -492,7 +492,7 @@ export async function runAudit(
       severity: "low",
       insufficientData: true,
     });
-  } else if (!isLimited && missingFields.has("admin_fee")) {
+  } else if (missingFields.has("admin_fee")) {
     paidFindings.push({
       category: "Admin Fee Review",
       description:
@@ -550,7 +550,7 @@ export async function runAudit(
         sourceEvidence: shareEvidence.length > 0 ? shareEvidence : undefined,
       });
     }
-  } else if (!isLimited && missingFields.has("pro_rata")) {
+  } else if (missingFields.has("pro_rata")) {
     paidFindings.push({
       category: "Pro-Rata Share Review",
       description:
@@ -1075,7 +1075,7 @@ export async function runAudit(
         severity: highConf.length > 0 ? "high" : "medium",
       });
     }
-  } else if (!isLimited && missingFields.has("expense_categories")) {
+  } else if (missingFields.has("expense_categories")) {
     freeFindings.push({
       category: "Expense Category Review",
       description:
@@ -1192,7 +1192,7 @@ export async function runAudit(
   // 5. Total CAM / Reconciliation Totals
   // ------------------------------------------------------------------
   if (!reconFields.totalCamCharges && !reconFields.reconciliationTotal) {
-    if (!isLimited && missingFields.has("total_cam")) {
+    if (missingFields.has("total_cam")) {
       freeFindings.push({
         category: "Reconciliation Totals",
         description:

@@ -3,6 +3,9 @@ import { createServiceClient } from "@/lib/supabase";
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+/** Allow up to 5 minutes for background processing on Vercel. */
+export const maxDuration = 300;
+
 const BUCKET = "invoices";
 
 /** Hard timeout for the entire processing pipeline (4 minutes). */
