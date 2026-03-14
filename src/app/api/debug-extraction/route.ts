@@ -75,6 +75,8 @@ export async function POST(req: NextRequest) {
         wordCount: extraction.text.trim().split(/\s+/).filter(Boolean).length,
         textPreview: extraction.text.substring(0, 2000),
         timingMs: textMs,
+        ocrTriggered: extraction.ocrTriggered,
+        ocrTextLength: extraction.ocrTextLength,
       },
       regexFields: {
         camCapPercentage: fields.camCapPercentage,

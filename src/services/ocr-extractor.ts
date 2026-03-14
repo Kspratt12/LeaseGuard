@@ -12,13 +12,17 @@ import Tesseract from "tesseract.js";
 import { PDFDocument } from "pdf-lib";
 
 /** Minimum text length to consider pdf-parse output sufficient. */
-export const OCR_TEXT_THRESHOLD = 30;
+export const OCR_TEXT_THRESHOLD = 200;
 
 export type ExtractionMethod = "pdf_text" | "ocr";
 
 export interface ExtractionResult {
   text: string;
   method: ExtractionMethod;
+  /** Whether the OCR fallback was triggered */
+  ocrTriggered: boolean;
+  /** Length of OCR-extracted text (0 if OCR was not used) */
+  ocrTextLength: number;
 }
 
 /** Maximum number of pages to OCR (prevents multi-page PDFs from timing out). */

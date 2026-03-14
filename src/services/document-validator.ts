@@ -423,23 +423,26 @@ export async function extractTextFromPdf(
   pdfText = normalizeExtractedText(pdfText);
 
   if (pdfText.trim().length >= OCR_TEXT_THRESHOLD) {
-    return { text: pdfText, method: "pdf_text" };
+    return { text: pdfText, method: "pdf_text", ocrTriggered: false, ocrTextLength: 0 };
   }
 
   // Both text extractors returned little text — fall back to OCR
   console.log(
-    `[extractText] Text extraction returned ${pdfText.trim().length} chars (< ${OCR_TEXT_THRESHOLD}), attempting OCR...`,
+    `[extractText] Text extraction returned ${pdfText.trim().length} chars (< ${OCR_TEXT_THRESHOLD}), attempting OCR fallback...`,
   );
   const rawOcrText = await extractTextWithOcr(buffer);
   const ocrText = normalizeExtractedText(rawOcrText);
+  console.log(
+    `[extractText] OCR Fallback Used: true | OCR Extracted Text Length: ${ocrText.trim().length} characters`,
+  );
   if (ocrText.trim().length > pdfText.trim().length) {
     console.log(
-      `[extractText] OCR recovered ${ocrText.trim().length} chars`,
+      `[extractText] OCR recovered ${ocrText.trim().length} chars, using OCR text`,
     );
-    return { text: ocrText, method: "ocr" };
+    return { text: ocrText, method: "ocr", ocrTriggered: true, ocrTextLength: ocrText.trim().length };
   }
 
-  return { text: pdfText, method: "pdf_text" };
+  return { text: pdfText, method: "pdf_text", ocrTriggered: true, ocrTextLength: ocrText.trim().length };
 }
 
 /**

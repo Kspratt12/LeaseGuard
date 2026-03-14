@@ -16,6 +16,8 @@ interface ExtractionResult {
     wordCount: number;
     textPreview: string;
     timingMs: number;
+    ocrTriggered: boolean;
+    ocrTextLength: number;
   };
   regexFields: {
     camCapPercentage: string | null;
@@ -129,6 +131,16 @@ export default function DebugExtractionPage() {
                 {result.extraction.wordCount} words |
                 {result.extraction.timingMs}ms
               </div>
+
+              {/* OCR Fallback info */}
+              {result.extraction.ocrTriggered && (
+                <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded text-sm">
+                  <strong>OCR Fallback Used:</strong>{" "}
+                  <span className="text-orange-700 font-medium">true</span> |{" "}
+                  <strong>OCR Extracted Text Length:</strong>{" "}
+                  <span className="font-mono">{result.extraction.ocrTextLength} characters</span>
+                </div>
+              )}
 
               {/* Extracted fields */}
               <div className="mb-4">
