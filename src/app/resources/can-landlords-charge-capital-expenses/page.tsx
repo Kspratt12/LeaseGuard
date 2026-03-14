@@ -24,6 +24,7 @@ export default function CanLandlordsChargeCapitalExpenses() {
       title="Can Landlords Charge Capital Expenses to Tenants?"
       publishedDate="March 2026"
       readTime="9 min read"
+      description="Understand when landlords can and cannot pass capital expenditures to commercial tenants. Learn the difference between repairs and capital improvements and how amortization works."
     >
       <p>
         One of the most significant — and most disputed — issues in commercial

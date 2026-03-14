@@ -20,9 +20,53 @@ import {
 } from "lucide-react";
 import { AnimateOnScroll } from "@/components/animate-on-scroll";
 
+const faqItems = [
+  {
+    q: "What files do I upload?",
+    a: "Upload one PDF of your commercial lease (specifically the CAM or operating expense section) and one or more annual CAM reconciliation statement PDFs from your landlord.",
+  },
+  {
+    q: "Can I upload multiple CAM reconciliation PDFs?",
+    a: "Yes. Uploading multiple years of reconciliation statements enables year-over-year comparison, which can reveal escalation patterns, inconsistent charges, and additional discrepancies across billing periods.",
+  },
+  {
+    q: "Is this legal advice?",
+    a: "No. LeaseGuard provides AI-powered analysis for informational purposes only. It is not a substitute for legal, accounting, or professional advice. We recommend having a qualified professional review the findings before taking action.",
+  },
+  {
+    q: "What does the free audit include?",
+    a: "The free audit preview includes a basic findings summary, estimated potential savings, lease clause detection (CAM caps, admin fee limits, excluded expenses), and an overcharge breakdown table.",
+  },
+  {
+    q: "What does the $49 report include?",
+    a: "The full evidence report is a one-time purchase that adds premium discrepancy findings, source-level evidence references with page numbers, and a downloadable multi-page PDF report with complete analysis.",
+  },
+  {
+    q: "How accurate are the results?",
+    a: "Accuracy depends on the clarity and structure of your uploaded documents. LeaseGuard uses text extraction and AI analysis to identify discrepancies, and each finding includes a confidence indicator. Results should always be reviewed by a qualified professional.",
+  },
+];
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqItems.map(({ q, a }) => ({
+    "@type": "Question",
+    name: q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: a,
+    },
+  })),
+};
+
 export default function Home() {
   return (
     <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       {/* ── Hero (dark gradient) ── */}
       <section className="relative overflow-hidden bg-gradient-to-b from-gray-950 via-blue-950 to-gray-900">
         {/* Subtle radial glow */}
@@ -449,32 +493,7 @@ export default function Home() {
             </h2>
           </AnimateOnScroll>
           <div className="space-y-5">
-            {[
-              {
-                q: "What files do I upload?",
-                a: "Upload one PDF of your commercial lease (specifically the CAM or operating expense section) and one or more annual CAM reconciliation statement PDFs from your landlord.",
-              },
-              {
-                q: "Can I upload multiple CAM reconciliation PDFs?",
-                a: "Yes. Uploading multiple years of reconciliation statements enables year-over-year comparison, which can reveal escalation patterns, inconsistent charges, and additional discrepancies across billing periods.",
-              },
-              {
-                q: "Is this legal advice?",
-                a: "No. LeaseGuard provides AI-powered analysis for informational purposes only. It is not a substitute for legal, accounting, or professional advice. We recommend having a qualified professional review the findings before taking action.",
-              },
-              {
-                q: "What does the free audit include?",
-                a: "The free audit preview includes a basic findings summary, estimated potential savings, lease clause detection (CAM caps, admin fee limits, excluded expenses), and an overcharge breakdown table.",
-              },
-              {
-                q: "What does the $49 report include?",
-                a: "The full evidence report is a one-time purchase that adds premium discrepancy findings, source-level evidence references with page numbers, and a downloadable multi-page PDF report with complete analysis.",
-              },
-              {
-                q: "How accurate are the results?",
-                a: "Accuracy depends on the clarity and structure of your uploaded documents. LeaseGuard uses text extraction and AI analysis to identify discrepancies, and each finding includes a confidence indicator. Results should always be reviewed by a qualified professional.",
-              },
-            ].map(({ q, a }) => (
+            {faqItems.map(({ q, a }) => (
               <AnimateOnScroll key={q}>
                 <div className="rounded-xl border border-gray-200 bg-white p-6 hover:shadow-sm transition-shadow">
                   <h3 className="font-semibold text-gray-900 mb-2">{q}</h3>

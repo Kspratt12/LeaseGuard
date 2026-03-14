@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { SITE_URL } from "@/lib/constants";
 
 interface ArticleLayoutProps {
   title: string;
   publishedDate: string;
   readTime: string;
+  description?: string;
   children: React.ReactNode;
 }
 
@@ -12,10 +14,40 @@ export function ArticleLayout({
   title,
   publishedDate,
   readTime,
+  description,
   children,
 }: ArticleLayoutProps) {
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: title,
+    description: description || title,
+    author: {
+      "@type": "Organization",
+      name: "LeaseGuard",
+      url: SITE_URL,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "LeaseGuard",
+      url: SITE_URL,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/leaseguard-logo.png`,
+      },
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+    },
+    datePublished: publishedDate,
+  };
+
   return (
     <main className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
       {/* Header */}
       <div className="border-b border-gray-100 bg-gray-50/60">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 py-10 sm:py-14">

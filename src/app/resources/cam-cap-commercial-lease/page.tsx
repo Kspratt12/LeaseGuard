@@ -24,6 +24,7 @@ export default function CamCapCommercialLease() {
       title="CAM Caps in Commercial Leases Explained"
       publishedDate="March 2026"
       readTime="8 min read"
+      description="Learn what CAM caps are, how cumulative and non-cumulative caps work, and how to verify your landlord is applying your cap correctly."
     >
       <p>
         Without a CAM cap, there is no ceiling on the{" "}

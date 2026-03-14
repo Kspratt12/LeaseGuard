@@ -24,6 +24,7 @@ export default function TripleNetLeaseExpenses() {
       title="Triple Net Lease Expenses Explained"
       publishedDate="March 2026"
       readTime="9 min read"
+      description="Understand the three expense categories in a triple net (NNN) lease: property taxes, insurance, and common area maintenance. Learn what tenants actually pay and how to verify charges."
     >
       <p>
         A triple net lease — commonly abbreviated as NNN — is one of the most

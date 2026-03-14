@@ -24,6 +24,7 @@ export default function HowToAuditCamCharges() {
       title="How to Audit Your CAM Charges"
       publishedDate="March 2026"
       readTime="10 min read"
+      description="Step-by-step guide for commercial tenants who want to audit their CAM charges. Learn what to look for, common red flags, and how to exercise your audit rights."
     >
       <p>
         For commercial tenants — whether you operate a retail store, a medical

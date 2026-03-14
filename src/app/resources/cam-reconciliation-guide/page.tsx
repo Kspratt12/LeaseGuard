@@ -24,6 +24,7 @@ export default function CamReconciliationGuide() {
       title="CAM Reconciliation: What Tenants Need to Know"
       publishedDate="March 2026"
       readTime="9 min read"
+      description="Understand the annual CAM reconciliation process, how year-end adjustments work, and where discrepancies commonly arise for commercial tenants."
     >
       <p>
         The annual CAM reconciliation statement is one of the most financially

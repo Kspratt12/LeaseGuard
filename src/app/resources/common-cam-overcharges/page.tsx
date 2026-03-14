@@ -24,6 +24,7 @@ export default function CommonCamOvercharges() {
       title="5 Common CAM Overcharges Tenants Miss"
       publishedDate="March 2026"
       readTime="9 min read"
+      description="Discover the most frequently overlooked CAM billing errors that cost commercial tenants thousands of dollars. Learn what to look for in your reconciliation statements."
     >
       <p>
         CAM overcharges affect commercial tenants of every type — retail

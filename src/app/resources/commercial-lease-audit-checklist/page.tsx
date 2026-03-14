@@ -24,6 +24,7 @@ export default function CommercialLeaseAuditChecklist() {
       title="Commercial Lease Audit Checklist"
       publishedDate="March 2026"
       readTime="10 min read"
+      description="A practical checklist for commercial tenants auditing their lease charges. Covers CAM reconciliation, operating expenses, proportionate share, and lease compliance."
     >
       <p>
         A lease audit is one of the most effective ways for commercial tenants to

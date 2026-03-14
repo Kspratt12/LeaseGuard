@@ -24,6 +24,7 @@ export default function HiddenCostsInNnnLeases() {
       title="Hidden Costs in NNN Leases"
       publishedDate="March 2026"
       readTime="10 min read"
+      description="Uncover the hidden costs that commercial tenants often miss in triple net (NNN) leases. Learn how to identify unexpected charges and protect your bottom line."
     >
       <p>
         Triple net (NNN) leases are marketed as straightforward: you pay base

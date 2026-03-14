@@ -53,20 +53,28 @@ export const metadata: Metadata = {
   },
 };
 
-const jsonLd = {
+const softwareAppJsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   name: "LeaseGuard",
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   description:
-    "AI-powered CAM audit analysis for commercial tenants reviewing lease clauses and reconciliation statements.",
+    "AI-powered CAM audit platform for commercial tenants that analyzes lease clauses and CAM reconciliation statements to identify potential overcharges.",
   offers: {
     "@type": "Offer",
-    price: "0",
+    price: "49",
     priceCurrency: "USD",
-    description: "Free audit preview. Full evidence report available for $49.",
+    category: "Commercial lease CAM audit report",
   },
+};
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "LeaseGuard",
+  url: SITE_URL,
+  logo: `${SITE_URL}/leaseguard-logo.png`,
 };
 
 export default function RootLayout({
@@ -79,7 +87,11 @@ export default function RootLayout({
       <head>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
       </head>
       <body className="min-h-screen antialiased flex flex-col">

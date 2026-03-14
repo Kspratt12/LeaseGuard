@@ -24,6 +24,7 @@ export default function WhatLandlordsCanIncludeInCam() {
       title="What Landlords Can Include in CAM Charges"
       publishedDate="March 2026"
       readTime="10 min read"
+      description="Learn what expenses landlords are allowed to include in CAM charges, what is typically excluded, and how to verify your charges against your lease agreement."
     >
       <p>
         One of the most common questions commercial tenants ask is: &quot;What

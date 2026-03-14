@@ -24,6 +24,7 @@ export default function CamChargesExplained() {
       title="What Are CAM Charges in Commercial Leases?"
       publishedDate="March 2026"
       readTime="8 min read"
+      description="Learn how CAM charges work in commercial leases, how reconciliation statements are calculated, and how tenants can detect potential overcharges."
     >
       <p>
         CAM charges are one of the largest variable costs in any commercial

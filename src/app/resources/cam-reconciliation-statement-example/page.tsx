@@ -24,6 +24,7 @@ export default function CamReconciliationStatementExample() {
       title="CAM Reconciliation Statement Example"
       publishedDate="March 2026"
       readTime="11 min read"
+      description="See a practical example of a CAM reconciliation statement with line-by-line explanations. Learn how to read and verify each section of your annual reconciliation."
     >
       <p>
         A{" "}
