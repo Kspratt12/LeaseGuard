@@ -2,13 +2,14 @@
  * OCR fallback for scanned / image-based PDFs.
  *
  * When pdf-parse returns very little text (< 200 chars), this module
- * renders each PDF page to a PNG image using pdfjs-dist + node-canvas,
+ * renders each PDF page to a PNG image using pdfjs-dist + @napi-rs/canvas,
  * then runs Tesseract.js OCR to recover the text content.
  *
- * Dependencies: tesseract.js, pdfjs-dist, canvas (node-canvas)
+ * Dependencies: tesseract.js, pdfjs-dist, @napi-rs/canvas
  */
 
 import Tesseract from "tesseract.js";
+import { createCanvas } from "@napi-rs/canvas";
 
 /** Minimum text length to consider pdf-parse output sufficient. */
 export const OCR_TEXT_THRESHOLD = 200;
@@ -22,6 +23,8 @@ export interface ExtractionResult {
   ocrTriggered: boolean;
   /** Length of OCR-extracted text (0 if OCR was not used) */
   ocrTextLength: number;
+  /** OCR error message if OCR failed, null otherwise */
+  ocrError: string | null;
 }
 
 /** Maximum number of pages to OCR (prevents multi-page PDFs from timing out). */
@@ -33,8 +36,8 @@ const PER_PAGE_TIMEOUT_MS = 30_000;
 /** Total OCR timeout in milliseconds. */
 const TOTAL_OCR_TIMEOUT_MS = 90_000;
 
-/** Scale factor for rendering PDF pages (1.5 = 150 DPI, good balance of quality vs speed). */
-const RENDER_SCALE = 1.5;
+/** Scale factor for rendering PDF pages (2.0 = ~150 DPI, good for OCR). */
+const RENDER_SCALE = 2.0;
 
 /** Race a promise against a timeout, returning null on timeout instead of throwing. */
 function ocrWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
@@ -48,7 +51,34 @@ function ocrWithTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 }
 
 /**
- * Render a single PDF page to a PNG buffer using pdfjs-dist and node-canvas.
+ * Custom CanvasFactory for pdfjs-dist that uses @napi-rs/canvas.
+ * pdfjs-dist calls create() to get a canvas+context pair for rendering.
+ */
+class NodeCanvasFactory {
+  create(width: number, height: number) {
+    const canvas = createCanvas(width, height);
+    const context = canvas.getContext("2d");
+    return { canvas, context };
+  }
+
+  reset(
+    canvasAndContext: { canvas: ReturnType<typeof createCanvas> },
+    width: number,
+    height: number,
+  ) {
+    canvasAndContext.canvas.width = width;
+    canvasAndContext.canvas.height = height;
+  }
+
+  destroy(canvasAndContext: { canvas: ReturnType<typeof createCanvas> }) {
+    // @napi-rs/canvas doesn't require explicit cleanup
+    canvasAndContext.canvas.width = 0;
+    canvasAndContext.canvas.height = 0;
+  }
+}
+
+/**
+ * Render a single PDF page to a PNG buffer using pdfjs-dist and @napi-rs/canvas.
  */
 async function renderPageToPng(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,32 +89,46 @@ async function renderPageToPng(
     const page = await pdfDoc.getPage(pageNumber);
     const viewport = page.getViewport({ scale: RENDER_SCALE });
 
-    // Create a node-canvas for rendering
-    const { createCanvas } = await import("canvas");
-    const canvas = createCanvas(viewport.width, viewport.height);
-    const context = canvas.getContext("2d");
+    const canvasFactory = new NodeCanvasFactory();
+    const { canvas, context } = canvasFactory.create(
+      Math.floor(viewport.width),
+      Math.floor(viewport.height),
+    );
 
-    // pdfjs-dist render expects a CanvasRenderingContext2D-like object
     await page.render({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       canvasContext: context as any,
       viewport,
+      canvasFactory,
     }).promise;
 
-    const pngBuffer = canvas.toBuffer("image/png");
+    const pngBuffer = Buffer.from(canvas.toBuffer("image/png"));
     console.log(
-      `[ocr] Page ${pageNumber} rendered to PNG: ${pngBuffer.length} bytes (${Math.round(viewport.width)}x${Math.round(viewport.height)})`,
+      `[ocr] Page ${pageNumber} rendered to PNG: ${pngBuffer.length} bytes ` +
+      `(${Math.round(viewport.width)}x${Math.round(viewport.height)})`,
     );
+
+    if (pngBuffer.length < 1000) {
+      console.warn(
+        `[ocr] Page ${pageNumber} PNG is very small (${pngBuffer.length} bytes), ` +
+        `page may be blank or contain no image content`,
+      );
+    }
+
     return pngBuffer;
   } catch (err) {
-    console.error(`[ocr] Failed to render page ${pageNumber}:`, err);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[ocr] Failed to render page ${pageNumber}: ${msg}`);
+    if (err instanceof Error && err.stack) {
+      console.error(`[ocr] Stack: ${err.stack.split("\n").slice(0, 3).join(" > ")}`);
+    }
     return null;
   }
 }
 
 /**
  * Run OCR on a PDF buffer by rendering each page to a PNG image
- * using pdfjs-dist + node-canvas, then running Tesseract.js OCR
+ * using pdfjs-dist + @napi-rs/canvas, then running Tesseract.js OCR
  * on each rendered image.
  *
  * Limits: processes at most MAX_OCR_PAGES pages, with PER_PAGE_TIMEOUT_MS
@@ -120,13 +164,14 @@ export async function extractTextWithOcr(
       );
     }
 
-    console.log(`[ocr] Starting OCR on ${pageCount} pages...`);
+    console.log(`[ocr] Starting OCR on ${pageCount} pages (buffer: ${pdfBuffer.length} bytes)...`);
 
     for (let i = 1; i <= pageCount; i++) {
       // Check total elapsed time
       if (Date.now() - ocrStart > TOTAL_OCR_TIMEOUT_MS) {
         console.warn(
-          `[ocr] Total OCR timeout reached after ${i - 1} pages (${TOTAL_OCR_TIMEOUT_MS / 1000}s), returning partial text`,
+          `[ocr] Total OCR timeout reached after ${i - 1} pages ` +
+          `(${TOTAL_OCR_TIMEOUT_MS / 1000}s), returning partial text`,
         );
         break;
       }
@@ -147,7 +192,9 @@ export async function extractTextWithOcr(
       );
 
       if (result == null) {
-        console.warn(`[ocr] Page ${i} OCR timed out after ${PER_PAGE_TIMEOUT_MS / 1000}s, skipping`);
+        console.warn(
+          `[ocr] Page ${i} OCR timed out after ${PER_PAGE_TIMEOUT_MS / 1000}s, skipping`,
+        );
         continue;
       }
 
@@ -170,7 +217,11 @@ export async function extractTextWithOcr(
     );
     return combinedText;
   } catch (err) {
-    console.error("[ocr] OCR extraction failed:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[ocr] OCR extraction failed: ${msg}`);
+    if (err instanceof Error && err.stack) {
+      console.error(`[ocr] Stack: ${err.stack.split("\n").slice(0, 5).join(" > ")}`);
+    }
     return "";
   }
 }

@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
         timingMs: textMs,
         ocrTriggered: extraction.ocrTriggered,
         ocrTextLength: extraction.ocrTextLength,
+        ocrError: extraction.ocrError,
       },
       regexFields: {
         camCapPercentage: fields.camCapPercentage,

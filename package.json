@@ -14,10 +14,10 @@
   "description": "",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@napi-rs/canvas": "^0.1.96",
     "@supabase/supabase-js": "^2.99.1",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
-    "canvas": "^3.2.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.577.0",

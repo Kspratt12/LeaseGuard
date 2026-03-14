@@ -18,6 +18,7 @@ interface ExtractionResult {
     timingMs: number;
     ocrTriggered: boolean;
     ocrTextLength: number;
+    ocrError: string | null;
   };
   regexFields: {
     camCapPercentage: string | null;
@@ -139,6 +140,9 @@ export default function DebugExtractionPage() {
                   <span className="text-orange-700 font-medium">true</span> |{" "}
                   <strong>OCR Extracted Text Length:</strong>{" "}
                   <span className="font-mono">{result.extraction.ocrTextLength} characters</span>
+                  {result.extraction.ocrError && (
+                    <span className="text-red-600"> | Error: {result.extraction.ocrError}</span>
+                  )}
                 </div>
               )}
 
