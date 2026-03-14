@@ -1,17 +1,5 @@
-import dynamic from "next/dynamic";
+import { UploadZone } from "@/components/upload-zone";
 import { FileText, Files } from "lucide-react";
-
-const UploadZone = dynamic(
-  () => import("@/components/upload-zone").then((mod) => mod.UploadZone),
-  {
-    loading: () => (
-      <div className="w-full max-w-2xl rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-12 text-center">
-        <p className="text-sm text-gray-400">Loading upload zone...</p>
-      </div>
-    ),
-    ssr: false,
-  }
-);
 
 export default function UploadPage() {
   return (
