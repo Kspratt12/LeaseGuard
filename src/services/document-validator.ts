@@ -234,6 +234,15 @@ const EXCLUSION_TERMS = [
  * Extract text from a PDF buffer using pdfjs-dist (modern Mozilla PDF.js).
  * Falls back to the legacy pdf-parse library, then OCR, if pdfjs-dist fails.
  */
+/**
+ * Count distinct whitespace-separated words — used to judge text quality.
+ * Garbled text like "TotalCAMCharges$53,444" has fewer words than
+ * properly spaced "Total CAM Charges $53,444".
+ */
+function wordCount(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
 export async function extractTextFromPdf(
   buffer: Buffer,
 ): Promise<ExtractionResult> {
@@ -243,47 +252,59 @@ export async function extractTextFromPdf(
     console.warn(`[extractText] Buffer does not start with %PDF header (got "${header}"). Size: ${buffer.length} bytes`);
   }
 
-  // Step 1: Try modern pdfjs-dist extraction (handles modern PDF features)
-  let pdfText = "";
+  // Always try BOTH extractors and pick the higher-quality result.
+  // Previously pdfjs-dist returned early when it had >= 30 chars, but
+  // garbled text (no spaces between words) could pass that threshold
+  // while being completely unparseable by downstream regex patterns.
+
+  let pdfjsText = "";
   try {
-    pdfText = await extractWithPdfjsDist(buffer);
-    if (pdfText.trim().length >= OCR_TEXT_THRESHOLD) {
-      console.log(`[extractText] pdfjs-dist extracted ${pdfText.trim().length} chars`);
-      return { text: pdfText, method: "pdf_text" };
-    }
-    console.log(`[extractText] pdfjs-dist returned only ${pdfText.trim().length} chars, trying pdf-parse...`);
+    pdfjsText = await extractWithPdfjsDist(buffer);
+    console.log(`[extractText] pdfjs-dist extracted ${pdfjsText.trim().length} chars, ${wordCount(pdfjsText)} words`);
   } catch (err) {
     console.warn("[extractText] pdfjs-dist failed:", err instanceof Error ? err.message : err);
   }
 
-  // Step 2: Try legacy pdf-parse as fallback
+  let legacyText = "";
   try {
     const result = await pdfParse(buffer);
-    const legacyText = result.text ?? "";
-    if (legacyText.trim().length > pdfText.trim().length) {
-      pdfText = legacyText;
-    }
-    if (pdfText.trim().length >= OCR_TEXT_THRESHOLD) {
-      console.log(`[extractText] pdf-parse extracted ${pdfText.trim().length} chars`);
-      return { text: pdfText, method: "pdf_text" };
-    }
-    console.log(`[extractText] pdf-parse returned only ${pdfText.trim().length} chars`);
+    legacyText = result.text ?? "";
+    console.log(`[extractText] pdf-parse extracted ${legacyText.trim().length} chars, ${wordCount(legacyText)} words`);
   } catch (err) {
     console.warn("[extractText] pdf-parse failed:", err instanceof Error ? err.message : err);
   }
 
-  // Step 3: If both text extractors returned little text, fall back to OCR
-  if (pdfText.trim().length < OCR_TEXT_THRESHOLD) {
+  // Pick the extractor with more words (better spacing = more useful text).
+  // Fall back to char length as tiebreaker.
+  let pdfText: string;
+  const pdfjsWords = wordCount(pdfjsText);
+  const legacyWords = wordCount(legacyText);
+  if (pdfjsWords > legacyWords) {
+    pdfText = pdfjsText;
+    console.log(`[extractText] Chose pdfjs-dist (${pdfjsWords} words > ${legacyWords} words)`);
+  } else if (legacyWords > pdfjsWords) {
+    pdfText = legacyText;
+    console.log(`[extractText] Chose pdf-parse (${legacyWords} words > ${pdfjsWords} words)`);
+  } else {
+    // Same word count — pick whichever has more chars
+    pdfText = pdfjsText.trim().length >= legacyText.trim().length ? pdfjsText : legacyText;
+    console.log(`[extractText] Tie — chose ${pdfText === pdfjsText ? "pdfjs-dist" : "pdf-parse"} (${pdfText.trim().length} chars)`);
+  }
+
+  if (pdfText.trim().length >= OCR_TEXT_THRESHOLD) {
+    return { text: pdfText, method: "pdf_text" };
+  }
+
+  // Both text extractors returned little text — fall back to OCR
+  console.log(
+    `[extractText] Text extraction returned ${pdfText.trim().length} chars (< ${OCR_TEXT_THRESHOLD}), attempting OCR...`,
+  );
+  const ocrText = await extractTextWithOcr(buffer);
+  if (ocrText.trim().length > pdfText.trim().length) {
     console.log(
-      `[extractText] Text extraction returned ${pdfText.trim().length} chars (< ${OCR_TEXT_THRESHOLD}), attempting OCR...`,
+      `[extractText] OCR recovered ${ocrText.trim().length} chars`,
     );
-    const ocrText = await extractTextWithOcr(buffer);
-    if (ocrText.trim().length > pdfText.trim().length) {
-      console.log(
-        `[extractText] OCR recovered ${ocrText.trim().length} chars`,
-      );
-      return { text: ocrText, method: "ocr" };
-    }
+    return { text: ocrText, method: "ocr" };
   }
 
   return { text: pdfText, method: "pdf_text" };
@@ -312,21 +333,44 @@ async function extractWithPdfjsDist(buffer: Buffer): Promise<string> {
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
-    // Reconstruct text with line breaks based on Y position changes
+    // Reconstruct text with line breaks based on Y position changes.
+    // Track X positions to insert spaces between adjacent text items
+    // that have a horizontal gap (many PDFs emit each word as a
+    // separate text item without embedded spaces).
     let lastY: number | null = null;
+    let lastX: number | null = null;
+    let lastWidth: number = 0;
     let lineText = "";
     for (const item of content.items) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const textItem = item as any;
       if (!textItem.str) continue;
-      const y = textItem.transform[5];
+      const x: number = textItem.transform[4];
+      const y: number = textItem.transform[5];
+      const width: number = textItem.width ?? 0;
       if (lastY !== null && Math.abs(y - lastY) > 2) {
+        // New line — push the previous line and start a new one
         pageTexts.push(lineText);
         lineText = textItem.str;
       } else {
+        // Same line — add space between items when there is a
+        // horizontal gap (prevents "TotalCAMCharges" concatenation)
+        if (
+          lineText.length > 0 &&
+          !lineText.endsWith(" ") &&
+          !textItem.str.startsWith(" ")
+        ) {
+          // Insert space if the current item starts beyond where the
+          // previous item ended (gap > 0.5 units)
+          if (lastX !== null && x - (lastX + lastWidth) > 0.5) {
+            lineText += " ";
+          }
+        }
         lineText += textItem.str;
       }
       lastY = y;
+      lastX = x;
+      lastWidth = width;
     }
     if (lineText) pageTexts.push(lineText);
     pageTexts.push(""); // Page break
@@ -1181,7 +1225,9 @@ function determineAuditMode(
 
   // At least one unknown and no extracted fields to work with → rejected
   if (leaseTier === "unknown" || reconTier === "unknown") {
-    // Even if one is unknown, check if extraction produced usable fields
+    // Even if one is unknown, check if extraction produced usable fields.
+    // Include line items and excluded terms — these enable the excluded-
+    // category-billing check which is one of the most valuable findings.
     const hasAnyField =
       leaseFields.camCapPercentage != null ||
       leaseFields.adminFeePercentage != null ||
@@ -1190,7 +1236,9 @@ function determineAuditMode(
       reconFields.totalCamCharges != null ||
       reconFields.reconciliationTotal != null ||
       reconFields.managementFee != null ||
-      reconFields.adminFeePercentage != null;
+      reconFields.adminFeePercentage != null ||
+      reconFields.lineItems.length >= 2 ||
+      leaseFields.excludedTerms.length > 0;
 
     if (hasAnyField) return "limited";
     return "rejected";
