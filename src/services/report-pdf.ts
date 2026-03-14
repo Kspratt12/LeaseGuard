@@ -150,6 +150,12 @@ export async function generateReportPdf(
   const overcharge = input.estimatedOvercharge ?? 0;
   const overchargeBreakdown = input.overchargeBreakdown ?? [];
   const hasOvercharge = overcharge > 0 && overchargeBreakdown.length > 0;
+  // Use total findings count to determine summary — not just preview findings
+  const totalFindings = [...input.freeFindings, ...input.paidFindings];
+  const totalFindingsCount = totalFindings.length;
+  const totalSavingsFromFindings = totalFindings
+    .reduce((sum, f) => sum + f.potential_savings, 0);
+  const effectiveSavings = Math.max(input.savingsEstimate, totalSavingsFromFindings);
   const boxH = 90;
   const boxW = 320;
   const boxX = (PAGE_WIDTH - boxW) / 2;
@@ -169,7 +175,7 @@ export async function generateReportPdf(
     drawCenteredText(ctx.page, "ESTIMATED RECOVERABLE OVERCHARGES", fontBold, 8, RED, labelY);
     const amountY = labelY - 38;
     drawCenteredText(ctx.page, `$${overcharge.toLocaleString()}`, fontBold, 36, RED, amountY);
-  } else if (input.savingsEstimate > 0) {
+  } else if (effectiveSavings > 0) {
     ctx.page.drawRectangle({
       x: boxX,
       y: ctx.y - boxH,
@@ -182,7 +188,33 @@ export async function generateReportPdf(
     const labelY = ctx.y - 28;
     drawCenteredText(ctx.page, "ESTIMATED RECOVERABLE OVERCHARGES", fontBold, 9, GREEN, labelY);
     const amountY = labelY - 38;
-    drawCenteredText(ctx.page, `$${input.savingsEstimate.toLocaleString()}`, fontBold, 36, GREEN, amountY);
+    drawCenteredText(ctx.page, `$${effectiveSavings.toLocaleString()}`, fontBold, 36, GREEN, amountY);
+  } else if (totalFindingsCount > 0) {
+    const BG_AMBER = rgb(0.99, 0.97, 0.92);
+    ctx.page.drawRectangle({
+      x: boxX,
+      y: ctx.y - boxH,
+      width: boxW,
+      height: boxH,
+      color: BG_AMBER,
+      borderColor: rgb(0.93, 0.87, 0.72),
+      borderWidth: 1,
+    });
+    const AMBER = rgb(0.6, 0.4, 0.08);
+    const labelY = ctx.y - 28;
+    drawCenteredText(ctx.page, "POTENTIAL DISCREPANCIES DETECTED", fontBold, 9, AMBER, labelY);
+    const textY = labelY - 26;
+    const discrepancyLines = wrapText(
+      "The audit detected potential discrepancies in your CAM reconciliation that warrant further review.",
+      font,
+      9,
+      boxW - 24,
+    );
+    let discrepancyY = textY;
+    for (const line of discrepancyLines) {
+      drawCenteredText(ctx.page, line, font, 9, AMBER, discrepancyY);
+      discrepancyY -= 13;
+    }
   } else {
     const BG_GRAY = rgb(0.96, 0.96, 0.97);
     ctx.page.drawRectangle({

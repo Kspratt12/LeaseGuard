@@ -140,7 +140,6 @@ export default function AuditPage({
   }
 
   const status = audit.status;
-  const savingsEstimate = audit.savings_estimate ?? 0;
   const freeFindings = audit.free_findings ?? [];
   const paidFindings = audit.paid_findings ?? [];
 
@@ -148,10 +147,19 @@ export default function AuditPage({
   const overchargeBreakdown = audit.overcharge_breakdown ?? [];
   const hasOvercharge = estimatedOvercharge > 0 && overchargeBreakdown.length > 0;
 
-  // Check if there are substantive (non-insufficient-data) findings even when savings=0
-  const hasSubstantiveFindings =
-    freeFindings.some((f) => !f.insufficientData) ||
-    paidFindings.some((f) => !f.insufficientData);
+  // Summary must reflect ALL findings, not just preview/free-tier findings.
+  // Calculate effective savings from the full findings set so savings are never
+  // zeroed out just because preview findings are limited.
+  const totalFindings = [...freeFindings, ...paidFindings];
+  const totalFindingsCount = totalFindings.length;
+  const totalSavingsFromFindings = totalFindings
+    .reduce((sum, f) => sum + f.potential_savings, 0);
+  const dbSavings = audit.savings_estimate ?? 0;
+  const savingsEstimate = Math.max(dbSavings, totalSavingsFromFindings);
+
+  // The summary state is determined by total findings count — if any findings
+  // exist (including insufficient-data findings), discrepancies were detected.
+  const hasFindings = totalFindingsCount > 0;
 
   // Data-driven: if findings exist, the audit is effectively complete
   const hasResultData =
@@ -332,14 +340,16 @@ export default function AuditPage({
                   Based on detected discrepancies across uploaded lease and CAM documents. Professional review recommended to confirm.
                 </p>
               </div>
-            ) : hasSubstantiveFindings ? (
+            ) : hasFindings ? (
               <div className="rounded-xl bg-amber-50 border border-amber-200 p-8 text-center space-y-3">
                 <p className="text-xs text-amber-800 font-semibold uppercase tracking-widest">
-                  Potential Issues Identified
+                  Potential Discrepancies Detected
                 </p>
                 <p className="text-sm text-amber-700 leading-relaxed max-w-md mx-auto">
-                  The audit detected potential issues in your lease and CAM documents that warrant further review.
-                  Savings could not be quantified from the available data, but the findings below may indicate recoverable overcharges.
+                  The audit detected potential discrepancies in your CAM reconciliation that warrant further review.
+                  {savingsEstimate > 0 && (
+                    <> Estimated recoverable overcharges: <span className="font-semibold">${savingsEstimate.toLocaleString()}</span>.</>
+                  )}
                 </p>
               </div>
             ) : (
