@@ -92,6 +92,30 @@ const articles = [
     description:
       "Uncover the hidden costs that commercial tenants often miss in triple net leases — from management fee markups to vacant space subsidies.",
   },
+  {
+    slug: "commercial-lease-audit-services",
+    title: "Commercial Lease Audit Services",
+    description:
+      "Learn what commercial lease audit services do, why tenants need them, and how automated CAM audits identify billing discrepancies in minutes.",
+  },
+  {
+    slug: "nnn-lease-hidden-costs",
+    title: "Hidden Costs in Triple Net Leases",
+    description:
+      "Discover the hidden costs in NNN leases that commercial tenants often miss — from CAM pass-throughs and capital expenses to insurance and property tax adjustments.",
+  },
+  {
+    slug: "cam-audit-rights",
+    title: "CAM Audit Rights in Commercial Leases",
+    description:
+      "Understand your audit rights as a commercial tenant — including review periods, access to records, and how to exercise your right to audit CAM charges.",
+  },
+  {
+    slug: "dispute-cam-charges",
+    title: "How to Dispute CAM Charges",
+    description:
+      "Learn how commercial tenants can dispute CAM charges, what documentation is needed, and how lease clauses limit what landlords can bill.",
+  },
 ];
 
 export default function ResourcesPage() {
