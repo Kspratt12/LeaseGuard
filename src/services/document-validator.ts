@@ -363,20 +363,43 @@ export async function extractTextFromPdf(
   // while being completely unparseable by downstream regex patterns.
 
   let pdfjsText = "";
+  let pdfjsError: string | null = null;
   try {
     pdfjsText = await extractWithPdfjsDist(buffer);
     console.log(`[extractText] pdfjs-dist extracted ${pdfjsText.trim().length} chars, ${wordCount(pdfjsText)} words`);
+    if (pdfjsText.trim().length > 0) {
+      console.log(`[extractText] pdfjs-dist first 200 chars: ${pdfjsText.substring(0, 200).replace(/[\n\r]+/g, " | ")}`);
+    }
   } catch (err) {
-    console.warn("[extractText] pdfjs-dist failed:", err instanceof Error ? err.message : err);
+    pdfjsError = err instanceof Error ? err.message : String(err);
+    console.warn("[extractText] pdfjs-dist failed:", pdfjsError);
+    if (err instanceof Error && err.stack) {
+      console.warn("[extractText] pdfjs-dist stack:", err.stack.split("\n").slice(0, 3).join(" > "));
+    }
   }
 
   let legacyText = "";
+  let legacyError: string | null = null;
   try {
     const result = await pdfParse(buffer);
     legacyText = result.text ?? "";
     console.log(`[extractText] pdf-parse extracted ${legacyText.trim().length} chars, ${wordCount(legacyText)} words`);
+    if (legacyText.trim().length > 0) {
+      console.log(`[extractText] pdf-parse first 200 chars: ${legacyText.substring(0, 200).replace(/[\n\r]+/g, " | ")}`);
+    }
   } catch (err) {
-    console.warn("[extractText] pdf-parse failed:", err instanceof Error ? err.message : err);
+    legacyError = err instanceof Error ? err.message : String(err);
+    console.warn("[extractText] pdf-parse failed:", legacyError);
+  }
+
+  // Log diagnostic summary when both extractors fail or return little text
+  if (pdfjsText.trim().length < 30 && legacyText.trim().length < 30) {
+    console.error(
+      `[extractText] CRITICAL: Both extractors returned minimal text. ` +
+      `pdfjs=${pdfjsText.trim().length} chars (error: ${pdfjsError ?? "none"}), ` +
+      `pdf-parse=${legacyText.trim().length} chars (error: ${legacyError ?? "none"}). ` +
+      `Buffer: ${buffer.length} bytes, header: "${buffer.slice(0, 10).toString("ascii").replace(/[^\x20-\x7E]/g, "?")}"`
+    );
   }
 
   // Pick the extractor with more words (better spacing = more useful text).
@@ -427,15 +450,38 @@ async function extractWithPdfjsDist(buffer: Buffer): Promise<string> {
   // Dynamic import — pdfjs-dist is listed in serverExternalPackages
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const path = await import("path");
+  const fs = await import("fs");
+
+  // Resolve font path robustly — works on Vercel, local dev, and Docker.
+  // Try multiple candidate paths because Vercel serverless functions may
+  // relocate node_modules or use a different working directory.
+  const candidates = [
+    path.join(process.cwd(), "node_modules/pdfjs-dist/standard_fonts/"),
+    path.join(__dirname, "../../../node_modules/pdfjs-dist/standard_fonts/"),
+    path.join(__dirname, "../../node_modules/pdfjs-dist/standard_fonts/"),
+    // Vercel .next/server/chunks path
+    path.resolve("node_modules/pdfjs-dist/standard_fonts/"),
+  ];
+  let fontDataUrl = candidates[0]; // default
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) {
+        fontDataUrl = candidate;
+        break;
+      }
+    } catch {
+      // ignore — fs access may fail in edge runtime
+    }
+  }
+  console.log(`[pdfjs] Using font path: ${fontDataUrl}`);
 
   const data = new Uint8Array(buffer);
   const doc = await pdfjsLib.getDocument({
     data,
     useSystemFonts: true,
-    standardFontDataUrl: path.join(
-      process.cwd(),
-      "node_modules/pdfjs-dist/standard_fonts/",
-    ),
+    standardFontDataUrl: fontDataUrl,
+    // Disable font loading failures from blocking extraction
+    disableFontFace: true,
   }).promise;
 
   const pageTexts: string[] = [];
@@ -1317,7 +1363,8 @@ export function extractFields(text: string): ExtractedFields {
   // All numeric values (improved detection)
   const numericValues = detectNumericValues(text);
 
-  return {
+  // --- Debug extraction diagnostic block ---
+  const fields = {
     camCapPercentage,
     adminFeePercentage,
     managementFee,
@@ -1336,6 +1383,22 @@ export function extractFields(text: string): ExtractedFields {
     priorYearTotal,
     reconciliationYear,
   };
+
+  // Log detailed extraction diagnostics
+  const textLen = text.length;
+  const nullFields = Object.entries(fields)
+    .filter(([k, v]) => v === null && k !== "baseRent")
+    .map(([k]) => k);
+  console.log(
+    `[extractFields] text=${textLen} chars | ` +
+    `camCap=${camCapPercentage ?? "MISS"} | adminFee=${adminFeePercentage ?? "MISS"} | ` +
+    `mgmtFee=${managementFee ?? "MISS"} | proRata=${proRataShare ?? "MISS"} | ` +
+    `totalCam=${totalCamCharges ?? "MISS"} | reconTotal=${reconciliationTotal ?? "MISS"} | ` +
+    `year=${reconciliationYear ?? "MISS"} | lineItems=${lineItems.length} | ` +
+    `excludedTerms=${excludedTerms.length} | nullFields=[${nullFields.join(",")}]`
+  );
+
+  return fields;
 }
 
 // ---------------------------------------------------------------------------
@@ -1510,6 +1573,13 @@ export async function validateDocuments(
 
   // 5b. AI-powered extraction: supplement regex results with Claude analysis.
   // Runs in parallel for both documents. Falls back gracefully if no API key.
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const hasApiKey = !!apiKey && apiKey.length > 20 && !apiKey.endsWith("...");
+  console.log(
+    `[validator] ANTHROPIC_API_KEY configured: ${hasApiKey} ` +
+    `(length=${apiKey?.length ?? 0}, prefix=${apiKey ? apiKey.substring(0, 12) + "..." : "NOT SET"})`
+  );
+
   try {
     console.log("[validator] Attempting AI-powered field extraction...");
     const [aiLease, aiRecon] = await Promise.all([
@@ -1521,15 +1591,19 @@ export async function validateDocuments(
       console.log("[validator] AI lease extraction successful:", JSON.stringify(aiLease));
       leaseFields = mergeLeaseFields(leaseFields, aiLease);
     } else {
-      console.log("[validator] AI lease extraction skipped (no API key or failed)");
+      console.log("[validator] AI lease extraction returned null (no API key or failed)");
     }
 
     if (aiRecon) {
       console.log("[validator] AI recon extraction successful:", JSON.stringify(aiRecon));
       reconFields = mergeReconFields(reconFields, aiRecon);
     } else {
-      console.log("[validator] AI recon extraction skipped (no API key or failed)");
+      console.log("[validator] AI recon extraction returned null (no API key or failed)");
     }
+
+    // Log merged field results after AI supplementation
+    console.log(`[validator] Post-AI lease fields — camCap: ${leaseFields.camCapPercentage ?? "NULL"}, adminFee: ${leaseFields.adminFeePercentage ?? "NULL"}, mgmtFee: ${leaseFields.managementFee ?? "NULL"}, proRata: ${leaseFields.proRataShare ?? "NULL"}, excludedTerms: ${leaseFields.excludedTerms.length}`);
+    console.log(`[validator] Post-AI recon fields — totalCam: ${reconFields.totalCamCharges ?? "NULL"}, reconTotal: ${reconFields.reconciliationTotal ?? "NULL"}, year: ${reconFields.reconciliationYear ?? "NULL"}, lineItems: ${reconFields.lineItems.length}`);
   } catch (err) {
     console.warn(
       "[validator] AI extraction failed (falling back to regex only):",

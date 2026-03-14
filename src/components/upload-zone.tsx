@@ -81,42 +81,26 @@ export function UploadZone() {
           converting: false,
           label: draft.lease.label,
         });
-      } else {
-        // Metadata only (page refresh) — show filename but require re-selection
-        setLeaseItem({
-          id: draft.lease.id,
-          pdf: null,
-          sources: [],
-          previews: [],
-          converting: false,
-          label: `${draft.lease.meta.name} (re-select to rerun)`,
-        });
       }
+      // else: Metadata only (page refresh) — File objects don't survive reload.
+      // Don't show stale file references — leave empty so user re-selects.
     }
 
-    // Restore recon files from draft context
+    // Restore recon files from draft context — only those with real File objects
     if (draft.recons.length > 0 && reconItems.length === 0) {
-      const restored: UploadItem[] = draft.recons.map((r) => {
-        if (r.file) {
-          return {
-            id: r.id,
-            pdf: r.file,
-            sources: [r.file],
-            previews: [],
-            converting: false,
-            label: r.label,
-          };
-        }
-        return {
+      const restored: UploadItem[] = draft.recons
+        .filter((r) => r.file !== null)
+        .map((r) => ({
           id: r.id,
-          pdf: null,
-          sources: [],
+          pdf: r.file,
+          sources: [r.file!],
           previews: [],
           converting: false,
-          label: `${r.meta.name} (re-select to rerun)`,
-        };
-      });
-      setReconItems(restored);
+          label: r.label,
+        }));
+      if (restored.length > 0) {
+        setReconItems(restored);
+      }
     }
   }, [draft, leaseItem, reconItems.length]);
 

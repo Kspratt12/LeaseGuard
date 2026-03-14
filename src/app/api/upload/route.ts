@@ -87,16 +87,15 @@ async function processAudit(
       `[process:${auditId}] Extraction methods — lease: ${validation.leaseExtractionMethod}, recon: ${validation.reconExtractionMethod}`,
     );
 
-    // Key extraction summary
+    // Key extraction summary — log first 1000 chars for diagnosis
     console.log(
       `[process:${auditId}] Extracted — lease: ${validation.leaseText.length} chars, recon: ${validation.reconText.length} chars`,
     );
-    // Log first 500 chars of each extracted text to diagnose extraction quality
     console.log(
-      `[process:${auditId}] Lease text preview: ${validation.leaseText.substring(0, 500).replace(/[\n\r]+/g, " | ")}`,
+      `[process:${auditId}] Lease text preview (1000 chars): ${validation.leaseText.substring(0, 1000).replace(/[\n\r]+/g, " | ")}`,
     );
     console.log(
-      `[process:${auditId}] Recon text preview: ${validation.reconText.substring(0, 500).replace(/[\n\r]+/g, " | ")}`,
+      `[process:${auditId}] Recon text preview (1000 chars): ${validation.reconText.substring(0, 1000).replace(/[\n\r]+/g, " | ")}`,
     );
     console.log(
       `[process:${auditId}] Lease fields — camCap: ${validation.leaseFields.camCapPercentage ?? "NULL"}, proRata: ${validation.leaseFields.proRataShare ?? "NULL"}, adminFee: ${validation.leaseFields.adminFeePercentage ?? "NULL"}, mgmtFee: ${validation.leaseFields.managementFee ?? "NULL"}`,

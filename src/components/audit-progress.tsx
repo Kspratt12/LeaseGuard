@@ -36,16 +36,16 @@ const steps = [
   {
     label: "Generating Audit Findings",
     icon: FileText,
-    duration: 8000,
+    duration: 7000,
   },
   {
     label: "Finalizing audit results",
     icon: CheckCircle2,
-    duration: 12000,
+    duration: 5000,
   },
 ];
 
-// Total step duration: ~41.5 seconds — close to real backend processing time
+// Total step duration: ~33.5 seconds — front-loaded to avoid long "stuck" perception
 
 interface AuditProgressProps {
   /** When true, the backend has completed — jump to 100% and show all steps done. */
