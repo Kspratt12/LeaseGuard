@@ -6,6 +6,7 @@ import {
   type PDFPage,
 } from "pdf-lib";
 import type { Finding, OverchargeLineItem, LeaseClauseSummary } from "@/services/audit-logic";
+import { getLeaseClauseEvidence } from "@/lib/lease-clause-evidence";
 
 interface ReportInput {
   auditId: string;
@@ -69,6 +70,7 @@ function ensureSpace(ctx: PageCtx, needed: number): void {
 function estimateFindingHeight(
   finding: Finding,
   font: PDFFont,
+  leaseClausesSummary?: LeaseClauseSummary | null,
 ): number {
   const descLines = wrapText(finding.description, font, 10, CONTENT_WIDTH);
   // title(13) + gap(16) + badge(8) + gap(14) + desc lines + gap(4)
@@ -78,6 +80,12 @@ function estimateFindingHeight(
   if (finding.sourceEvidence) {
     const evCount = Math.min(finding.sourceEvidence.length, 2);
     h += evCount * 30; // approx per evidence item
+  }
+  // Add space for lease clause evidence
+  const clauseRef = getLeaseClauseEvidence(finding, leaseClausesSummary);
+  if (clauseRef) {
+    const clauseLines = wrapText(`"${clauseRef.text}"`, font, 9, CONTENT_WIDTH - 26);
+    h += 14 + 14 + clauseLines.length * 13 + 10; // label + section + quote lines + padding
   }
   return h;
 }
@@ -403,7 +411,7 @@ export async function generateReportPdf(
   // Estimate if the findings section title + first finding fit on the current page
   const findingsTitleHeight = 42; // section title height
   const firstFindingHeight = identifiedFindings.length > 0
-    ? estimateFindingHeight(identifiedFindings[0], font)
+    ? estimateFindingHeight(identifiedFindings[0], font, lcs)
     : 30;
   const needsFreshPage = !clausesDrawn || (ctx.y - findingsTitleHeight - firstFindingHeight < BOTTOM_MARGIN);
 
@@ -428,9 +436,9 @@ export async function generateReportPdf(
     );
   } else {
     for (const finding of identifiedFindings) {
-      const height = estimateFindingHeight(finding, font);
+      const height = estimateFindingHeight(finding, font, lcs);
       ensureSpace(ctx, height);
-      drawFinding(ctx, finding);
+      drawFinding(ctx, finding, lcs);
     }
   }
 
@@ -554,9 +562,9 @@ export async function generateReportPdf(
       );
     } else {
       for (const finding of input.paidFindings) {
-        const height = estimateFindingHeight(finding, font);
+        const height = estimateFindingHeight(finding, font, lcs);
         ensureSpace(ctx, height);
-        drawFinding(ctx, finding);
+        drawFinding(ctx, finding, lcs);
       }
     }
   } else {
@@ -721,7 +729,7 @@ function drawSectionTitle(
  * Draw a single finding block. Uses PageCtx so it can add a page if a very
  * long description overflows the current page.
  */
-function drawFinding(ctx: PageCtx, finding: Finding): void {
+function drawFinding(ctx: PageCtx, finding: Finding, leaseClausesSummary?: LeaseClauseSummary | null): void {
   const { font, fontBold } = ctx;
 
   const severityColor =
@@ -808,6 +816,52 @@ function drawFinding(ctx: PageCtx, finding: Finding): void {
       }
       ctx.y -= 4;
     }
+  }
+
+  // Lease clause evidence
+  const clauseRef = getLeaseClauseEvidence(finding, leaseClausesSummary);
+  if (clauseRef) {
+    if (ctx.y < BOTTOM_MARGIN + 60) newPage(ctx);
+    ctx.y -= 4;
+
+    // Draw bordered background box
+    const clauseTextLines = wrapText(`"${clauseRef.text}"`, font, 9, CONTENT_WIDTH - 26);
+    const boxHeight = 14 + 14 + clauseTextLines.length * 13 + 8;
+    const BG_CLAUSE = rgb(0.94, 0.96, 1.0);
+    const BORDER_CLAUSE = rgb(0.78, 0.84, 0.95);
+    ctx.page.drawRectangle({
+      x: MARGIN,
+      y: ctx.y - boxHeight,
+      width: CONTENT_WIDTH,
+      height: boxHeight,
+      color: BG_CLAUSE,
+      borderColor: BORDER_CLAUSE,
+      borderWidth: 0.75,
+    });
+
+    // Label
+    ctx.y -= 12;
+    ctx.page.drawText("Lease Clause Evidence", { x: MARGIN + 8, y: ctx.y, size: 8, font: fontBold, color: BLUE });
+    ctx.y -= 14;
+
+    // Section name
+    ctx.page.drawText(clauseRef.section, { x: MARGIN + 8, y: ctx.y, size: 9, font: fontBold, color: DARK });
+    ctx.y -= 14;
+
+    // Clause quote with left border
+    ctx.page.drawRectangle({
+      x: MARGIN + 8,
+      y: ctx.y - (clauseTextLines.length - 1) * 13 - 2,
+      width: 2,
+      height: clauseTextLines.length * 13,
+      color: BLUE,
+    });
+    for (const line of clauseTextLines) {
+      if (ctx.y < BOTTOM_MARGIN) newPage(ctx);
+      ctx.page.drawText(line, { x: MARGIN + 16, y: ctx.y, size: 9, font, color: GRAY });
+      ctx.y -= 13;
+    }
+    ctx.y -= 6;
   }
 
   // Separator line between findings

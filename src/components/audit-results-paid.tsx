@@ -1,5 +1,6 @@
-import { Lock, ShieldCheck, FileSearch, ArrowRight, FileText, AlertTriangle } from "lucide-react";
-import type { Finding, OverchargeLineItem } from "@/services/audit-logic";
+import { Lock, ShieldCheck, FileSearch, ArrowRight, FileText, AlertTriangle, Scale } from "lucide-react";
+import type { Finding, OverchargeLineItem, LeaseClauseSummary } from "@/services/audit-logic";
+import { getLeaseClauseEvidence } from "@/lib/lease-clause-evidence";
 
 const lockedPlaceholders: Finding[] = [
   {
@@ -29,10 +30,12 @@ export function AuditResultsPaid({
   findings,
   premiumSavings,
   overchargeBreakdown,
+  leaseClausesSummary,
 }: {
   findings: Finding[];
   premiumSavings: number;
   overchargeBreakdown?: OverchargeLineItem[];
+  leaseClausesSummary?: LeaseClauseSummary | null;
 }) {
   const count = findings.length;
   // Use real findings if available, otherwise placeholders
@@ -108,6 +111,28 @@ export function AuditResultsPaid({
                     Potential savings: ${f.potential_savings.toLocaleString()}
                   </p>
                 )}
+
+                {/* Lease Clause Evidence */}
+                {(() => {
+                  const clause = getLeaseClauseEvidence(f, leaseClausesSummary);
+                  if (!clause) return null;
+                  return (
+                    <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <Scale className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                        <p className="text-xs font-semibold text-blue-800">
+                          Lease Clause Evidence
+                        </p>
+                      </div>
+                      <p className="text-xs font-medium text-blue-700 mb-1">
+                        {clause.section}
+                      </p>
+                      <p className="text-xs text-gray-600 italic leading-relaxed pl-3 border-l-2 border-blue-200">
+                        &ldquo;{clause.text}&rdquo;
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

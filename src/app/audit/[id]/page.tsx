@@ -310,7 +310,10 @@ export default function AuditPage({
             )}
 
             {/* Free findings */}
-            <AuditResultsFree findings={freeFindings} />
+            <AuditResultsFree
+              findings={freeFindings}
+              leaseClausesSummary={audit.lease_clauses_summary}
+            />
 
             {/* Locked findings with conversion CTA — always shown */}
             <AuditResultsPaid
@@ -319,6 +322,7 @@ export default function AuditPage({
                 .filter((f) => !f.insufficientData)
                 .reduce((sum, f) => sum + f.potential_savings, 0)}
               overchargeBreakdown={overchargeBreakdown}
+              leaseClausesSummary={audit.lease_clauses_summary}
             />
           </>
         )}

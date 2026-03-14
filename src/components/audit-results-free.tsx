@@ -1,10 +1,13 @@
-import { CheckCircle, AlertCircle } from "lucide-react";
-import type { Finding } from "@/services/audit-logic";
+import { CheckCircle, AlertCircle, Scale } from "lucide-react";
+import type { Finding, LeaseClauseSummary } from "@/services/audit-logic";
+import { getLeaseClauseEvidence } from "@/lib/lease-clause-evidence";
 
 export function AuditResultsFree({
   findings,
+  leaseClausesSummary,
 }: {
   findings: Finding[];
+  leaseClausesSummary?: LeaseClauseSummary | null;
 }) {
   if (findings.length === 0) {
     return (
@@ -61,6 +64,28 @@ export function AuditResultsFree({
                   Review recommended to confirm compliance
                 </p>
               )}
+
+              {/* Lease Clause Evidence */}
+              {(() => {
+                const clause = getLeaseClauseEvidence(f, leaseClausesSummary);
+                if (!clause) return null;
+                return (
+                  <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Scale className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                      <p className="text-xs font-semibold text-blue-800">
+                        Lease Clause Evidence
+                      </p>
+                    </div>
+                    <p className="text-xs font-medium text-blue-700 mb-1">
+                      {clause.section}
+                    </p>
+                    <p className="text-xs text-gray-600 italic leading-relaxed pl-3 border-l-2 border-blue-200">
+                      &ldquo;{clause.text}&rdquo;
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           </li>
         ))}
