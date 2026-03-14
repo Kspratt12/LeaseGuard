@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   BarChart3,
   FileText,
+  CheckCircle2,
   Check,
   Loader2,
 } from "lucide-react";
@@ -37,16 +38,33 @@ const steps = [
     icon: FileText,
     duration: 1800,
   },
+  {
+    label: "Finalizing audit results",
+    icon: CheckCircle2,
+    duration: 4000,
+  },
 ];
 
-const totalDuration = steps.reduce((s, step) => s + step.duration, 0);
+interface AuditProgressProps {
+  /** When true, the backend has completed — jump to 100% and show all steps done. */
+  isComplete?: boolean;
+}
 
-export function AuditProgress() {
+export function AuditProgress({ isComplete }: AuditProgressProps) {
   const [activeStep, setActiveStep] = useState(0);
   const [progress, setProgress] = useState(0);
 
+  // When backend completes, immediately finish all steps
+  useEffect(() => {
+    if (isComplete) {
+      setActiveStep(steps.length);
+      setProgress(100);
+    }
+  }, [isComplete]);
+
   // Advance through steps on timers
   useEffect(() => {
+    if (isComplete) return;
     if (activeStep >= steps.length) return;
 
     const stepDuration = steps[activeStep].duration;
@@ -55,21 +73,28 @@ export function AuditProgress() {
     }, stepDuration);
 
     return () => clearTimeout(timer);
-  }, [activeStep]);
+  }, [activeStep, isComplete]);
 
   // Smooth progress bar
   useEffect(() => {
+    if (isComplete) return;
+
     const interval = setInterval(() => {
       setProgress((prev) => {
-        // Don't exceed ~95% — we hold there until audit completes
-        const max = activeStep >= steps.length ? 95 : ((activeStep + 0.8) / steps.length) * 100;
+        if (activeStep >= steps.length) {
+          // All steps done — ease toward 98% but don't hit 100 until backend says so
+          const next = prev + 0.1;
+          return Math.min(next, 98);
+        }
+        // Progress proportional to current step
+        const stepProgress = ((activeStep + 0.8) / steps.length) * 100;
         const next = prev + 0.5;
-        return Math.min(next, max);
+        return Math.min(next, stepProgress);
       });
     }, 50);
 
     return () => clearInterval(interval);
-  }, [activeStep]);
+  }, [activeStep, isComplete]);
 
   return (
     <div className="w-full max-w-md mx-auto py-8">
@@ -96,7 +121,7 @@ export function AuditProgress() {
         {steps.map((step, i) => {
           const Icon = step.icon;
           const isActive = i === activeStep;
-          const isComplete = i < activeStep;
+          const isStepComplete = i < activeStep;
           const isPending = i > activeStep;
 
           return (
@@ -105,7 +130,7 @@ export function AuditProgress() {
               className={`flex items-center gap-3.5 rounded-lg px-4 py-3 transition-all duration-300 ${
                 isActive
                   ? "bg-blue-50 border border-blue-200"
-                  : isComplete
+                  : isStepComplete
                     ? "bg-green-50/60 border border-green-100"
                     : "bg-gray-50 border border-transparent"
               }`}
@@ -115,12 +140,12 @@ export function AuditProgress() {
                 className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 transition-all duration-300 ${
                   isActive
                     ? "bg-blue-100 text-blue-600"
-                    : isComplete
+                    : isStepComplete
                       ? "bg-green-100 text-green-600"
                       : "bg-gray-100 text-gray-400"
                 }`}
               >
-                {isComplete ? (
+                {isStepComplete ? (
                   <Check className="h-4 w-4" />
                 ) : isActive ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -134,7 +159,7 @@ export function AuditProgress() {
                 className={`text-sm font-medium transition-colors duration-300 ${
                   isActive
                     ? "text-blue-700"
-                    : isComplete
+                    : isStepComplete
                       ? "text-green-700"
                       : "text-gray-400"
                 }`}

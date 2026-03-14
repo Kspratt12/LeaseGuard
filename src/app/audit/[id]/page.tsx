@@ -92,7 +92,7 @@ export default function AuditPage({
           (!data.paid_findings || data.paid_findings.length === 0) &&
           (data.savings_estimate == null || data.savings_estimate === 0);
         const elapsedMs = Date.now() - startedAt;
-        const suspiciouslyEmpty = statusSaysComplete && hasZeroFindings && elapsedMs < 30_000;
+        const suspiciouslyEmpty = statusSaysComplete && hasZeroFindings && elapsedMs < 15_000;
 
         const isTerminal =
           (data.status === "completed" && !suspiciouslyEmpty) || data.status === "error";
@@ -117,7 +117,9 @@ export default function AuditPage({
             }
             return;
           }
-          timer = setTimeout(fetchAudit, 2000);
+          // Poll faster during first 30s (every 1.5s), then slow down to every 3s
+          const pollInterval = elapsedMs < 30_000 ? 1500 : 3000;
+          timer = setTimeout(fetchAudit, pollInterval);
         }
       } catch (err) {
         console.warn(`[poll] audit=${id} fetch error:`, err);
@@ -197,8 +199,8 @@ export default function AuditPage({
           <StatusBadge status={isComplete ? "completed" : status} />
         </div>
 
-        {/* Processing state */}
-        {isProcessing && <AuditProgress />}
+        {/* Processing state — pass isComplete so progress jumps to 100% when backend finishes */}
+        {isProcessing && <AuditProgress isComplete={false} />}
 
         {/* Error state */}
         {status === "error" && (

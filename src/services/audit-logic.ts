@@ -131,15 +131,24 @@ function exclusionMatchScore(exclusionTerm: string, reconCategory: string): numb
 
   // Semantic category mappings for common equivalences
   const synonymGroups: string[][] = [
-    ["capital improvement", "capital expenditure", "capital expense", "capital cost", "capital replacement", "capital repair"],
-    ["roof repair", "roof replacement", "roofing"],
-    ["structural repair", "structural maintenance", "structural defect", "foundation"],
+    ["capital improvement", "capital expenditure", "capital expense", "capital cost", "capital replacement", "capital repair", "capex", "capital outlay", "capital upgrade", "capital project"],
+    ["roof repair", "roof replacement", "roofing", "roof maintenance", "roof restoration"],
+    ["structural repair", "structural maintenance", "structural defect", "foundation", "structural work", "building shell", "building envelope", "exterior wall"],
     ["depreciation", "amortization"],
-    ["leasing commission", "brokerage commission"],
-    ["tenant improvement", "tenant buildout", "tenant allowance", "ti allowance"],
-    ["legal fee", "litigation", "attorney", "legal cost"],
-    ["environmental remediation", "hazardous material", "asbestos", "mold remediation"],
-    ["mortgage", "debt service", "interest expense"],
+    ["leasing commission", "brokerage commission", "brokerage fee", "broker fee"],
+    ["tenant improvement", "tenant buildout", "tenant allowance", "ti allowance", "tenant fit-out", "tenant build-out"],
+    ["legal fee", "litigation", "attorney", "legal cost", "professional fee", "legal expense", "attorney fee"],
+    ["environmental remediation", "hazardous material", "asbestos", "mold remediation", "hazmat", "environmental cleanup"],
+    ["mortgage", "debt service", "interest expense", "financing cost", "loan payment"],
+    ["advertising", "promotional expense", "marketing cost", "promotion"],
+    ["penalty", "fine", "late fee", "interest charge", "late charge"],
+    ["accounting fee", "audit expense", "audit cost", "cpa fee"],
+    ["charitable contribution", "donation"],
+    ["snow removal", "snow plowing", "ice removal", "winter maintenance", "de-icing"],
+    ["pest control", "extermination", "pest management", "vermin control"],
+    ["janitorial", "cleaning", "custodial", "janitor service", "cleaning service"],
+    ["security", "guard service", "security patrol", "security system"],
+    ["landscaping", "grounds maintenance", "lawn care", "ground keeping", "landscape maintenance"],
   ];
 
   for (const group of synonymGroups) {
@@ -327,15 +336,20 @@ export async function runAudit(
       }] : undefined,
     });
   } else if (!leaseFields.camCapPercentage) {
-    freeFindings.push({
-      category: "CAM Cap Compliance",
-      description:
-        "No CAM cap language was detected in the lease. This may mean the lease does not include a cap on controllable expenses, " +
-        "or the cap language uses non-standard phrasing. Review the lease to confirm whether a cap exists.",
-      potential_savings: 0,
-      severity: "medium",
-      insufficientData: true,
-    });
+    // Only mark as insufficient data if we're in full mode AND there's evidence
+    // the document was actually a lease (has other lease fields).
+    // In limited mode, skip this finding entirely — it's not useful.
+    if (!isLimited) {
+      freeFindings.push({
+        category: "CAM Cap Compliance",
+        description:
+          "No CAM cap language was detected in the lease. This may mean the lease does not include a cap on controllable expenses, " +
+          "or the cap language uses non-standard phrasing. Review the lease to confirm whether a cap exists.",
+        potential_savings: 0,
+        severity: "medium",
+        insufficientData: true,
+      });
+    }
   }
 
   // ------------------------------------------------------------------
@@ -492,7 +506,7 @@ export async function runAudit(
       severity: "low",
       insufficientData: true,
     });
-  } else if (missingFields.has("admin_fee")) {
+  } else if (missingFields.has("admin_fee") && !isLimited) {
     paidFindings.push({
       category: "Admin Fee Review",
       description:
@@ -550,7 +564,7 @@ export async function runAudit(
         sourceEvidence: shareEvidence.length > 0 ? shareEvidence : undefined,
       });
     }
-  } else if (missingFields.has("pro_rata")) {
+  } else if (missingFields.has("pro_rata") && !isLimited) {
     paidFindings.push({
       category: "Pro-Rata Share Review",
       description:
@@ -1075,7 +1089,7 @@ export async function runAudit(
         severity: highConf.length > 0 ? "high" : "medium",
       });
     }
-  } else if (missingFields.has("expense_categories")) {
+  } else if (missingFields.has("expense_categories") && !isLimited) {
     freeFindings.push({
       category: "Expense Category Review",
       description:
@@ -1192,7 +1206,7 @@ export async function runAudit(
   // 5. Total CAM / Reconciliation Totals
   // ------------------------------------------------------------------
   if (!reconFields.totalCamCharges && !reconFields.reconciliationTotal) {
-    if (missingFields.has("total_cam")) {
+    if (missingFields.has("total_cam") && !isLimited) {
       freeFindings.push({
         category: "Reconciliation Totals",
         description:

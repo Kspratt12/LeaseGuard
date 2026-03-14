@@ -123,6 +123,16 @@ const LEASE_KEYWORDS = [
   "rent commencement",
   "gross lease",
   "net lease",
+  "cam cap",
+  "lease term",
+  "square footage",
+  "rentable area",
+  "excluded expenses",
+  "pass-through",
+  "annual increase",
+  "controllable expenses",
+  "tenant improvement",
+  "proportionate share",
 ];
 
 const RECON_KEYWORDS = [
@@ -151,6 +161,20 @@ const RECON_KEYWORDS = [
   "pass-through",
   "pass through",
   "billable expenses",
+  "tenant's share",
+  "your share",
+  "amount due",
+  "true-up",
+  "true up",
+  "adjustment",
+  "prior year",
+  "previous year",
+  "annual expenses",
+  "building expenses",
+  "property expenses",
+  "subtotal",
+  "gross-up",
+  "landlord",
 ];
 
 // Expanded expense category list
@@ -224,6 +248,18 @@ const EXCLUSION_TERMS = [
   "interest expense",
   "above-standard",
   "above standard",
+  "professional fee",
+  "accounting fee",
+  "audit expense",
+  "management overhead",
+  "advertising",
+  "promotional expense",
+  "charitable contribution",
+  "donation",
+  "penalty",
+  "fine",
+  "late fee",
+  "interest charge",
 ];
 
 // ---------------------------------------------------------------------------
@@ -246,6 +282,9 @@ function wordCount(text: string): number {
 /**
  * Normalize extracted text by injecting spaces at common concatenation boundaries.
  * Handles garbled PDF text where words are merged (e.g. "TotalCAMCharges$69,025").
+ *
+ * Also handles OCR artifacts, abbreviation expansion, and common business-text
+ * cleanup for lease and CAM reconciliation documents.
  */
 function normalizeExtractedText(text: string): string {
   let result = text;
@@ -257,6 +296,55 @@ function normalizeExtractedText(text: string): string {
   result = result.replace(/(\d%)([A-Za-z])/g, "$1 $2");
   // Insert space between colon and letter when no space: "Cap:controllable" → "Cap: controllable"
   result = result.replace(/:([A-Za-z])/g, ": $1");
+  // Insert space between digit and letter: "5percent" → "5 percent", "100sf" → "100 sf"
+  result = result.replace(/(\d)([A-Za-z])/g, "$1 $2");
+  // Insert space between letter and digit when no space: "Suite240" → "Suite 240"
+  result = result.replace(/([A-Za-z])(\d)/g, "$1 $2");
+  // Normalize common OCR artifacts: l → I, O → 0 in numeric contexts
+  result = result.replace(/\bl(\d)/g, "1$1"); // "l5%" → "15%"
+  result = result.replace(/(\d)O(\d)/g, "$10$2"); // "1O0" → "100"
+  // Normalize multiple spaces to single space
+  result = result.replace(/ {2,}/g, " ");
+  // Normalize common dotted leaders (used in tables): "Category..........$X" → "Category $X"
+  result = result.replace(/\.{3,}/g, " ");
+  // Normalize em/en dashes to regular dashes
+  result = result.replace(/[\u2013\u2014\u2015]/g, "-");
+  // Normalize smart quotes to regular quotes
+  result = result.replace(/[\u201C\u201D\u201E]/g, '"');
+  result = result.replace(/[\u2018\u2019\u201A]/g, "'");
+  return result;
+}
+
+/**
+ * Concept synonym map — normalizes various business terms to canonical forms
+ * before extraction. This allows regex patterns to match against consistent
+ * terminology regardless of how the original document phrased things.
+ */
+const CONCEPT_SYNONYMS: Array<{ canonical: string; variants: RegExp }> = [
+  // CAM cap synonyms
+  { canonical: "CAM cap", variants: /\b(?:controllable\s*(?:expense|cost|operating)\s*cap|operating\s*expense\s*(?:escalation\s*)?cap|expense\s*escalation\s*(?:cap|limit)|annual\s*escalation\s*cap|cam\s*escalation\s*(?:cap|limit)|opex\s*cap)\b/gi },
+  // Pro rata share synonyms
+  { canonical: "pro-rata share", variants: /\b(?:proportionate\s*share|tenant(?:'s)?\s*(?:allocation|share\s*(?:percentage|pct|%))|cost\s*sharing\s*(?:percentage|ratio)|rentable\s*(?:area\s*)?(?:allocation|share)|sq(?:uare)?\s*(?:ft|foot|footage)\s*allocation)\b/gi },
+  // Management fee synonyms
+  { canonical: "management fee", variants: /\b(?:property\s*(?:mgmt|mgt)\s*fee|(?:mgmt|mgt)\s*fee|pm\s*fee|supervisory\s*fee|oversight\s*(?:fee|charge))\b/gi },
+  // Admin fee synonyms
+  { canonical: "administrative fee", variants: /\b(?:admin\s*(?:charge|cost|overhead)|administrative\s*(?:charge|cost|overhead)|overhead\s*(?:fee|charge))\b/gi },
+  // Excluded expense synonyms
+  { canonical: "capital improvement", variants: /\b(?:cap(?:ital)?\s*(?:ex|expenditure|improvement|project)|capex|capital\s*(?:outlay|replacement|upgrade))\b/gi },
+  { canonical: "structural repair", variants: /\b(?:structural\s*(?:work|issue|deficiency|element)|building\s*(?:structure|shell|envelope)\s*(?:repair|maintenance))\b/gi },
+  // Reconciliation total synonyms
+  { canonical: "total operating expenses", variants: /\b(?:total\s*(?:opex|op\s*ex)|aggregate\s*(?:operating\s*)?(?:expenses?|charges?|costs?)|combined\s*(?:operating\s*)?(?:expenses?|charges?))\b/gi },
+];
+
+/**
+ * Apply concept synonym normalization to text — inserts canonical terms
+ * as parenthetical annotations so regex patterns can match either form.
+ */
+function applyConceptNormalization(text: string): string {
+  let result = text;
+  for (const { canonical, variants } of CONCEPT_SYNONYMS) {
+    result = result.replace(variants, (match) => `${match} (${canonical})`);
+  }
   return result;
 }
 
@@ -470,8 +558,8 @@ function classifyDocument(text: string): {
 }
 
 function scoreTier(score: number): ClassificationTier {
-  if (score >= 0.15) return "high_confidence";
-  if (score >= 0.05) return "likely_match";
+  if (score >= 0.12) return "high_confidence";
+  if (score >= 0.04) return "likely_match";
   return "unknown";
 }
 
@@ -505,6 +593,10 @@ function detectDocumentType(text: string): DocumentClassification {
 // ---------------------------------------------------------------------------
 
 export function extractFields(text: string): ExtractedFields {
+  // Apply concept normalization so synonymous business terms can be
+  // matched by the same regex patterns
+  text = applyConceptNormalization(text);
+
   // -----------------------------------------------------------------
   // CAM Cap — many phrasing variations
   // -----------------------------------------------------------------
@@ -537,6 +629,16 @@ export function extractFields(text: string): ExtractedFields {
     /(?:cam\s*cap)\s*[:]\s*[^%]{0,120}?(\d+(?:\.\d+)?)\s*%/i,
     // "controllable operating expenses shall not exceed 10%" (without trailing annual/year qualifier)
     /(?:controllable\s*(?:operating\s*)?(?:expenses?|costs?))\s*(?:shall\s*)?(?:not\s*)?(?:exceed|increase\s*(?:by\s*)?more\s*than)\s*(?:a\s+)?(\d+(?:\.\d+)?)\s*%/i,
+    // "shall not increase more than 10% per year" (with trailing per-year)
+    /shall\s*not\s*(?:increase|exceed|escalate)\s*(?:by\s*)?(?:more\s*than\s*)?(\d+(?:\.\d+)?)\s*%\s*(?:per|each|any|in\s*any)\s*(?:year|annum|calendar)/i,
+    // "expense escalation cap" / "opex cap" (via concept normalization)
+    /(?:expense\s*escalation\s*(?:cap|limit)|opex\s*cap|cam\s*escalation\s*(?:cap|limit))\s*[:=]?\s*(\d+(?:\.\d+)?)\s*%/i,
+    // "annual escalation limited/capped to 10%"
+    /(?:annual\s*(?:escalation|increase))\s*(?:limited|capped|restricted)\s*(?:to|at)\s*(\d+(?:\.\d+)?)\s*%/i,
+    // "not to exceed 10% annually" (broader)
+    /not\s*to\s*exceed\s*(\d+(?:\.\d+)?)\s*%\s*(?:annually|per\s*year|per\s*annum|each\s*year)/i,
+    // "10% cap on annual increases"
+    /(\d+(?:\.\d+)?)\s*%\s*cap\s*(?:on|for)\s*(?:annual|yearly)\s*(?:increase|escalation)/i,
   ];
   let camCapPercentage: string | null = null;
   for (const pat of camCapPatterns) {
@@ -630,8 +732,8 @@ export function extractFields(text: string): ExtractedFields {
     /(?:premises\s*(?:square\s*footage|area|consisting\s*of|contains?|containing|comprising))[\s:]*(?:approximately\s*)?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:sq(?:uare)?\s*(?:ft|feet)|rsf|rentable\s*sq)/i,
     // "consisting of approximately 4,200 rentable square feet" (after Premises with punctuation gap)
     /(?:premises)[^.]{0,20}consisting\s*of\s*(?:approximately\s*)?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:rentable\s*)?(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)/i,
-    // "4,200 rentable square feet within the Building" (tenant context)
-    /(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:rentable\s*)?(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)\s*(?:within|in)\s*the\s*(?:building|property)/i,
+    // "4,200 rentable square feet within/in/of the/a Building" (tenant context)
+    /(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:rentable\s*)?(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)\s*(?:within|in|of)\s*(?:the|a)\s*(?:building|property)/i,
     // "Tenant's Premises: 8,500 SF", "Tenant premises ... 8,500 RSF"
     /(?:tenant(?:'s)?\s*premises)[\s:].{0,40}?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)/i,
     // "8,500 rentable square feet of premises", "8,500 sq ft of demised premises"
@@ -642,6 +744,8 @@ export function extractFields(text: string): ExtractedFields {
     /(?:premises)[\s:]*(?:approximately|approx\.?|about)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)/i,
     // "Tenant's Rentable Area: 8,500 SF"
     /(?:tenant(?:'s)?\s*rentable\s*area)[\s:]*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)/i,
+    // "based on 5,100 rentable square feet" (common in pro-rata share context)
+    /based\s*on\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:rentable\s*)?(?:sq(?:uare)?\s*(?:ft|feet)|sf|rsf)/i,
   ];
   let tenantPremisesSqFt: string | null = null;
   for (const pat of tenantSqFtPatterns) {
@@ -837,6 +941,21 @@ export function extractFields(text: string): ExtractedFields {
       `(?:total\\s+(?:operating|cam|common|building|property|recoverable|billable|reimbursable|actual|tenant|net|pass[\\s-]*through|annual)\\s*(?:area\\s*)?(?:maintenance\\s*)?(?:expenses?|charges?|costs?)?)\\b[^\\d\\n\\r]{0,80}?${dollarCapture}`,
       "i",
     ),
+    // "Aggregate expenses", "Combined charges" (via concept normalization)
+    new RegExp(
+      `(?:aggregate\\s*(?:operating\\s*)?(?:expenses?|charges?|costs?)|combined\\s*(?:operating\\s*)?(?:expenses?|charges?))${flexSep}${dollarCapture}`,
+      "i",
+    ),
+    // "Annual true-up", "Year-end adjustment/true-up"
+    new RegExp(
+      `(?:annual\\s*true[\\s-]*up|year[\\s-]*end\\s*(?:adjustment|true[\\s-]*up|reconciliation))${flexSep}${dollarCapture}`,
+      "i",
+    ),
+    // "Tenant adjustment", "Landlord pass-through charges"
+    new RegExp(
+      `(?:tenant\\s*(?:adjustment|true[\\s-]*up)|landlord\\s*pass[\\s-]*through\\s*(?:charges?|amount))${flexSep}${dollarCapture}`,
+      "i",
+    ),
   ];
   let totalCamCharges: string | null = null;
   for (const pat of totalCamPatterns) {
@@ -993,14 +1112,18 @@ export function extractFields(text: string): ExtractedFields {
   const amountPattern = /\$?\s*([\d,]+(?:\.\d{1,2})?)/g;
 
   // Also handle dotted-leader lines: "Category .............. $Amount"
-  const dottedLeaderPattern = /^[\s]*([A-Za-z][A-Za-z0-9 ()&\-\/,:%]+?)\s*\.{2,}\s*/;
+  // (dots already normalized to spaces by normalizeExtractedText, but handle originals too)
+  const dottedLeaderPattern = /^[\s]*([A-Za-z][A-Za-z0-9 ()&\-\/,:%]+?)\s*(?:\.{2,}|_{2,}|\-{2,})\s*/;
 
   // Colon-separated: "Category: $Amount" or "Category:  $Amount"
   const colonPattern = /^[\s]*([A-Za-z][A-Za-z0-9 ()&\-\/,%]+?)\s*:\s*/;
 
+  // Pipe/bar-separated tables: "| Category | $Amount |"
+  const pipeSepPattern = /\|\s*([A-Za-z][A-Za-z0-9 ()&\-\/,%]+?)\s*\|/;
+
   for (const line of textLines) {
-    // Try multi-space/tab separator first, then dotted-leader, then colon
-    const catMatch = line.match(categoryPattern) || line.match(dottedLeaderPattern) || line.match(colonPattern);
+    // Try multi-space/tab separator first, then dotted-leader, then colon, then pipe
+    const catMatch = line.match(categoryPattern) || line.match(dottedLeaderPattern) || line.match(colonPattern) || line.match(pipeSepPattern);
     if (!catMatch) continue;
 
     // Strip trailing dots, dashes, colons, and whitespace from category
@@ -1277,6 +1400,21 @@ function determineAuditMode(
 
   // Both high confidence → full audit
   if (leaseTier === "high_confidence" && reconTier === "high_confidence") {
+    return "full";
+  }
+
+  // Data-driven promotion: if we extracted strong financial data from both
+  // documents, promote to "full" even if keyword classification is weak.
+  // This handles real-world documents with non-standard formatting that
+  // have low keyword hits but contain real extractable financial data.
+  const hasStrongLeaseData =
+    (leaseFields.camCapPercentage != null || leaseFields.proRataShare != null) &&
+    (leaseFields.excludedTerms.length > 0 || leaseFields.managementFee != null || leaseFields.adminFeePercentage != null);
+  const hasStrongReconData =
+    (reconFields.totalCamCharges != null || reconFields.reconciliationTotal != null) &&
+    reconFields.lineItems.length >= 2;
+
+  if (hasStrongLeaseData && hasStrongReconData) {
     return "full";
   }
 
