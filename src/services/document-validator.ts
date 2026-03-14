@@ -536,7 +536,8 @@ export function extractFields(text: string): ExtractedFields {
   // Total CAM Charges — ordered from most specific to least specific
   // Flexible dollar separator: colon, spaces, dots, OCR artifacts between label and amount
   const flexSep = `[\\s:.·\\-]*`;
-  const dollarCapture = `(\\$?\\s*[\\d,]+(?:\\.\\d{1,2})?)`;
+  // Require at least one digit — prevents bare commas from matching
+  const dollarCapture = `(\\$?\\s*\\d[\\d,]*(?:\\.\\d{1,2})?)`;
 
   /**
    * Given a regex match result, find the LAST dollar-sign-prefixed amount
@@ -563,19 +564,30 @@ export function extractFields(text: string): ExtractedFields {
     const fullLine = fullText.slice(lineStart, lineEnd);
 
     // Find all $-prefixed amounts on this line (definitive dollar amounts)
-    const dollarAmounts = [...fullLine.matchAll(/\$\s*[\d,]+(?:\.\d{1,2})?/g)];
+    const dollarAmounts = [...fullLine.matchAll(/\$\s*\d[\d,]*(?:\.\d{1,2})?/g)];
     if (dollarAmounts.length > 0) {
       // Return the LAST dollar amount (Actual column in Budget|Actual tables)
       return dollarAmounts[dollarAmounts.length - 1][0];
     }
 
     // No $-prefixed amounts — look for large bare numbers on this line
-    const bareAmounts = [...fullLine.matchAll(/(?<!\d)(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?)(?!\d)/g)];
+    // Match both comma-formatted (53,444.13) AND pure digit amounts (661437)
+    const bareAmounts = [
+      ...fullLine.matchAll(/(?<!\d)(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?)(?!\d)/g),
+      ...fullLine.matchAll(/(?<!\d)(\d{4,}(?:\.\d{1,2})?)(?![,\d])/g),
+    ];
     if (bareAmounts.length > 0) {
-      // Return the LAST large bare number (e.g., "53,444.13")
-      const last = bareAmounts[bareAmounts.length - 1][0];
-      const val = parseFloat(last.replace(/,/g, ""));
-      if (!isNaN(val) && val >= 100) return last;
+      // Find the largest valid amount (most likely the actual dollar total)
+      let bestAmount: string | null = null;
+      let bestVal = 0;
+      for (const m of bareAmounts) {
+        const val = parseFloat(m[1].replace(/,/g, ""));
+        if (!isNaN(val) && val >= 100 && val > bestVal) {
+          bestVal = val;
+          bestAmount = m[1];
+        }
+      }
+      if (bestAmount) return bestAmount;
     }
 
     // Fallback: use the regex capture but validate it
