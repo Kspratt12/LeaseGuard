@@ -29,15 +29,15 @@ export default function CamReconciliationGuide() {
     >
       <p>
         The annual CAM reconciliation statement is one of the most financially
-        significant documents a commercial tenant receives — and one of the
+        significant documents a commercial tenant receives, and one of the
         most frequently ignored. This statement determines whether you owe your
         landlord additional money or are owed a credit, and errors in the
         reconciliation can cost retail tenants, office tenants, medical
         practices, and franchise operators thousands of dollars per year.
       </p>
       <p>
-        Understanding how reconciliation works — and knowing where mistakes
-        commonly occur — is essential for any tenant who wants to verify
+        Understanding how reconciliation works, and knowing where mistakes
+        commonly occur, is essential for any tenant who wants to verify
         they&apos;re being charged fairly.
       </p>
 
@@ -60,21 +60,21 @@ export default function CamReconciliationGuide() {
       <h3>The Reconciliation Timeline</h3>
       <ul>
         <li>
-          <strong>Year ends</strong> — The fiscal year for CAM calculations
+          <strong>Year ends:</strong> The fiscal year for CAM calculations
           closes (usually December 31, but this varies by lease).
         </li>
         <li>
-          <strong>Landlord compiles actuals</strong> — The property management
+          <strong>Landlord compiles actuals:</strong> The property management
           team gathers invoices, tallies expenses, and prepares the
           reconciliation.
         </li>
         <li>
-          <strong>Statement delivered</strong> — Most leases require the
+          <strong>Statement delivered:</strong> Most leases require the
           landlord to deliver the reconciliation within 90-120 days after
           year-end.
         </li>
         <li>
-          <strong>Tenant review period</strong> — The tenant has a window
+          <strong>Tenant review period:</strong> The tenant has a window
           (the length is set by your lease and can be short) to review the statement and raise any
           objections.
         </li>
@@ -125,7 +125,7 @@ export default function CamReconciliationGuide() {
         cleaning or utilities) may be lower than they would be at full
         occupancy. A gross-up provision adjusts these expenses to simulate full
         occupancy, preventing current tenants from subsidizing vacant space. The
-        issue arises when landlords apply gross-up incorrectly — either
+        issue arises when landlords apply gross-up incorrectly, either
         applying it to fixed costs, applying it to the wrong expense
         categories, or using the wrong occupancy percentage.
       </p>
@@ -136,15 +136,15 @@ export default function CamReconciliationGuide() {
         lease. If the building&apos;s total rentable area has changed (due to
         renovations or remeasurement), the landlord may adjust your share
         without updating you. Always verify the square footage figures on your
-        statement — even a small error here affects every expense category.
+        statement, even a small error here affects every expense category.
       </p>
 
       <h3>Inflated Management Fees</h3>
       <p>
         Management fees are typically calculated as a percentage of total
-        operating expenses. If other costs on the reconciliation are inflated —
-        whether through errors or the inclusion of expenses the lease excludes
-        — the management fee is automatically inflated too. This compounding
+        operating expenses. If other costs on the reconciliation are inflated,
+        whether through errors or the inclusion of expenses the lease excludes,
+        the management fee is automatically inflated too. This compounding
         effect can add up to a meaningful overcharge, particularly in
         properties with higher management fee percentages.
       </p>
@@ -161,7 +161,7 @@ export default function CamReconciliationGuide() {
 
       <h2>How to Review Your Reconciliation Statement</h2>
       <ol>
-        <li>Check the math — verify that line items add up to the stated totals</li>
+        <li>Check the math: verify that line items add up to the stated totals</li>
         <li>Verify your proportionate share percentage against the lease</li>
         <li>Compare each category to the prior year</li>
         <li>Cross-reference against your lease&apos;s definition of permitted expenses</li>
@@ -187,7 +187,7 @@ export default function CamReconciliationGuide() {
         reconciliation statement is exactly the kind of detailed work that
         tools are good at. LeaseGuard lets you upload both your lease and your
         reconciliation statement, then analyzes them together to identify areas
-        where the charges may not align with your lease terms — including pro
+        where the charges may not align with your lease terms, including pro
         rata share errors, excluded cost pass-throughs, management fee
         calculations, and CAM cap compliance. Results are delivered in about 60
         seconds, giving you a clear starting point for any follow-up review.
@@ -196,10 +196,10 @@ export default function CamReconciliationGuide() {
       <h2>Key Takeaways</h2>
       <ul>
         <li>CAM reconciliation compares your monthly estimates against actual expenses</li>
-        <li>Review the statement promptly — you may have a limited window to object</li>
+        <li>Review the statement promptly: you may have a limited window to object</li>
         <li>Always compare year over year to spot unusual changes</li>
         <li>Verify your proportionate share and the building&apos;s total square footage</li>
-        <li>Gross-up provisions are commonly misapplied — understand how yours works</li>
+        <li>Gross-up provisions are commonly misapplied: understand how yours works</li>
         <li>A summary-only statement without line-item detail is a red flag</li>
       </ul>
     </ArticleLayout>

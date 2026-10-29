@@ -46,8 +46,8 @@ export default function CommercialTenantCamAuditGuide() {
       <article className="mx-auto max-w-3xl px-4 sm:px-6 py-10 sm:py-14">
         <div className="prose prose-gray prose-lg max-w-none [&>h2]:text-2xl [&>h2]:font-semibold [&>h2]:text-gray-900 [&>h2]:mt-10 [&>h2]:mb-4 [&>h3]:text-xl [&>h3]:font-semibold [&>h3]:text-gray-800 [&>h3]:mt-8 [&>h3]:mb-3 [&>p]:text-gray-600 [&>p]:leading-relaxed [&>p]:mb-5 [&>ul]:text-gray-600 [&>ul]:leading-relaxed [&>ul]:mb-5 [&>ul]:space-y-2 [&>ol]:text-gray-600 [&>ol]:leading-relaxed [&>ol]:mb-5 [&>ol]:space-y-2 [&_li]:pl-1">
           <p>
-            For commercial tenants — retail operators, office tenants, medical
-            practices, franchise owners, and small business operators — CAM
+            For commercial tenants, retail operators, office tenants, medical
+            practices, franchise owners, and small business operators, CAM
             charges represent one of the largest variable costs in a lease. Yet tenants do not always verify whether those charges are accurate. A CAM
             audit is the process of reviewing your{" "}
             <Link
@@ -62,7 +62,7 @@ export default function CommercialTenantCamAuditGuide() {
           <p>
             This guide covers everything a commercial tenant needs to know about
             CAM audits: what they are, why they matter, what overcharges to look
-            for, how reconciliation works, and how to perform an audit — whether
+            for, how reconciliation works, and how to perform an audit, whether
             manually or with the help of technology.
           </p>
 
@@ -87,18 +87,18 @@ export default function CommercialTenantCamAuditGuide() {
           </p>
           <ol>
             <li>
-              <strong>Reviewing the reconciliation statement</strong> — examining
+              <strong>Reviewing the reconciliation statement:</strong> examining
               each expense category, the total amounts, and how your
               proportionate share is calculated.
             </li>
             <li>
-              <strong>Cross-referencing against the lease</strong> — verifying
+              <strong>Cross-referencing against the lease:</strong> verifying
               that each charge is permitted under your lease&apos;s operating
               expense definitions and that no excluded costs are being passed
               through.
             </li>
             <li>
-              <strong>Identifying discrepancies</strong> — flagging charges that
+              <strong>Identifying discrepancies:</strong> flagging charges that
               appear to be incorrect, unauthorized, or inconsistent with prior
               years.
             </li>
@@ -130,7 +130,7 @@ export default function CommercialTenantCamAuditGuide() {
           <h3>Overcharges Compound Over Time</h3>
           <p>
             A billing error in one year doesn&apos;t just cost you money that
-            year — it often establishes the baseline for future calculations. If
+            year, it often establishes the baseline for future calculations. If
             your proportionate share is overstated, every subsequent
             reconciliation will carry the same error forward. If your{" "}
             <Link
@@ -151,7 +151,7 @@ export default function CommercialTenantCamAuditGuide() {
             tenants in the same building may have different expense definitions,
             different exclusion lists, and different cap structures. Property
             managers administering these leases may not apply each tenant&apos;s
-            unique provisions correctly — not out of bad intent, but because the
+            unique provisions correctly, not out of bad intent, but because the
             administrative complexity is significant.
           </p>
 
@@ -176,7 +176,7 @@ export default function CommercialTenantCamAuditGuide() {
           <h3>Inflated Management Fees</h3>
           <p>
             Property management fees are typically calculated as a percentage of
-            total operating expenses — usually between 3% and 8%. Overcharges
+            total operating expenses, usually between 3% and 8%. Overcharges
             occur when the wrong percentage is applied, when the fee is
             calculated on expenses that should be excluded, or when separate
             administrative charges duplicate functions covered by the management
@@ -186,8 +186,8 @@ export default function CommercialTenantCamAuditGuide() {
 
           <h3>Incorrect Proportionate Share Calculations</h3>
           <p>
-            Your proportionate share — your square footage divided by total
-            leasable area — affects every expense on your reconciliation. Errors
+            Your proportionate share, your square footage divided by total
+            leasable area, affects every expense on your reconciliation. Errors
             in either your square footage or the total building area inflate
             every line item. Additionally, some landlords use different
             proportionate shares for different expense pools without lease
@@ -213,7 +213,7 @@ export default function CommercialTenantCamAuditGuide() {
             repaving the entire lot is capital. But what about repaving half?
             This gray area is where many disputes arise, and property managers
             often default to classifying work as operating to simplify
-            accounting — at the tenant&apos;s expense.
+            accounting, at the tenant&apos;s expense.
           </p>
 
           <h3>Vague Lease Language</h3>
@@ -335,7 +335,7 @@ export default function CommercialTenantCamAuditGuide() {
           <p>
             For any charges that appear unusual, request the underlying invoices
             and vendor contracts. Your lease&apos;s audit rights clause
-            typically entitles you to inspect these records — but be aware of
+            typically entitles you to inspect these records, but be aware of
             any deadline for exercising this right (usually 90 to 180 days
             after receiving the reconciliation).
           </p>
@@ -354,7 +354,7 @@ export default function CommercialTenantCamAuditGuide() {
             By uploading your lease agreement and CAM reconciliation statement,
             the platform cross-references the two documents to identify
             potential discrepancies across all of the categories described in
-            this guide — from capital expense classification and management fee
+            this guide, from capital expense classification and management fee
             accuracy to proportionate share verification and{" "}
             <Link
               href="/resources/cam-cap-commercial-lease"
@@ -368,8 +368,8 @@ export default function CommercialTenantCamAuditGuide() {
           <p>
             Whether you use LeaseGuard as your primary audit tool or as a
             starting point before engaging a professional auditor, the goal is
-            the same: making sure you are only paying what your lease requires
-            — nothing more.
+            the same: making sure you are only paying what your lease requires,
+            nothing more.
           </p>
         </div>
       </article>

@@ -50,7 +50,7 @@ export default function CamAuditPage() {
           </p>
           <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
             Most tenants overpay because reconciliation statements are dense,
-            technical documents — and manually comparing them against a complex
+            technical documents, and manually comparing them against a complex
             lease agreement takes hours. LeaseGuard automates that comparison in
             about 60 seconds.
           </p>
@@ -71,7 +71,7 @@ export default function CamAuditPage() {
           Common CAM Overcharges Tenants Miss
         </h2>
         <p className="text-gray-600 text-center max-w-2xl mx-auto mb-12 leading-relaxed">
-          CAM billing errors are rarely intentional — but they are surprisingly
+          CAM billing errors are rarely intentional, but they are surprisingly
           common. These are the issues that a{" "}
           <Link
             href="/resources/how-to-audit-cam-charges"
@@ -102,7 +102,7 @@ export default function CamAuditPage() {
             </h3>
             <p className="text-gray-600 leading-relaxed">
               Replacing a roof or repaving a parking lot is a capital
-              improvement — not a routine operating expense. When these costs
+              improvement, not a routine operating expense. When these costs
               are classified as repairs, tenants pay the full amount in a single
               year instead of an amortized share over the asset&apos;s useful life.
             </p>
@@ -215,7 +215,7 @@ export default function CamAuditPage() {
               <p className="text-gray-600 leading-relaxed">
                 You receive a clear report highlighting potential overcharges,
                 excluded expenses being passed through, CAM cap violations, and
-                proportionate share errors — with references to the relevant
+                proportionate share errors, with references to the relevant
                 lease provisions.
               </p>
             </div>

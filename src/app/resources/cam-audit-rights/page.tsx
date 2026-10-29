@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/resources/cam-audit-rights" },
   title: "CAM Audit Rights in Commercial Leases | LeaseGuard",
   description:
-    "Understand your audit rights as a commercial tenant — including review periods, access to records, and how to exercise your right to audit CAM charges.",
+    "Understand your audit rights as a commercial tenant, including review periods, access to records, and how to exercise your right to audit CAM charges.",
   keywords: [
     "CAM audit rights",
     "tenant audit rights",
@@ -23,7 +23,7 @@ export default function CamAuditRights() {
       title="CAM Audit Rights in Commercial Leases"
       publishedDate="March 2026"
       readTime="7 min read"
-      description="Understand your audit rights as a commercial tenant — including review periods, access to records, and how to exercise your right to audit CAM charges."
+      description="Understand your audit rights as a commercial tenant, including review periods, access to records, and how to exercise your right to audit CAM charges."
     >
       <p>
         Most commercial leases include an audit clause that gives tenants the
@@ -65,7 +65,7 @@ export default function CamAuditRights() {
       </ul>
       <p>
         Some leases also include a provision that if the audit reveals an
-        overcharge above a certain threshold — often 3% to 5% — the landlord
+        overcharge above a certain threshold, often 3% to 5%, the landlord
         must reimburse the tenant for the cost of the audit in addition to
         refunding the overcharge.
       </p>
@@ -77,8 +77,8 @@ export default function CamAuditRights() {
       </p>
       <ul>
         <li>
-          <strong>Time limit after receiving the reconciliation statement</strong>{" "}
-          — Many leases require tenants to initiate an audit within 90 to 180
+          <strong>Time limit after receiving the reconciliation statement</strong>{" "},
+          Many leases require tenants to initiate an audit within 90 to 180
           days after receiving the annual{" "}
           <Link
             href="/resources/cam-reconciliation-guide"
@@ -88,12 +88,12 @@ export default function CamAuditRights() {
           </Link>
         </li>
         <li>
-          <strong>Annual exercise window</strong> — Some leases allow audits
+          <strong>Annual exercise window:</strong> Some leases allow audits
           only during a specific period each year, often tied to the lease year
           end
         </li>
         <li>
-          <strong>Lookback period</strong> — The audit may cover only the most
+          <strong>Lookback period:</strong> The audit may cover only the most
           recent lease year, or the lease may permit a lookback covering
           multiple prior years
         </li>
@@ -120,7 +120,7 @@ export default function CamAuditRights() {
           falls within permitted categories
         </li>
         <li>
-          Checking mathematical accuracy — pro rata share percentages, totals,
+          Checking mathematical accuracy, pro rata share percentages, totals,
           and year-over-year adjustments
         </li>
         <li>
@@ -158,8 +158,8 @@ export default function CamAuditRights() {
       <h2>Why Tenants Audit CAM Charges</h2>
       <p>
         Tenants audit CAM charges because reconciliation statements are prepared
-        by the landlord or their property management company, and errors —
-        whether accidental or intentional — are common. Without an audit, these
+        by the landlord or their property management company, and errors,
+        whether accidental or intentional, are common. Without an audit, these
         errors compound year after year.
       </p>
       <p>The most common reasons tenants exercise their audit rights include:</p>

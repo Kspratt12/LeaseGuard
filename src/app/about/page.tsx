@@ -34,7 +34,7 @@ export default function AboutPage() {
             allocated.
           </p>
           <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            LeaseGuard is designed for the tenants who need it most — retail
+            LeaseGuard is designed for the tenants who need it most, retail
             operators, office tenants, medical practices, franchise operators,
             and small business owners leasing commercial space. These tenants
             often lack the time or specialized expertise to manually audit
@@ -59,7 +59,7 @@ export default function AboutPage() {
           <li className="flex items-start gap-2.5">
             <span className="text-blue-600 mt-1.5 shrink-0">&bull;</span>
             <span>
-              <strong>Inflated management fees</strong> — calculated as a
+              <strong>Inflated management fees:</strong> calculated as a
               percentage of total operating expenses, these fees compound any
               other overcharges on the statement.
             </span>
@@ -67,7 +67,7 @@ export default function AboutPage() {
           <li className="flex items-start gap-2.5">
             <span className="text-blue-600 mt-1.5 shrink-0">&bull;</span>
             <span>
-              <strong>Incorrect pro rata calculations</strong> — errors in your
+              <strong>Incorrect pro rata calculations:</strong> errors in your
               square footage or the total building area inflate every expense
               line item.
             </span>
@@ -75,7 +75,7 @@ export default function AboutPage() {
           <li className="flex items-start gap-2.5">
             <span className="text-blue-600 mt-1.5 shrink-0">&bull;</span>
             <span>
-              <strong>Capital expenses billed to tenants</strong> — major
+              <strong>Capital expenses billed to tenants:</strong> major
               improvements like roof replacements or parking lot repaving
               classified as routine maintenance.
             </span>
@@ -83,7 +83,7 @@ export default function AboutPage() {
           <li className="flex items-start gap-2.5">
             <span className="text-blue-600 mt-1.5 shrink-0">&bull;</span>
             <span>
-              <strong>Expenses that should be excluded</strong> — costs your
+              <strong>Expenses that should be excluded:</strong> costs your
               lease explicitly prohibits from being passed through, such as
               marketing, legal fees, or leasing commissions.
             </span>
@@ -95,7 +95,7 @@ export default function AboutPage() {
           lease language, checking proportionate share calculations, verifying
           CAM cap compliance, and cross-referencing exclusion lists. Most small
           business tenants simply don&apos;t have the bandwidth to do this every
-          year — which is why billing errors often go undetected for the
+          year, which is why billing errors often go undetected for the
           duration of a lease.
         </p>
       </section>
@@ -144,7 +144,7 @@ export default function AboutPage() {
               <p className="text-gray-600 leading-relaxed">
                 The platform identifies potential discrepancies and generates a
                 detailed audit report highlighting overcharges, excluded expense
-                violations, and CAM cap issues — in about 60 seconds.
+                violations, and CAM cap issues, in about 60 seconds.
               </p>
             </div>
           </div>
@@ -161,8 +161,8 @@ export default function AboutPage() {
           understand their lease expenses and identify potential overcharges.
         </p>
         <p className="text-gray-600 leading-relaxed mb-5">
-          We believe that every tenant — whether they operate a single retail
-          location or manage a portfolio of franchise spaces — should have
+          We believe that every tenant, whether they operate a single retail
+          location or manage a portfolio of franchise spaces, should have
           access to the tools needed to verify that their CAM charges are
           accurate. Traditionally, CAM audits have been expensive, slow, and
           accessible only to tenants with large enough portfolios to justify the

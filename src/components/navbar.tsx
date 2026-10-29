@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useCallback, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { useAuditDraft } from "@/components/audit-draft-context";
 import { supabase } from "@/lib/supabase";
 import { buttonClass } from "@/components/ui";
+import { Logo } from "@/components/logo";
 
 /** The same five destinations on every page. Anchor links scroll in place when already on the homepage. */
 const LINKS = [
@@ -68,16 +68,9 @@ export function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-line bg-paper/95 backdrop-blur-md" aria-label="Main">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" onClick={handleNavAway} className="flex shrink-0 items-center gap-2.5">
-          <Image
-            src="/leaseguard-logo.png"
-            alt="LeaseGuard CAM audit software logo"
-            width={180}
-            height={44}
-            className="h-10 w-auto sm:h-11"
-            priority
-          />
+      <div className="mx-auto flex h-[4.75rem] max-w-6xl items-center justify-between px-4 sm:px-6">
+        <Link href="/" onClick={handleNavAway} className="flex shrink-0 items-center" aria-label="LeaseGuard home">
+          <Logo />
         </Link>
 
         {/* Desktop */}

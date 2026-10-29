@@ -36,7 +36,7 @@ export default function HiddenCostsInNnnLeases() {
         >
           common area maintenance
         </Link>. In practice, however, NNN leases often contain costs that are
-        not immediately obvious when you sign the lease — charges that can add
+        not immediately obvious when you sign the lease, charges that can add
         thousands of dollars per year to your total occupancy cost. These hidden
         costs aren&apos;t necessarily the result of bad intent. They arise from
         vague lease language, complex calculations, and the inherent tension
@@ -44,8 +44,8 @@ export default function HiddenCostsInNnnLeases() {
       </p>
       <p>
         This article identifies the most common hidden costs that commercial
-        tenants — retail operators, franchise owners, medical practices, and
-        small businesses — encounter in NNN leases.
+        tenants, retail operators, franchise owners, medical practices, and
+        small businesses, encounter in NNN leases.
       </p>
 
       <h2>1. Administrative and Management Fee Markups</h2>
@@ -58,8 +58,8 @@ export default function HiddenCostsInNnnLeases() {
       </p>
       <p>
         Beyond the management fee, some landlords add separate administrative
-        charges — for accounting, vendor coordination, or supervisory overhead
-        — that may duplicate what the management fee already covers. Review your
+        charges, for accounting, vendor coordination, or supervisory overhead,
+        that may duplicate what the management fee already covers. Review your
         lease to determine whether administrative charges are permitted on top
         of the management fee, and check your{" "}
         <Link
@@ -75,7 +75,7 @@ export default function HiddenCostsInNnnLeases() {
       <p>
         This is one of the most significant hidden costs in NNN leases. When a
         landlord replaces a roof, repaves a parking lot, or installs a new HVAC
-        system, these are capital expenditures — investments in the property
+        system, these are capital expenditures, investments in the property
         that should not be passed through to tenants as routine operating
         expenses. However, if the reconciliation classifies this work as
         &quot;repairs&quot; or &quot;maintenance,&quot; tenants may pay the full
@@ -106,21 +106,21 @@ export default function HiddenCostsInNnnLeases() {
         A gross-up clause adjusts variable expenses to what they would be at
         full (or near-full) occupancy. If your lease doesn&apos;t include this
         provision, your proportionate share of expenses increases when other
-        tenants leave — even though your own space and usage haven&apos;t
+        tenants leave, even though your own space and usage haven&apos;t
         changed.
       </p>
 
       <h2>4. Property Tax Reassessment After Sale</h2>
       <p>
         When a commercial property is sold, the property tax assessment often
-        increases — sometimes dramatically — to reflect the purchase price. If
+        increases, sometimes dramatically, to reflect the purchase price. If
         your NNN lease passes through property taxes without any cap or
         limitation, a building sale can result in a significant and sudden
         increase in your tax pass-through charges, even though nothing about
         your tenancy has changed.
       </p>
       <p>
-        Some leases include protections against this — for example, capping
+        Some leases include protections against this, for example, capping
         your tax exposure at the pre-sale assessment level or excluding
         increases caused by a voluntary sale. If your lease doesn&apos;t
         address this, a building sale could be costly.
@@ -189,8 +189,8 @@ export default function HiddenCostsInNnnLeases() {
       </ul>
       <p>
         These charges may be buried in different sections of your lease rather
-        than in the operating expense definition. Review the entire lease — not
-        just the CAM section — to understand your full cost exposure.
+        than in the operating expense definition. Review the entire lease, not
+        just the CAM section, to understand your full cost exposure.
       </p>
 
       <h2>8. Controllable Expense Creep</h2>
@@ -209,7 +209,7 @@ export default function HiddenCostsInNnnLeases() {
         >
           CAM caps
         </Link>{" "}
-        are valuable — they limit the year-over-year increase in controllable
+        are valuable, they limit the year-over-year increase in controllable
         expenses. If you are negotiating a new NNN lease, a CAM cap is one of
         the most important protections to include.
       </p>
@@ -218,7 +218,7 @@ export default function HiddenCostsInNnnLeases() {
       <ol>
         <li>
           <strong>Read the full lease before signing.</strong> Don&apos;t focus
-          only on the base rent — review the operating expense definitions,
+          only on the base rent, review the operating expense definitions,
           exclusions, and any additional rent provisions.
         </li>
         <li>
@@ -239,7 +239,7 @@ export default function HiddenCostsInNnnLeases() {
         </li>
         <li>
           <strong>Exercise your audit rights.</strong> Most NNN leases include
-          audit provisions. Use them — especially after years with large
+          audit provisions. Use them, especially after years with large
           true-ups or unusual charges. See our{" "}
           <Link
             href="/resources/how-to-audit-cam-charges"
@@ -268,7 +268,7 @@ export default function HiddenCostsInNnnLeases() {
 
       <h2>Key Takeaways</h2>
       <ul>
-        <li>NNN lease costs extend well beyond base rent — understand your full exposure before signing</li>
+        <li>NNN lease costs extend well beyond base rent: understand your full exposure before signing</li>
         <li>Management fee markups, capital expense misclassification, and vacant space subsidies are the most common hidden costs</li>
         <li>Property tax reassessments after a building sale can cause sudden, large increases</li>
         <li>Year-end true-up charges are often the first sign of hidden cost issues</li>

@@ -96,26 +96,26 @@ export default function CommercialLeaseAuditServices() {
       <h2>Common Billing Discrepancies</h2>
       <p>
         Lease audits frequently uncover the same types of billing errors. These
-        are not always intentional — many result from accounting mistakes,
+        are not always intentional, many result from accounting mistakes,
         software errors, or misinterpretation of lease terms. The most common
         discrepancies include:
       </p>
       <ul>
         <li>
-          <strong>Management fee overcharges</strong> — Administrative fees
+          <strong>Management fee overcharges:</strong> Administrative fees
           billed at a higher percentage than the lease permits
         </li>
         <li>
-          <strong>Incorrect pro rata share</strong> — The tenant&apos;s
+          <strong>Incorrect pro rata share:</strong> The tenant&apos;s
           proportionate share calculated using wrong square footage figures
         </li>
         <li>
-          <strong>Excluded expenses billed</strong> — Costs the lease
+          <strong>Excluded expenses billed:</strong> Costs the lease
           specifically excludes from CAM appearing on the reconciliation
           statement
         </li>
         <li>
-          <strong>Capital expenditures passed through</strong> —{" "}
+          <strong>Capital expenditures passed through:</strong> {" "}
           <Link
             href="/resources/can-landlords-charge-capital-expenses"
             className="text-blue-600 hover:underline"
@@ -125,7 +125,7 @@ export default function CommercialLeaseAuditServices() {
           charged as operating expenses when the lease prohibits it
         </li>
         <li>
-          <strong>CAM cap violations</strong> — Annual charges exceeding the{" "}
+          <strong>CAM cap violations:</strong> Annual charges exceeding the{" "}
           <Link
             href="/resources/cam-cap-commercial-lease"
             className="text-blue-600 hover:underline"
@@ -155,8 +155,8 @@ export default function CommercialLeaseAuditServices() {
       <p>
         Automated CAM audit tools like LeaseGuard streamline this process. The
         tenant uploads their lease PDF and one or more reconciliation statements.
-        The system extracts key lease provisions — CAM caps, admin fee limits,
-        excluded expense categories, and pro rata share terms — then compares
+        The system extracts key lease provisions, CAM caps, admin fee limits,
+        excluded expense categories, and pro rata share terms, then compares
         each billed charge against those provisions.
       </p>
       <p>

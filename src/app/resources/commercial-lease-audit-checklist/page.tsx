@@ -44,7 +44,7 @@ export default function CommercialLeaseAuditChecklist() {
       <p>
         This checklist provides a structured framework for reviewing your lease
         charges. You don&apos;t need a background in commercial real estate to
-        follow it — each item is explained in plain language so that any
+        follow it, each item is explained in plain language so that any
         business operator can use it.
       </p>
 
@@ -55,11 +55,11 @@ export default function CommercialLeaseAuditChecklist() {
       </p>
       <ul>
         <li>
-          <strong>Your executed lease agreement</strong> — including all
+          <strong>Your executed lease agreement:</strong> including all
           amendments, addenda, and side letters.
         </li>
         <li>
-          <strong>CAM reconciliation statements</strong> — for the current year
+          <strong>CAM reconciliation statements:</strong> for the current year
           and at least the prior two years. See our guide on{" "}
           <Link
             href="/resources/cam-reconciliation-guide"
@@ -70,11 +70,11 @@ export default function CommercialLeaseAuditChecklist() {
           for background on what these statements contain.
         </li>
         <li>
-          <strong>Monthly rent and CAM invoices</strong> — to compare estimated
+          <strong>Monthly rent and CAM invoices:</strong> to compare estimated
           charges against actual reconciliation amounts.
         </li>
         <li>
-          <strong>Prior audit reports</strong> — if you have conducted audits in
+          <strong>Prior audit reports:</strong> if you have conducted audits in
           previous years.
         </li>
       </ul>
@@ -176,7 +176,7 @@ export default function CommercialLeaseAuditChecklist() {
       </p>
       <ul>
         <li>
-          <strong>Your square footage</strong> matches the lease — not an
+          <strong>Your square footage</strong> matches the lease, not an
           estimate, not a rounded number.
         </li>
         <li>
@@ -216,7 +216,7 @@ export default function CommercialLeaseAuditChecklist() {
       </p>
       <ul>
         <li>Large true-up charges that suggest estimates were significantly too low</li>
-        <li>Patterns of consistently high estimates that result in credits owed back to you — are those credits actually being applied?</li>
+        <li>Patterns of consistently high estimates that result in credits owed back to you: are those credits actually being applied?</li>
         <li>Whether the landlord is adjusting estimates each year to reflect prior actuals</li>
       </ul>
 
@@ -233,7 +233,7 @@ export default function CommercialLeaseAuditChecklist() {
           rights.
         </li>
         <li>
-          <strong>Request supporting documentation</strong> — invoices,
+          <strong>Request supporting documentation:</strong> invoices,
           contracts, and vendor agreements for any charges you want to verify.
         </li>
         <li>
@@ -259,7 +259,7 @@ export default function CommercialLeaseAuditChecklist() {
         platform cross-references the two documents to flag potential issues
         across excluded expenses, proportionate share calculations, CAM cap
         compliance, capital expense classification, and management fee
-        accuracy — all in about 60 seconds. This gives you a prioritized
+        accuracy, all in about 60 seconds. This gives you a prioritized
         list of items to investigate rather than having to review every line
         manually.
       </p>
@@ -267,7 +267,7 @@ export default function CommercialLeaseAuditChecklist() {
       <h2>Key Takeaways</h2>
       <ul>
         <li>Gather your lease, amendments, and at least two years of reconciliation statements before starting</li>
-        <li>Verify your proportionate share first — errors there affect every expense category</li>
+        <li>Verify your proportionate share first: errors there affect every expense category</li>
         <li>Cross-reference reconciliation line items against your lease&apos;s exclusion list</li>
         <li>Check CAM cap compliance if your lease includes annual increase limits</li>
         <li>Exercise your audit rights within the deadline specified in your lease</li>

@@ -28,7 +28,7 @@ export default function TripleNetLeaseExpenses() {
       description="Understand the three expense categories in a triple net (NNN) lease: property taxes, insurance, and common area maintenance. Learn what tenants actually pay and how to verify charges."
     >
       <p>
-        A triple net lease — commonly abbreviated as NNN — is one of the most
+        A triple net lease, commonly abbreviated as NNN, is one of the most
         widely used lease structures in commercial real estate. Under a triple
         net lease, the tenant pays base rent plus their proportionate share of
         three categories of property expenses: property taxes, building
@@ -39,8 +39,8 @@ export default function TripleNetLeaseExpenses() {
         >
           common area maintenance (CAM)
         </Link>. Understanding exactly what falls into each category is critical
-        for any commercial tenant — retail operator, medical practice, franchise
-        owner, or office tenant — who wants to verify their charges are
+        for any commercial tenant, retail operator, medical practice, franchise
+        owner, or office tenant, who wants to verify their charges are
         accurate.
       </p>
 
@@ -68,7 +68,7 @@ export default function TripleNetLeaseExpenses() {
         <li>
           <strong>Tax appeals:</strong> If the landlord successfully appeals the
           property tax assessment, the savings should be passed through to
-          tenants — but this doesn&apos;t always happen automatically.
+          tenants, but this doesn&apos;t always happen automatically.
         </li>
         <li>
           <strong>Special assessments:</strong> One-time government assessments
@@ -98,7 +98,7 @@ export default function TripleNetLeaseExpenses() {
 
       <h3>3. Common Area Maintenance (CAM)</h3>
       <p>
-        The third net — and typically the largest and most variable — covers
+        The third net, and typically the largest and most variable, covers
         the cost of maintaining the property&apos;s common areas. CAM expenses
         generally include:
       </p>
@@ -261,8 +261,8 @@ export default function TripleNetLeaseExpenses() {
 
       <h2>Key Takeaways</h2>
       <ul>
-        <li>Triple net leases pass through property taxes, insurance, and CAM — know what each category should include</li>
-        <li>Your proportionate share affects every expense line item — verify it matches your lease</li>
+        <li>Triple net leases pass through property taxes, insurance, and CAM: know what each category should include</li>
+        <li>Your proportionate share affects every expense line item: verify it matches your lease</li>
         <li>CAM is the most variable and dispute-prone of the three nets</li>
         <li>Negotiate caps and exclusions before signing, and audit annually after</li>
         <li>Request supporting documentation for any charges that seem unusual or have increased significantly</li>

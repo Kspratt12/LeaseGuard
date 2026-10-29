@@ -29,7 +29,7 @@ export default function CamChargesExplained() {
     >
       <p>
         CAM charges are one of the largest variable costs in any commercial
-        lease — and one of the most misunderstood. For retail tenants, office
+        lease, and one of the most misunderstood. For retail tenants, office
         tenants, medical practices, and franchise operators, these charges can
         add thousands of dollars per year to occupancy costs. When they&apos;re
         calculated incorrectly or include expenses your lease doesn&apos;t
@@ -72,7 +72,7 @@ export default function CamChargesExplained() {
       </p>
       <h3>Insurance and Taxes</h3>
       <p>
-        In many lease structures — particularly triple net (NNN) leases — the
+        In many lease structures, particularly triple net (NNN) leases, the
         landlord&apos;s property insurance premiums and real estate taxes are
         passed through as part of operating expenses. Some leases bundle these
         with CAM; others list them separately.
@@ -84,17 +84,17 @@ export default function CamChargesExplained() {
         of managing the property, coordinating vendors, and handling tenant
         relations. Management fees typically range from 3% to 8% of total
         operating costs. If the underlying expenses are inflated, the management
-        fee — calculated as a percentage — is automatically inflated too.
+        fee, calculated as a percentage, is automatically inflated too.
       </p>
       <h3>Capital Expenditures</h3>
       <p>
-        This is where things get complicated. Capital expenditures — like a new
-        roof, parking lot repaving, or HVAC system replacement — are sometimes
+        This is where things get complicated. Capital expenditures, like a new
+        roof, parking lot repaving, or HVAC system replacement, are sometimes
         included in CAM charges, depending on lease language. Many leases
         require capital costs to be amortized over their useful life rather than
         charged in a single year, but not all leases are clear about this.
         When capital expenses are passed through improperly, the overcharge can
-        be substantial — sometimes tens of thousands of dollars in a single
+        be substantial, sometimes tens of thousands of dollars in a single
         reconciliation period.
       </p>
 
@@ -123,8 +123,8 @@ export default function CamChargesExplained() {
         </li>
       </ul>
       <p>
-        Even small errors in the pro rata share calculation — say, 4.2% instead
-        of 4.0% — compound across every expense category on your statement.
+        Even small errors in the pro rata share calculation, say, 4.2% instead
+        of 4.0%, compound across every expense category on your statement.
         This is why verifying your proportionate share is one of the first steps
         in any{" "}
         <Link href="/resources/how-to-audit-cam-charges" className="text-blue-600 hover:underline">
@@ -139,24 +139,24 @@ export default function CamChargesExplained() {
       </p>
       <ul>
         <li>
-          <strong>Vague lease language</strong> — When the lease doesn&apos;t clearly define
+          <strong>Vague lease language:</strong> When the lease doesn&apos;t clearly define
           which expenses are included, landlords may pass through costs that
           tenants didn&apos;t anticipate. This is particularly common with
           older leases or leases drafted with broad operating expense
           definitions.
         </li>
         <li>
-          <strong>Billing errors</strong> — With dozens of expense categories and multiple
+          <strong>Billing errors:</strong> With dozens of expense categories and multiple
           tenants, mistakes in allocation happen more often than you might
           think.
         </li>
         <li>
-          <strong>Capital expense disputes</strong> — Disagreements about whether a cost is a
+          <strong>Capital expense disputes:</strong> Disagreements about whether a cost is a
           routine maintenance expense (passable to tenants) or a capital
           improvement (the landlord&apos;s responsibility) are extremely common.
         </li>
         <li>
-          <strong>Management fee overcharges</strong> — If the management fee is calculated as
+          <strong>Management fee overcharges:</strong> If the management fee is calculated as
           a percentage of total costs, inflated base costs lead to inflated
           fees.
         </li>
@@ -196,7 +196,7 @@ export default function CamChargesExplained() {
       <h2>How LeaseGuard Helps</h2>
       <p>
         Comparing your lease clauses against your CAM reconciliation statement
-        line by line is time-consuming — but it&apos;s essential for catching
+        line by line is time-consuming, but it&apos;s essential for catching
         overcharges. LeaseGuard allows commercial tenants to upload their lease
         and CAM reconciliation statements, then cross-references the two
         documents to flag potential discrepancies. The platform checks for
@@ -207,10 +207,10 @@ export default function CamChargesExplained() {
       <h2>Key Takeaways</h2>
       <ul>
         <li>CAM charges cover shared building maintenance costs allocated across tenants</li>
-        <li>Your lease defines exactly what can and can&apos;t be included — read it carefully</li>
+        <li>Your lease defines exactly what can and can&apos;t be included: read it carefully</li>
         <li>Billing errors and vague lease language are the most common sources of overcharges</li>
         <li>Annual reconciliation statements should be reviewed every year, not just filed away</li>
-        <li>Tenants typically have the right to audit CAM charges — exercise it</li>
+        <li>Tenants typically have the right to audit CAM charges: exercise it</li>
       </ul>
     </ArticleLayout>
   );

@@ -12,6 +12,8 @@
   --color-verified: #0f7b5f;
   --color-verified-soft: #e3f3ed;
   --color-review: #9a4507;
+  --color-accent: #0f766e;
+  --color-accent-bright: #5eead4;
   --color-review-soft: #fdf1dc;
   /* neutral ramp: paper > line > ink (replaces the cool grays) */
   --color-gray-50: #faf7f2;

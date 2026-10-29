@@ -37,8 +37,8 @@ export default function CamReconciliationStatementExample() {
         </Link>{" "}
         is the annual document your landlord sends showing actual common area
         maintenance costs compared to the monthly estimates you paid during the
-        year. For many commercial tenants — retail operators, franchise owners,
-        medical practices, and small businesses — this statement is the only
+        year. For many commercial tenants, retail operators, franchise owners,
+        medical practices, and small businesses, this statement is the only
         window into how their{" "}
         <Link
           href="/resources/cam-charges-explained"
@@ -93,7 +93,7 @@ export default function CamReconciliationStatementExample() {
         <li><strong>Landscaping and grounds:</strong> $42,000</li>
         <li><strong>Parking lot maintenance:</strong> $28,500</li>
         <li><strong>Snow and ice removal:</strong> $15,200</li>
-        <li><strong>Janitorial — common areas:</strong> $36,800</li>
+        <li><strong>Janitorial (common areas):</strong> $36,800</li>
         <li><strong>Trash removal:</strong> $18,400</li>
         <li><strong>Security:</strong> $24,000</li>
         <li><strong>Common area utilities:</strong> $31,600</li>
@@ -115,8 +115,8 @@ export default function CamReconciliationStatementExample() {
       <p>
         This is where you should verify two things: (1) your square footage is
         correct, and (2) the total building area used in the denominator hasn&apos;t
-        changed without lease authorization. Even a small error — 3,000 sq ft
-        recorded as 3,200 sq ft, for example — inflates every expense on the
+        changed without lease authorization. Even a small error, 3,000 sq ft
+        recorded as 3,200 sq ft, for example, inflates every expense on the
         statement.
       </p>
 
@@ -202,7 +202,7 @@ export default function CamReconciliationStatementExample() {
       </p>
       <ol>
         <li>
-          <strong>Identify the specific charges</strong> you want to verify —
+          <strong>Identify the specific charges</strong> you want to verify,
           don&apos;t request &quot;everything.&quot; Targeted requests get
           faster responses.
         </li>
@@ -232,7 +232,7 @@ export default function CamReconciliationStatementExample() {
         Instead of manually reviewing each line item against your lease,
         LeaseGuard automates the comparison. Upload your lease agreement and
         reconciliation statement, and the platform identifies potential
-        discrepancies — including excluded expenses, proportionate share errors,
+        discrepancies, including excluded expenses, proportionate share errors,
         management fee miscalculations, capital expense misclassification, and
         CAM cap violations. The analysis is delivered in about 60 seconds,
         giving you a clear starting point for any follow-up with your landlord.
@@ -241,7 +241,7 @@ export default function CamReconciliationStatementExample() {
       <h2>Key Takeaways</h2>
       <ul>
         <li>Always verify your square footage and proportionate share at the top of the statement</li>
-        <li>Compare every reconciliation to the prior year — look for spikes and new line items</li>
+        <li>Compare every reconciliation to the prior year: look for spikes and new line items</li>
         <li>Check that excluded expenses under your lease are not appearing on the statement</li>
         <li>Confirm the management fee percentage matches your lease terms</li>
         <li>Request supporting invoices for any charges that seem unusual or unexplained</li>

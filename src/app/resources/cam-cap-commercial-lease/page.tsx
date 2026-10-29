@@ -32,7 +32,7 @@ export default function CamCapCommercialLease() {
         <Link href="/resources/cam-charges-explained" className="text-blue-600 hover:underline">
           common area maintenance charges
         </Link>{" "}
-        your landlord can pass through — as long as the costs fall within the
+        your landlord can pass through, as long as the costs fall within the
         lease&apos;s definition of operating expenses. For retail tenants,
         office tenants, medical practices, and franchise operators, this means
         CAM costs can increase unpredictably year after year, creating real
@@ -70,7 +70,7 @@ export default function CamCapCommercialLease() {
         A non-cumulative cap limits the increase from one year to the next. If
         your cap is 5% and last year&apos;s CAM was $10.00 per square foot,
         this year&apos;s cap is $10.50. If actual expenses only came to $10.20,
-        you pay $10.20 — and next year&apos;s cap is calculated from $10.20
+        you pay $10.20, and next year&apos;s cap is calculated from $10.20
         (not $10.50).
       </p>
       <p>
@@ -82,7 +82,7 @@ export default function CamCapCommercialLease() {
       <p>
         A cumulative cap allows unused increases to carry forward. Using the
         same example: if the cap is 5% from a $10.00 base and Year 1 actuals
-        are $10.20, the Year 2 cap isn&apos;t based on $10.20 — it&apos;s
+        are $10.20, the Year 2 cap isn&apos;t based on $10.20, it&apos;s
         based on $10.50 (the maximum allowed in Year 1). So the Year 2 cap
         would be $11.025 (5% of $10.50), even though actual expenses may have
         only increased modestly.
@@ -99,12 +99,12 @@ export default function CamCapCommercialLease() {
       </p>
       <ul>
         <li>
-          <strong>Controllable expenses</strong> — Costs the landlord has
+          <strong>Controllable expenses:</strong> Costs the landlord has
           discretion over, like maintenance, landscaping, cleaning, and
           management fees.
         </li>
         <li>
-          <strong>Uncontrollable expenses</strong> — Costs outside the
+          <strong>Uncontrollable expenses:</strong> Costs outside the
           landlord&apos;s control, like property taxes, insurance premiums, and
           utility rates.
         </li>
@@ -147,20 +147,20 @@ export default function CamCapCommercialLease() {
       </p>
       <ul>
         <li>
-          <strong>Wrong cap calculation</strong> — The landlord applies the
+          <strong>Wrong cap calculation:</strong> The landlord applies the
           wrong percentage or uses the wrong base year.
         </li>
         <li>
-          <strong>Incorrect categorization</strong> — An expense that should be
+          <strong>Incorrect categorization:</strong> An expense that should be
           under the cap gets classified as uncontrollable.
         </li>
         <li>
-          <strong>Ignoring the cap entirely</strong> — In multi-tenant
+          <strong>Ignoring the cap entirely:</strong> In multi-tenant
           buildings with different cap structures, landlords (or their property
           managers) sometimes apply the wrong cap to the wrong tenant.
         </li>
         <li>
-          <strong>Cumulative vs. non-cumulative confusion</strong> — The lease
+          <strong>Cumulative vs. non-cumulative confusion:</strong> The lease
           says one thing, but the reconciliation calculates the other way.
         </li>
       </ul>
@@ -187,7 +187,7 @@ export default function CamCapCommercialLease() {
       <p>
         CAM cap verification requires reading your lease&apos;s cap provisions
         precisely and applying them to the numbers on your reconciliation
-        statement — including identifying which expenses fall under the cap,
+        statement, including identifying which expenses fall under the cap,
         which base year to use, and whether the cap is cumulative or
         non-cumulative. LeaseGuard analyzes your lease&apos;s cap language
         alongside your CAM statement to check whether the cap was applied
@@ -198,9 +198,9 @@ export default function CamCapCommercialLease() {
       <ul>
         <li>A CAM cap limits annual increases in operating expenses passed through to tenants</li>
         <li>Non-cumulative caps are more tenant-friendly than cumulative caps</li>
-        <li>Many caps only cover controllable expenses — taxes and insurance may be uncapped</li>
+        <li>Many caps only cover controllable expenses: taxes and insurance may be uncapped</li>
         <li>The base year selection has a major impact on how the cap plays out over time</li>
-        <li>Verify the cap calculation on every reconciliation — errors are common</li>
+        <li>Verify the cap calculation on every reconciliation: errors are common</li>
       </ul>
     </ArticleLayout>
   );

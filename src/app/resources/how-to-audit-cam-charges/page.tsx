@@ -28,8 +28,8 @@ export default function HowToAuditCamCharges() {
       description="Step-by-step guide for commercial tenants who want to audit their CAM charges. Learn what to look for, common red flags, and how to exercise your audit rights."
     >
       <p>
-        For commercial tenants — whether you operate a retail store, a medical
-        office, a franchise location, or a professional services firm — CAM
+        For commercial tenants, whether you operate a retail store, a medical
+        office, a franchise location, or a professional services firm, CAM
         charges represent a significant and often unpredictable expense. Statements can contain errors, and an error can go in either direction, so it is worth checking the figures instead of assuming they are right.
       </p>
       <p>
@@ -48,29 +48,29 @@ export default function HowToAuditCamCharges() {
       </p>
       <ul>
         <li>
-          <strong>Definitions of operating expenses</strong> — What costs does
+          <strong>Definitions of operating expenses:</strong> What costs does
           the lease allow the landlord to pass through? Broad definitions give
           landlords more latitude. Narrow, specific definitions protect tenants.
         </li>
         <li>
-          <strong>Exclusions</strong> — What costs are explicitly excluded from
+          <strong>Exclusions:</strong> What costs are explicitly excluded from
           CAM? Common exclusions include capital expenditures, leasing
           commissions, and costs covered by insurance proceeds.
         </li>
         <li>
-          <strong>CAM caps</strong> — Does your lease limit annual CAM
+          <strong>CAM caps:</strong> Does your lease limit annual CAM
           increases? If so, is the cap{" "}
           <Link href="/resources/cam-cap-commercial-lease" className="text-blue-600 hover:underline">
             cumulative or non-cumulative
           </Link>?
         </li>
         <li>
-          <strong>Audit rights</strong> — Almost every commercial lease grants
+          <strong>Audit rights:</strong> Almost every commercial lease grants
           tenants the right to inspect the landlord&apos;s books. Look for the
           specific process, deadlines, and any limitations.
         </li>
         <li>
-          <strong>Base year or expense stop</strong> — Some leases only charge
+          <strong>Base year or expense stop:</strong> Some leases only charge
           tenants for CAM increases above a base year amount.
         </li>
       </ul>
@@ -113,7 +113,7 @@ export default function HowToAuditCamCharges() {
         <li>Applying different share percentages to different expense categories without lease basis</li>
       </ul>
       <p>
-        Even a small error — say, 4.2% instead of 4.0% — compounds across
+        Even a small error, say, 4.2% instead of 4.0%, compounds across
         every expense category and every year of the lease.
       </p>
 
@@ -144,7 +144,7 @@ export default function HowToAuditCamCharges() {
       <p>
         Compare the reconciliation statement against the exclusions listed in
         your lease. Be aware that reconciliation statements don&apos;t always
-        use the same terminology as the lease — a cost your lease excludes under
+        use the same terminology as the lease, a cost your lease excludes under
         one name might appear on the statement under a different label.
         Common costs that leases typically exclude but that sometimes appear on
         statements:
@@ -185,7 +185,7 @@ export default function HowToAuditCamCharges() {
       </p>
       <p>
         For larger discrepancies, consider hiring a professional CAM auditor.
-        Many work on a contingency basis — they only get paid if they find
+        Many work on a contingency basis, they only get paid if they find
         savings.
       </p>
 
@@ -195,7 +195,7 @@ export default function HowToAuditCamCharges() {
         preliminary review to determine whether a deeper look is warranted.
         LeaseGuard lets you upload your lease and CAM reconciliation statement,
         then automatically cross-references the two documents to flag potential
-        issues — from excluded cost pass-throughs to pro rata share errors to
+        issues, from excluded cost pass-throughs to pro rata share errors to
         CAM cap violations. This kind of initial screening can help you decide
         whether to exercise your formal audit rights and gives you specific
         items to investigate further.
@@ -207,7 +207,7 @@ export default function HowToAuditCamCharges() {
         <li>Verify your proportionate share before reviewing individual expenses</li>
         <li>Compare each expense category against prior years and against lease permissions</li>
         <li>Check that excluded costs haven&apos;t been included</li>
-        <li>Don&apos;t overlook CAM cap compliance — it&apos;s commonly misapplied</li>
+        <li>Don&apos;t overlook CAM cap compliance: it&apos;s commonly misapplied</li>
         <li>Exercise your audit rights when the numbers don&apos;t add up</li>
       </ul>
     </ArticleLayout>

@@ -42,12 +42,12 @@ export default function DisputeCamCharges() {
       <h2>How Tenants Challenge CAM Charges</h2>
       <p>
         Disputing CAM charges is a structured process. Tenants who approach it
-        methodically — with evidence tied directly to their lease — are more
+        methodically, with evidence tied directly to their lease, are more
         likely to reach a favorable resolution. The typical process includes:
       </p>
       <ol>
         <li>
-          <strong>Review the reconciliation statement</strong> — Start by
+          <strong>Review the reconciliation statement:</strong> Start by
           obtaining and reviewing the annual{" "}
           <Link
             href="/resources/cam-reconciliation-guide"
@@ -58,22 +58,22 @@ export default function DisputeCamCharges() {
           to identify specific charges that appear incorrect or unexpected
         </li>
         <li>
-          <strong>Compare against the lease</strong> — Cross-reference each
+          <strong>Compare against the lease:</strong> Cross-reference each
           flagged charge against the specific provisions of your lease to
           determine whether the charge is permitted, capped, or excluded
         </li>
         <li>
-          <strong>Document the discrepancies</strong> — Prepare a written
+          <strong>Document the discrepancies:</strong> Prepare a written
           summary of each disputed charge, including the lease clause it
           violates, the amount billed, and the amount you believe is correct
         </li>
         <li>
-          <strong>Submit a formal dispute</strong> — Send a written notice to
+          <strong>Submit a formal dispute:</strong> Send a written notice to
           the landlord or property manager identifying each disputed item and
           requesting a correction or credit
         </li>
         <li>
-          <strong>Negotiate or escalate</strong> — Work with the landlord to
+          <strong>Negotiate or escalate:</strong> Work with the landlord to
           resolve the disputed charges. If the landlord does not agree, tenants
           may need to escalate through the dispute resolution process defined in
           their lease
@@ -102,7 +102,7 @@ export default function DisputeCamCharges() {
           adjustments
         </li>
         <li>
-          An audit report or analysis identifying the specific discrepancies —
+          An audit report or analysis identifying the specific discrepancies,
           tools like LeaseGuard can generate this automatically
         </li>
       </ul>
@@ -120,7 +120,7 @@ export default function DisputeCamCharges() {
       </p>
       <ul>
         <li>
-          <strong>CAM caps</strong> —{" "}
+          <strong>CAM caps:</strong> {" "}
           <Link
             href="/resources/cam-cap-commercial-lease"
             className="text-blue-600 hover:underline"
@@ -132,7 +132,7 @@ export default function DisputeCamCharges() {
           dispute
         </li>
         <li>
-          <strong>Excluded expense categories</strong> — Most leases define
+          <strong>Excluded expense categories:</strong> Most leases define
           categories of expenses that cannot be included in CAM. Common
           exclusions include{" "}
           <Link
@@ -144,18 +144,18 @@ export default function DisputeCamCharges() {
           , landlord&apos;s income taxes, and leasing commissions
         </li>
         <li>
-          <strong>Administrative fee limits</strong> — Many leases cap
+          <strong>Administrative fee limits:</strong> Many leases cap
           management or administrative fees at a specific percentage of total
           operating expenses
         </li>
         <li>
-          <strong>Pro rata share definition</strong> — The lease defines how the
+          <strong>Pro rata share definition:</strong> The lease defines how the
           tenant&apos;s share is calculated. If the landlord uses incorrect
           square footage or an inconsistent denominator, every charge will be
           inflated
         </li>
         <li>
-          <strong>Audit rights</strong> — The lease&apos;s{" "}
+          <strong>Audit rights:</strong> The lease&apos;s{" "}
           <Link
             href="/resources/cam-audit-rights"
             className="text-blue-600 hover:underline"
@@ -169,8 +169,8 @@ export default function DisputeCamCharges() {
 
       <h2>When Audits Identify Discrepancies</h2>
       <p>
-        A formal audit — whether performed manually or through an automated
-        tool — provides the evidence foundation for a dispute. When an audit
+        A formal audit, whether performed manually or through an automated
+        tool, provides the evidence foundation for a dispute. When an audit
         identifies discrepancies, tenants should:
       </p>
       <ul>

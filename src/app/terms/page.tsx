@@ -1,6 +1,6 @@
 export const metadata = {
   alternates: { canonical: "/terms" },
-  title: "Terms of Service — LeaseGuard",
+  title: "Terms of Service | LeaseGuard",
   description:
     "Terms of Service for LeaseGuard, the AI-powered CAM audit tool for commercial tenants.",
 };
@@ -66,7 +66,7 @@ export default function TermsPage() {
               The full report is available as a one-time purchase: $49 for a one-year audit or $149 for an audit covering two to five years of statements.
               There are no subscriptions, recurring charges, or hidden fees.
               Payments are processed securely through our payment provider.
-              Refund requests are handled on a case-by-case basis — contact us
+              Refund requests are handled on a case-by-case basis. Contact us
               at support@leaseguard.ai.
             </p>
           </div>

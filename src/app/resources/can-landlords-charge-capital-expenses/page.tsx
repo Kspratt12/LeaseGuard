@@ -28,7 +28,7 @@ export default function CanLandlordsChargeCapitalExpenses() {
       description="Understand when landlords can and cannot pass capital expenditures to commercial tenants. Learn the difference between repairs and capital improvements and how amortization works."
     >
       <p>
-        One of the most significant — and most disputed — issues in commercial
+        One of the most significant, and most disputed, issues in commercial
         leasing is whether a landlord can pass capital expenditures through to
         tenants as part of their{" "}
         <Link
@@ -74,7 +74,7 @@ export default function CanLandlordsChargeCapitalExpenses() {
         The key distinction is between <em>maintaining</em> an existing asset
         (operating) and <em>replacing or substantially improving</em> it
         (capital). While this distinction seems clear in theory, the line is
-        often blurry in practice — which is why disputes arise frequently.
+        often blurry in practice, which is why disputes arise frequently.
       </p>
 
       <h2>What Most Leases Say About Capital Expenses</h2>
@@ -96,7 +96,7 @@ export default function CanLandlordsChargeCapitalExpenses() {
         they are amortized over their useful life. For example, a $150,000 roof
         replacement with a 20-year useful life would be amortized at $7,500 per
         year (often with interest). The tenant only pays their proportionate
-        share of the annual amortized amount — not the full cost in a single
+        share of the annual amortized amount, not the full cost in a single
         year.
       </p>
       <p>
@@ -112,7 +112,7 @@ export default function CanLandlordsChargeCapitalExpenses() {
       <h3>3. Limited Pass-Through</h3>
       <p>
         Some leases allow only certain categories of capital expenditures to be
-        passed through — typically those that are required by law (such as ADA
+        passed through, typically those that are required by law (such as ADA
         compliance upgrades) or those that reduce operating costs (such as
         energy-efficient equipment that lowers utility bills). Even in these
         cases, the expense is usually required to be amortized.
@@ -121,8 +121,8 @@ export default function CanLandlordsChargeCapitalExpenses() {
       <h3>4. Broad Pass-Through</h3>
       <p>
         Less common in modern leases but still encountered, some leases use
-        broad language that effectively allows all building costs — including
-        capital improvements — to be passed through. Tenants negotiating new
+        broad language that effectively allows all building costs, including
+        capital improvements, to be passed through. Tenants negotiating new
         leases should be cautious of vague definitions like &quot;all costs
         associated with the ownership, operation, and maintenance of the
         property.&quot;
@@ -178,7 +178,7 @@ export default function CanLandlordsChargeCapitalExpenses() {
         <li>
           <strong>Review your lease language.</strong> Find the section defining
           operating expenses and look specifically for how capital expenditures
-          are addressed — are they excluded, amortized, or broadly included?
+          are addressed, are they excluded, amortized, or broadly included?
         </li>
         <li>
           <strong>Compare year-over-year expenses.</strong> Sudden spikes in
@@ -203,7 +203,7 @@ export default function CanLandlordsChargeCapitalExpenses() {
           >
             CAM cap
           </Link>.</strong> If your lease has a CAM cap, confirm whether capital
-          expenses are inside or outside the cap — and whether the cap is being
+          expenses are inside or outside the cap, and whether the cap is being
           applied correctly.
         </li>
       </ol>
@@ -226,7 +226,7 @@ export default function CanLandlordsChargeCapitalExpenses() {
           className="text-blue-600 hover:underline"
         >
           CAM reconciliation statement
-        </Link>, the platform identifies potential misclassifications — charges
+        </Link>, the platform identifies potential misclassifications, charges
         that appear to be capital in nature but are being passed through as
         operating expenses, amortization calculations that may not align with
         your lease terms, and expenses that your lease excludes entirely. The

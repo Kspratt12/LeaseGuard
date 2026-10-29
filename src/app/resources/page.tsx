@@ -81,13 +81,13 @@ const articles = [
     slug: "commercial-lease-audit-checklist",
     title: "Commercial Lease Audit Checklist",
     description:
-      "A practical checklist for commercial tenants auditing their lease charges — covering CAM reconciliation, operating expenses, proportionate share, and lease compliance.",
+      "A practical checklist for commercial tenants auditing their lease charges, covering CAM reconciliation, operating expenses, proportionate share, and lease compliance.",
   },
   {
     slug: "triple-net-lease-expenses",
     title: "Triple Net Lease Expenses Explained",
     description:
-      "Understand the three expense categories in a triple net (NNN) lease: property taxes, insurance, and common area maintenance — and how to verify your charges.",
+      "Understand the three expense categories in a triple net (NNN) lease: property taxes, insurance, and common area maintenance, and how to verify your charges.",
   },
   {
     slug: "cam-reconciliation-statement-example",
@@ -111,7 +111,7 @@ const articles = [
     slug: "hidden-costs-in-nnn-leases",
     title: "Hidden Costs in NNN Leases",
     description:
-      "Uncover the hidden costs that commercial tenants often miss in triple net leases — from management fee markups to vacant space subsidies.",
+      "Uncover the hidden costs that commercial tenants often miss in triple net leases, from management fee markups to vacant space subsidies.",
   },
   {
     slug: "commercial-lease-audit-services",
@@ -123,7 +123,7 @@ const articles = [
     slug: "cam-audit-rights",
     title: "CAM Audit Rights in Commercial Leases",
     description:
-      "Understand your audit rights as a commercial tenant — including review periods, access to records, and how to exercise your right to audit CAM charges.",
+      "Understand your audit rights as a commercial tenant, including review periods, access to records, and how to exercise your right to audit CAM charges.",
   },
   {
     slug: "dispute-cam-charges",
@@ -148,8 +148,8 @@ export default function ResourcesPage() {
             <br className="hidden sm:block" /> Commercial Lease Insights
           </h1>
           <p className="mt-5 text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            This resource center helps commercial tenants — including retail
-            operators, office tenants, medical practices, and franchise owners —
+            This resource center helps commercial tenants, including retail
+            operators, office tenants, medical practices, and franchise owners,
             understand CAM charges, review reconciliation statements, and
             identify potential lease overcharges. Each guide covers practical
             concepts that directly affect your bottom line.

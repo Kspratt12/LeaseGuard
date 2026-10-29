@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Calculator, ChevronRight, ClipboardCheck, FileSearch, Lock, ScrollText, Tag, Upload } from "lucide-react";
+import { ArrowRight, Calculator, Check, ChevronRight, ClipboardCheck, FileSearch, Lock, ScrollText, Tag, Upload } from "lucide-react";
 import { HeroDemo } from "@/components/home/hero-demo";
 import { SampleReport } from "@/components/home/sample-report";
 import { Pricing } from "@/components/home/pricing";
@@ -116,26 +116,40 @@ export default function Home() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }} />
 
       {/* ── Hero ── */}
-      <section className="border-b border-line">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 pb-10 pt-6 sm:px-6 sm:pt-14 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:gap-12 lg:pb-16 lg:pt-14">
+      <section className="bg-ink text-white">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 pb-14 pt-10 sm:px-6 sm:pt-16 lg:grid-cols-[1fr_1.1fr] lg:items-center lg:gap-12 lg:pb-20 lg:pt-16">
           <div>
-            <h1 className="text-[1.75rem] font-semibold leading-[1.12] tracking-tight text-ink sm:text-5xl">Check your CAM charges against your lease.</h1>
-            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-ink-muted sm:mt-4 sm:text-lg">
+            <p className="inline-flex rounded-full border border-accent-bright/40 px-3 py-1 text-xs font-semibold text-accent-bright">
+              CAM audit software for commercial tenants
+            </p>
+            <h1 className="mt-4 text-[2.1rem] font-bold leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-[3.4rem]">
+              Check your CAM charges against your lease.
+            </h1>
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-white/80 sm:mt-5 sm:text-lg">
               Upload your commercial lease and operating expense statement. LeaseGuard compares the charges against your lease terms, calculates
               potential discrepancies, and organizes the supporting evidence for your review.
             </p>
-            <div className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row">
-              <Link href="/upload" className={buttonClass("primary", "!min-h-12 !px-6 !text-base")}>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/upload"
+                className="inline-flex min-h-12 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent-bright px-5 text-base font-semibold text-ink transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
                 Start Free Preview <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
-              <Link href="/sample-cam-audit-report" className={buttonClass("secondary", "!min-h-12 !px-6 !text-base")}>
+              <Link
+                href="/sample-cam-audit-report"
+                className="inline-flex min-h-12 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-white/40 px-5 text-base font-semibold text-white transition-colors hover:border-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
                 View Sample Audit Report
               </Link>
             </div>
-            <ul className="mt-5 hidden flex-wrap gap-x-5 gap-y-1 text-[13px] sm:flex text-ink-muted sm:text-sm">
-              <li>Free preview, no payment details</li>
-              <li>One-time $49 or $149</li>
-              <li>Private to your account</li>
+            <ul className="mt-6 hidden gap-x-6 gap-y-1.5 text-sm text-white/75 sm:flex sm:flex-wrap">
+              {["Free preview, no payment details", "One-time $49 or $149", "Private to your account"].map((t) => (
+                <li key={t} className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-accent-bright" aria-hidden />
+                  {t}
+                </li>
+              ))}
             </ul>
           </div>
           <HeroDemo />
@@ -147,7 +161,7 @@ export default function Home() {
         <ul className="mx-auto grid max-w-6xl gap-5 px-4 py-6 sm:px-6 md:grid-cols-3">
           {TRUST.map(({ icon: Icon, title, text }) => (
             <li key={title} className="flex gap-3">
-              <Icon className="mt-0.5 h-5 w-5 shrink-0 text-ink-soft" aria-hidden />
+              <Icon className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden />
               <div>
                 <p className="text-sm font-semibold text-ink">{title}</p>
                 <p className="mt-0.5 text-sm text-ink-muted">{text}</p>
@@ -165,7 +179,7 @@ export default function Home() {
             {STEPS.map((s, i) => (
               <li key={s.title} className="rounded-xl border border-line bg-white p-5">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-paper-deep text-ink"><s.icon className="h-5 w-5" aria-hidden /></span>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-white"><s.icon className="h-5 w-5" aria-hidden /></span>
                   <span className="font-figures text-xs font-medium text-ink-muted">Step {i + 1}</span>
                 </div>
                 <h3 className="mt-3 text-base font-semibold text-ink">{s.title}</h3>
@@ -177,32 +191,33 @@ export default function Home() {
       </section>
 
       {/* ── What LeaseGuard checks ── */}
-      <section id="features" className="border-y border-line bg-white py-14 sm:py-20">
+      <section id="features" className="bg-ink py-14 text-white sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="max-w-2xl text-2xl font-semibold leading-tight tracking-tight sm:text-4xl">What LeaseGuard checks</h2>
-          <p className="mt-3 max-w-2xl text-base text-ink-muted">
-            Some results are arithmetic from your documents. Others depend on how your lease is worded, so we say which is which. An audit may
-            find nothing to review, and results are never legal advice.
+          <p className="text-sm font-semibold text-accent-bright">What LeaseGuard checks</p>
+          <h2 className="mt-2 max-w-2xl text-2xl font-bold leading-tight tracking-tight sm:text-4xl">Arithmetic it can verify. Judgment it flags for you.</h2>
+          <p className="mt-3 max-w-2xl text-base text-white/75">
+            Some results are calculated directly from your documents. Others depend on how your lease is worded, so we say which is which. An audit
+            may find nothing to review, and results are never legal advice.
           </p>
           <div className="mt-8 grid gap-5 md:grid-cols-2">
-            <div className="rounded-xl border border-line p-5">
+            <div className="rounded-xl border border-white/15 bg-white/[0.04] p-5">
               <p className="inline-block rounded-full bg-verified-soft px-2.5 py-0.5 text-xs font-semibold text-verified">Calculated from your documents</p>
               <ul className="mt-4 space-y-4">
                 {CALCULATED.map((c) => (
                   <li key={c.title}>
-                    <p className="text-sm font-semibold text-ink">{c.title}</p>
-                    <p className="mt-0.5 text-sm text-ink-muted">{c.text}</p>
+                    <p className="text-sm font-semibold text-white">{c.title}</p>
+                    <p className="mt-0.5 text-sm text-white/70">{c.text}</p>
                   </li>
                 ))}
               </ul>
             </div>
-            <div className="rounded-xl border border-line p-5">
+            <div className="rounded-xl border border-white/15 bg-white/[0.04] p-5">
               <p className="inline-block rounded-full bg-review-soft px-2.5 py-0.5 text-xs font-semibold text-review">Flagged for your judgment</p>
               <ul className="mt-4 space-y-4">
                 {JUDGMENT.map((c) => (
                   <li key={c.title}>
-                    <p className="text-sm font-semibold text-ink">{c.title}</p>
-                    <p className="mt-0.5 text-sm text-ink-muted">{c.text}</p>
+                    <p className="text-sm font-semibold text-white">{c.title}</p>
+                    <p className="mt-0.5 text-sm text-white/70">{c.text}</p>
                   </li>
                 ))}
               </ul>

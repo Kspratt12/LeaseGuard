@@ -39,14 +39,14 @@ export default function WhatLandlordsCanIncludeInCam() {
         with dozens of line items, it can be difficult to determine which
         charges are legitimate pass-throughs and which may not be authorized
         under your lease. The answer depends almost entirely on the specific
-        language in your lease agreement — but there are general categories
+        language in your lease agreement, but there are general categories
         that most commercial leases follow.
       </p>
 
       <h2>Expenses Typically Included in CAM</h2>
       <p>
         Most commercial leases allow landlords to pass through the costs of
-        maintaining and operating common areas — the shared spaces that benefit
+        maintaining and operating common areas, the shared spaces that benefit
         all tenants. These typically include:
       </p>
 
@@ -66,7 +66,7 @@ export default function WhatLandlordsCanIncludeInCam() {
         <li>Plumbing repairs in common areas</li>
         <li>Elevator and escalator maintenance</li>
         <li>Fire safety and sprinkler system maintenance</li>
-        <li>Roof repairs (not replacement — see capital expenses below)</li>
+        <li>Roof repairs (not replacement; see capital expenses below)</li>
         <li>General building repairs and maintenance</li>
       </ul>
 
@@ -89,7 +89,7 @@ export default function WhatLandlordsCanIncludeInCam() {
       <h3>Administrative Costs</h3>
       <ul>
         <li>
-          Property management fees — usually calculated as a percentage (3% to
+          Property management fees, usually calculated as a percentage (3% to
           8%) of total operating expenses. Verify that your lease specifies the
           percentage and that the{" "}
           <Link
@@ -105,7 +105,7 @@ export default function WhatLandlordsCanIncludeInCam() {
 
       <h2>Expenses Typically Excluded from CAM</h2>
       <p>
-        Well-drafted commercial leases include an exclusion list — specific
+        Well-drafted commercial leases include an exclusion list, specific
         categories that the landlord cannot pass through to tenants. Even if
         your lease doesn&apos;t explicitly list every exclusion, certain costs
         are widely understood to be the landlord&apos;s responsibility:
@@ -113,9 +113,9 @@ export default function WhatLandlordsCanIncludeInCam() {
 
       <h3>Capital Expenditures</h3>
       <p>
-        Major improvements that extend the life of the property or add value —
+        Major improvements that extend the life of the property or add value,
         such as a new roof, parking lot replacement, or building facade
-        renovation — are generally not passable as{" "}
+        renovation, are generally not passable as{" "}
         <Link
           href="/resources/cam-charges-explained"
           className="text-blue-600 hover:underline"
@@ -239,7 +239,7 @@ export default function WhatLandlordsCanIncludeInCam() {
       <p>
         LeaseGuard automates the comparison between your lease language and your
         reconciliation statement. The platform reads both documents and flags
-        charges that may not be authorized — including expenses that appear on
+        charges that may not be authorized, including expenses that appear on
         your lease&apos;s exclusion list, capital expenditures classified as
         operating costs, management fee miscalculations, and CAM cap
         violations. This analysis is delivered in about 60 seconds, giving you a
@@ -248,8 +248,8 @@ export default function WhatLandlordsCanIncludeInCam() {
 
       <h2>Key Takeaways</h2>
       <ul>
-        <li>What landlords can include in CAM is defined by your specific lease — not by general practice</li>
-        <li>Most leases include both an inclusion list and an exclusion list — review both carefully</li>
+        <li>What landlords can include in CAM is defined by your specific lease: not by general practice</li>
+        <li>Most leases include both an inclusion list and an exclusion list: review both carefully</li>
         <li>Gray areas around repairs vs. replacements and above-standard services are the most common source of disputes</li>
         <li>Always cross-reference reconciliation line items against your lease language</li>
         <li>Request supporting invoices for any charge you cannot clearly match to a permitted expense category</li>

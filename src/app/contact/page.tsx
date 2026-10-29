@@ -2,7 +2,7 @@ import { Mail, Send } from "lucide-react";
 
 export const metadata = {
   alternates: { canonical: "/contact" },
-  title: "Contact — LeaseGuard",
+  title: "Contact | LeaseGuard",
   description:
     "Get in touch with the LeaseGuard team for questions about CAM audits, your account, or partnership inquiries.",
 };

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import { Logo } from "@/components/logo";
 
 export function Footer() {
   return (
@@ -8,14 +8,7 @@ export function Footer() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-10">
           {/* Brand */}
           <div className="col-span-2 sm:col-span-3 lg:col-span-1 space-y-4">
-            <Image
-              src="/leaseguard-logo.png"
-              alt="LeaseGuard CAM audit software logo"
-              width={150}
-              height={36}
-              loading="lazy"
-              className="h-10 w-auto brightness-0 invert"
-            />
+            <Logo tone="light" />
             <p className="text-sm leading-relaxed">
               CAM audit analysis for commercial tenants. Results depend on
               document clarity and lease structure.

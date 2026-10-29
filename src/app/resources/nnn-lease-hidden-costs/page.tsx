@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/resources/hidden-costs-in-nnn-leases" },
   title: "Hidden Costs in Triple Net Leases | LeaseGuard",
   description:
-    "Discover the hidden costs in NNN leases that commercial tenants often miss — from CAM pass-throughs and capital expenses to insurance and property tax adjustments.",
+    "Discover the hidden costs in NNN leases that commercial tenants often miss, from CAM pass-throughs and capital expenses to insurance and property tax adjustments.",
   keywords: [
     "hidden costs NNN lease",
     "triple net lease hidden costs",
@@ -23,7 +23,7 @@ export default function NnnLeaseHiddenCosts() {
       title="Hidden Costs in Triple Net Leases"
       publishedDate="March 2026"
       readTime="8 min read"
-      description="Discover the hidden costs in NNN leases that commercial tenants often miss — from CAM pass-throughs and capital expenses to insurance and property tax adjustments."
+      description="Discover the hidden costs in NNN leases that commercial tenants often miss, from CAM pass-throughs and capital expenses to insurance and property tax adjustments."
     >
       <p>
         Triple net leases require tenants to pay their proportionate share of
@@ -81,9 +81,9 @@ export default function NnnLeaseHiddenCosts() {
       <p>
         One of the most significant sources of hidden costs in NNN leases is the
         distinction between maintenance and capital expenditures. Routine
-        maintenance — such as landscaping, cleaning, and minor repairs — is
-        typically a permitted CAM expense. Capital improvements — such as roof
-        replacements, parking lot resurfacing, or HVAC system upgrades — are
+        maintenance, such as landscaping, cleaning, and minor repairs, is
+        typically a permitted CAM expense. Capital improvements, such as roof
+        replacements, parking lot resurfacing, or HVAC system upgrades, are
         generally the landlord&apos;s responsibility.
       </p>
       <p>
