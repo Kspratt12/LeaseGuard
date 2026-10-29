@@ -1,5 +1,14 @@
+import type { Metadata } from "next";
 import { UploadZone } from "@/components/upload-zone";
 import { FileText, Files, Camera } from "lucide-react";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/upload" },
+  title: "Upload Your Lease and CAM Statement | LeaseGuard",
+  description: "Upload a commercial lease and CAM reconciliation statement to run a LeaseGuard audit.",
+  // A tool entry point, not search content: keep it out of the index.
+  robots: { index: false, follow: true },
+};
 
 export default function UploadPage() {
   return (
@@ -11,13 +20,12 @@ export default function UploadPage() {
         </h1>
         <p className="text-base sm:text-lg text-gray-600">
           Upload your commercial lease and CAM reconciliation statements, or
-          take photos with your phone. LeaseGuard will analyze them and flag
-          potential overcharges.
+          take photos with your phone. LeaseGuard will analyze them and flag potential billing discrepancies.
         </p>
       </div>
 
       {/* Upload instructions */}
-      <div className="w-full max-w-2xl grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+      <div className="hidden w-full max-w-2xl grid-cols-1 sm:grid sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div className="rounded-lg border border-gray-200 bg-white p-3 sm:p-4 flex items-start gap-3">
           <div className="rounded-lg bg-blue-50 p-2 shrink-0">
             <FileText className="h-4 w-4 text-blue-700" />

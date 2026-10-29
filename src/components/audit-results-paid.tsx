@@ -1,6 +1,7 @@
 import { Lock, ShieldCheck, FileSearch, ArrowRight, FileText, AlertTriangle, Scale } from "lucide-react";
 import type { Finding, OverchargeLineItem, LeaseClauseSummary } from "@/services/audit-logic";
 import { getLeaseClauseEvidence } from "@/lib/lease-clause-evidence";
+import { buttonClass } from "@/components/ui";
 
 const lockedPlaceholders: Finding[] = [
   {
@@ -31,7 +32,16 @@ export function AuditResultsPaid({
   premiumSavings,
   overchargeBreakdown,
   leaseClausesSummary,
+  priceLabel,
+  onUnlock,
+  unlocking,
+  unlockError,
 }: {
+  /** e.g. "$49". Null/undefined: this audit cannot be purchased yet. */
+  priceLabel?: string | null;
+  onUnlock?: () => void;
+  unlocking?: boolean;
+  unlockError?: string | null;
   findings: Finding[];
   premiumSavings: number;
   overchargeBreakdown?: OverchargeLineItem[];
@@ -111,7 +121,7 @@ export function AuditResultsPaid({
                 </p>
                 {f.potential_savings > 0 && (
                   <p className="text-sm font-semibold text-green-700">
-                    Potential savings: ${f.potential_savings.toLocaleString()}
+                    Potential discrepancy: ${f.potential_savings.toLocaleString()}
                   </p>
                 )}
 
@@ -142,59 +152,63 @@ export function AuditResultsPaid({
         ))}
       </div>
 
-      {/* Conversion CTA */}
-      <div className="rounded-xl border border-blue-200 bg-gradient-to-b from-blue-50 to-white p-5 sm:p-8 text-center">
-        <div className="flex items-center justify-center h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-blue-100 mx-auto mb-4 sm:mb-5">
-          <Lock className="h-5 w-5 sm:h-6 sm:w-6 text-blue-700" />
-        </div>
-
-        <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 sm:mb-3">
-          Unlock Your Full CAM Audit Report
+      {/* Conversion CTA: ink panel, one price, no surprises */}
+      <section className="rounded-2xl bg-ink p-6 text-white sm:p-8" aria-labelledby="unlock-heading">
+        <p className="font-figures text-[11px] font-medium uppercase tracking-widest text-white/60">Full report</p>
+        <h3 id="unlock-heading" className="mt-2 text-xl font-semibold leading-tight sm:text-3xl">
+          Unlock every finding, with the evidence behind it.
         </h3>
-
-        <p className="text-sm text-gray-600 leading-relaxed mb-5 sm:mb-6 max-w-sm mx-auto">
-          Upgrade to view all discrepancies, see clause references, and
-          download the full evidence report.
+        <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/75">
+          See all discrepancies with the lease and statement text they come from
           {totalLockedSavings > 0 && (
             <>
-              {" "}
-              Up to{" "}
-              <span className="font-semibold text-gray-900">
-                ${totalLockedSavings.toLocaleString()}
-              </span>{" "}
-              in additional potential savings identified.
+              . Up to <span className="font-semibold text-white">${totalLockedSavings.toLocaleString()}</span> in additional potential billing
+              discrepancies to review
             </>
           )}
+          .
         </p>
 
-        {/* Feature bullets */}
-        <ul className="flex flex-col gap-2.5 sm:gap-3 text-left text-sm text-gray-600 mb-6 sm:mb-8 w-full max-w-xs mx-auto">
-          <li className="flex items-center gap-3">
-            <FileText className="h-4 w-4 text-blue-600 shrink-0" />
-            <span>Document source references with page numbers</span>
+        <ul className="mt-5 grid gap-3 text-sm text-white/85 sm:grid-cols-3">
+          <li className="flex gap-2.5">
+            <FileText className="mt-0.5 h-4 w-4 shrink-0 text-white/60" aria-hidden />
+            <span>Source text and page numbers for each finding</span>
           </li>
-          <li className="flex items-center gap-3">
-            <FileSearch className="h-4 w-4 text-blue-600 shrink-0" />
-            <span>Extracted line-item evidence per finding</span>
+          <li className="flex gap-2.5">
+            <FileSearch className="mt-0.5 h-4 w-4 shrink-0 text-white/60" aria-hidden />
+            <span>The calculation behind every dollar amount</span>
           </li>
-          <li className="flex items-center gap-3">
-            <ShieldCheck className="h-4 w-4 text-blue-600 shrink-0" />
-            <span>Full discrepancy analysis with clause references</span>
+          <li className="flex gap-2.5">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-white/60" aria-hidden />
+            <span>PDF report and an editable dispute letter draft</span>
           </li>
         </ul>
 
-        <button
-          disabled
-          className="group inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-500 hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm sm:text-base"
-        >
-          Unlock Full Report – $49
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-        </button>
-
-        <p className="text-xs text-gray-400 mt-3 sm:mt-4">
-          One-time purchase · Instant access · PDF download included
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={onUnlock}
+            disabled={!onUnlock || !priceLabel || unlocking}
+            className={buttonClass("inverse", "w-full !min-h-12 !px-7 !text-base sm:w-auto")}
+          >
+            {unlocking
+              ? "Redirecting to secure checkout\u2026"
+              : priceLabel
+                ? `Unlock Full Report \u2013 ${priceLabel}`
+                : "Unlock Full Report"}
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </button>
+          {priceLabel && <p className="text-sm text-white/70">One-time payment. No subscription.</p>}
+        </div>
+        {unlockError && (
+          <p role="alert" className="mt-3 rounded-lg bg-red-950/60 p-3 text-sm text-red-100">
+            {unlockError}
+          </p>
+        )}
+        <p className="mt-5 text-xs leading-relaxed text-white/55">
+          Findings are items to review, not confirmed overcharges. This is not legal or accounting advice.
         </p>
-      </div>
+      </section>
 
       {/* Source evidence preview (visible teaser from overcharge data) */}
       {evidenceItems.length > 0 && (

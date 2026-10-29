@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/cam-reconciliation-statement-example" },
   title: "CAM Reconciliation Statement Example | LeaseGuard",
   description:
     "See a practical example of a CAM reconciliation statement with line-by-line explanations. Learn how to read and verify each section of your annual reconciliation.",

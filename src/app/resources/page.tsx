@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { BookOpen, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources" },
   title: "Resources: CAM Audits, Reconciliation, and Commercial Lease Insights | LeaseGuard",
   description:
     "Educational guides to help commercial tenants understand CAM charges, reconciliation statements, and how to identify potential overcharges in their leases.",
@@ -17,6 +18,14 @@ export const metadata: Metadata = {
     "commercial lease CAM charges",
   ],
 };
+
+const tools = [
+  {
+    href: "/cam-calculator",
+    title: "CAM Reconciliation Calculator",
+    description: "Free and private. Enter your expenses, share and payments to see the formula and compare with your statement.",
+  },
+];
 
 const articles = [
   {
@@ -37,6 +46,18 @@ const articles = [
     title: "How to Audit Your CAM Charges",
     description:
       "A step-by-step guide for commercial tenants who want to review their CAM statements for accuracy and potential overcharges.",
+  },
+  {
+    slug: "how-to-calculate-cam-charges",
+    title: "How to Calculate CAM Charges",
+    description:
+      "A step-by-step walk through the expense pool, management fee, pro-rata share and estimated payments, with a worked fictional example.",
+  },
+  {
+    slug: "management-fees-and-cam-caps",
+    title: "Management Fees and CAM Caps",
+    description:
+      "What a management fee is based on, whether it counts toward a CAM cap, and how to check the fee on your statement.",
   },
   {
     slug: "cam-reconciliation-guide",
@@ -99,12 +120,6 @@ const articles = [
       "Learn what commercial lease audit services do, why tenants need them, and how automated CAM audits identify billing discrepancies in minutes.",
   },
   {
-    slug: "nnn-lease-hidden-costs",
-    title: "Hidden Costs in Triple Net Leases",
-    description:
-      "Discover the hidden costs in NNN leases that commercial tenants often miss — from CAM pass-throughs and capital expenses to insurance and property tax adjustments.",
-  },
-  {
     slug: "cam-audit-rights",
     title: "CAM Audit Rights in Commercial Leases",
     description:
@@ -145,6 +160,19 @@ export default function ResourcesPage() {
       {/* Article list */}
       <section className="mx-auto max-w-4xl px-4 sm:px-6 py-14 sm:py-20">
         <div className="space-y-4">
+          {tools.map((tool) => (
+            <Link
+              key={tool.href}
+              href={tool.href}
+              className="group block rounded-xl border border-blue-200 bg-blue-50/50 p-6 sm:p-8 hover:shadow-md transition-all"
+            >
+              <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">Free tool</p>
+              <h2 className="mt-1 text-xl sm:text-2xl font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                {tool.title}
+              </h2>
+              <p className="mt-2 text-gray-600 leading-relaxed">{tool.description}</p>
+            </Link>
+          ))}
           {articles.map((article) => (
             <Link
               key={article.slug}

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Newsreader, IBM_Plex_Mono } from "next/font/google";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { AuditDraftProvider } from "@/components/audit-draft-context";
@@ -10,6 +10,20 @@ const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
+});
+
+// Headlines: a refined serif. Dollar figures: a tabular monospace, so amounts line up like a ledger.
+const serif = Newsreader({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-serif-face",
+  style: ["normal", "italic"],
+});
+const figures = IBM_Plex_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600"],
+  variable: "--font-figures-face",
 });
 
 export const viewport: Viewport = {
@@ -67,22 +81,6 @@ export const metadata: Metadata = {
   },
 };
 
-const softwareAppJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "LeaseGuard",
-  applicationCategory: "BusinessApplication",
-  operatingSystem: "Web",
-  description:
-    "AI-powered CAM audit platform for commercial tenants that analyzes lease clauses and CAM reconciliation statements to identify potential overcharges.",
-  offers: {
-    "@type": "Offer",
-    price: "49",
-    priceCurrency: "USD",
-    category: "Commercial lease CAM audit report",
-  },
-};
-
 const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -97,7 +95,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${serif.variable} ${figures.variable}`}>
       <head>
         <link
           rel="preload"
@@ -107,10 +105,6 @@ export default function RootLayout({
         />
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }}
-        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}

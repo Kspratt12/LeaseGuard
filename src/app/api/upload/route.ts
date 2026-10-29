@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { authenticate } from "@/lib/audit-access";
+import { evaluateUploadQuota } from "@/lib/upload-quota";
+import {
+  MAX_EXTRA_RECONS,
+  hasPdfSignature,
+  validateUploadMeta,
+} from "@/lib/upload-validation";
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -92,12 +99,6 @@ async function processAudit(
       `[process:${auditId}] Extracted — lease: ${validation.leaseText.length} chars, recon: ${validation.reconText.length} chars`,
     );
     console.log(
-      `[process:${auditId}] Lease text preview (1000 chars): ${validation.leaseText.substring(0, 1000).replace(/[\n\r]+/g, " | ")}`,
-    );
-    console.log(
-      `[process:${auditId}] Recon text preview (1000 chars): ${validation.reconText.substring(0, 1000).replace(/[\n\r]+/g, " | ")}`,
-    );
-    console.log(
       `[process:${auditId}] Lease fields — camCap: ${validation.leaseFields.camCapPercentage ?? "NULL"}, proRata: ${validation.leaseFields.proRataShare ?? "NULL"}, adminFee: ${validation.leaseFields.adminFeePercentage ?? "NULL"}, mgmtFee: ${validation.leaseFields.managementFee ?? "NULL"}`,
     );
     console.log(
@@ -106,11 +107,6 @@ async function processAudit(
     console.log(
       `[process:${auditId}] Recon fields — totalCam: ${validation.reconFields.totalCamCharges ?? "NULL"}, reconTotal: ${validation.reconFields.reconciliationTotal ?? "NULL"}, lineItems: ${validation.reconFields.lineItems.length}, year: ${validation.reconFields.reconciliationYear ?? "NULL"}`,
     );
-    if (validation.reconFields.lineItems.length > 0) {
-      console.log(
-        `[process:${auditId}] Recon line items: ${JSON.stringify(validation.reconFields.lineItems.slice(0, 10).map(li => ({ cat: li.category, amt: li.amount })))}`,
-      );
-    }
 
     // Never reject — always proceed to audit.
     // The audit engine generates "Insufficient Data" findings when fields
@@ -242,6 +238,11 @@ async function processAudit(
       }
     }
 
+    const reconYearCount = Math.min(
+      5,
+      Math.max(1, new Set((multiYearReconciliations ?? []).map((r) => r.year)).size),
+    );
+
     // Step 3: Run audit
     console.log(`[process:${auditId}] Running audit...`);
     const multiYearUploadedButFailed =
@@ -312,6 +313,9 @@ async function processAudit(
       free_findings: result.free_findings,
       paid_findings: result.paid_findings,
       report_pdf_url: reportPath,
+      // Verified distinct reconciliation years (1-5). Decides the one-time price
+      // at checkout; only the server ever writes this.
+      recon_year_count: reconYearCount,
       error_message: null,
       estimated_overcharge: result.estimated_overcharge,
       overcharge_breakdown: result.overcharge_breakdown,
@@ -381,6 +385,43 @@ export async function POST(req: NextRequest) {
   let auditId: string | undefined;
 
   try {
+    // --- Authenticate: audits are always owned by the signed-in user ---
+    const user = await authenticate(req);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "Please sign in to run an audit." },
+        { status: 401 },
+      );
+    }
+
+    // --- Per-user abuse / cost limits (rate + concurrency), before reading any file ---
+    {
+      const db = createServiceClient();
+      const now = Date.now();
+      const since = (ms: number) => new Date(now - ms).toISOString();
+      const count = async (sinceIso: string, inFlightOnly = false) => {
+        let q = db.from("audits").select("id", { count: "exact", head: true }).eq("owner_id", user.id).gte("created_at", sinceIso);
+        if (inFlightOnly) q = q.in("status", ["pending", "processing"]);
+        const { count: n, error } = await q;
+        if (error) throw new Error(error.message);
+        return n ?? 0;
+      };
+      try {
+        const [lastHour, last24h, inFlight] = await Promise.all([
+          count(since(60 * 60 * 1000)),
+          count(since(24 * 60 * 60 * 1000)),
+          count(since(15 * 60 * 1000), true),
+        ]);
+        const refusal = evaluateUploadQuota({ lastHour, last24h, inFlight });
+        if (refusal) {
+          return NextResponse.json({ success: false, error: refusal }, { status: 429, headers: { "Retry-After": "300" } });
+        }
+      } catch (quotaErr) {
+        // Fail open on an infrastructure error (do not take uploads down), but log it.
+        console.error("[upload] quota check failed:", quotaErr instanceof Error ? quotaErr.message : "unknown");
+      }
+    }
+
     // --- Parse form data ---
     console.log("[upload] Parsing form data...");
     let form: FormData;
@@ -413,15 +454,28 @@ export async function POST(req: NextRequest) {
     }
 
     // --- Collect extra reconciliation files for multi-year comparison ---
+    const extraReconEntries = form
+      .getAll("extraRecons")
+      .filter((e): e is File => e instanceof File && e.type === "application/pdf");
+    if (extraReconEntries.length > MAX_EXTRA_RECONS) {
+      return NextResponse.json(
+        { success: false, error: `You can add at most ${MAX_EXTRA_RECONS} additional reconciliation statements.` },
+        { status: 400 },
+      );
+    }
+
+    // Size checks happen before any file is read into memory.
+    const metaError = validateUploadMeta([lease, recon, ...extraReconEntries]);
+    if (metaError) {
+      return NextResponse.json({ success: false, error: metaError }, { status: 400 });
+    }
+
     const extraReconFiles: ExtraRecon[] = [];
-    const extraReconEntries = form.getAll("extraRecons");
     for (const entry of extraReconEntries) {
-      if (entry instanceof File && entry.type === "application/pdf") {
-        extraReconFiles.push({
-          buffer: Buffer.from(await entry.arrayBuffer()),
-          name: entry.name,
-        });
-      }
+      extraReconFiles.push({
+        buffer: Buffer.from(await entry.arrayBuffer()),
+        name: entry.name,
+      });
     }
     if (extraReconFiles.length > 0) {
       console.log(`[upload] ${extraReconFiles.length} extra reconciliation file(s) detected for multi-year comparison`);
@@ -431,6 +485,18 @@ export async function POST(req: NextRequest) {
     console.log("[upload] Reading file buffers...");
     const leaseBuffer = Buffer.from(await lease.arrayBuffer());
     const reconBuffer = Buffer.from(await recon.arrayBuffer());
+
+    // The declared MIME type is client-controlled; verify the content is a PDF.
+    if (
+      ![leaseBuffer, reconBuffer, ...extraReconFiles.map((f) => f.buffer)].every(
+        hasPdfSignature,
+      )
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Only valid PDF files are accepted." },
+        { status: 400 },
+      );
+    }
     console.log(
       `[upload] Buffers ready — lease: ${leaseBuffer.length} bytes, recon: ${reconBuffer.length} bytes`,
     );
@@ -476,20 +542,15 @@ export async function POST(req: NextRequest) {
     }
     console.log(`[upload:${auditId}] Recon uploaded OK`);
 
-    // --- Build public URLs ---
-    const { data: leaseUrlData } = supabase.storage
-      .from(BUCKET)
-      .getPublicUrl(leasePath);
-    const { data: reconUrlData } = supabase.storage
-      .from(BUCKET)
-      .getPublicUrl(reconPath);
-
     // --- Create audit row ---
     console.log(`[upload:${auditId}] Inserting audit row...`);
     const { error: dbErr } = await supabase.from("audits").insert({
       id: auditId,
-      lease_url: leaseUrlData.publicUrl,
-      recon_url: reconUrlData.publicUrl,
+      owner_id: user.id,
+      // Private storage paths, never public URLs. Access must go through an
+      // authorized, short-lived signed URL.
+      lease_url: leasePath,
+      recon_url: reconPath,
       status: "pending",
       // Explicitly null so DB defaults (e.g. []) don't make the client
       // think processing already completed before it even started.

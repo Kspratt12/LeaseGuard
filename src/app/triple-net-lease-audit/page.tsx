@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/triple-net-lease-audit" },
   title: "Triple Net Lease Audit | Review NNN Charges",
   description:
     "Audit triple net lease expenses including CAM, insurance, and property taxes.",

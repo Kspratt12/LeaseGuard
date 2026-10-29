@@ -3,7 +3,7 @@ import Image from "next/image";
 
 export function Footer() {
   return (
-    <footer className="border-t border-gray-200 bg-gray-950 text-gray-400">
+    <footer className="border-t border-gray-200 bg-gray-950 text-white/70">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-14">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-10">
           {/* Brand */}
@@ -24,7 +24,7 @@ export function Footer() {
 
           {/* Product */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-white/60 mb-4">
               Product
             </p>
             <ul className="space-y-2.5">
@@ -59,7 +59,7 @@ export function Footer() {
 
           {/* Support */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-white/60 mb-4">
               Support
             </p>
             <ul className="space-y-2.5">
@@ -94,7 +94,7 @@ export function Footer() {
 
           {/* Lease Audit Guides */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-white/60 mb-4">
               Lease Audit Guides
             </p>
             <ul className="space-y-2.5">
@@ -122,12 +122,36 @@ export function Footer() {
                   Triple Net Lease Audit
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/cam-calculator"
+                  className="text-sm hover:text-white transition-colors"
+                >
+                  CAM Calculator
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/commercial-tenant-cam-audit-guide"
+                  className="text-sm hover:text-white transition-colors"
+                >
+                  Tenant CAM Audit Guide
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/cam-audit"
+                  className="text-sm hover:text-white transition-colors"
+                >
+                  CAM Audit Tool
+                </Link>
+              </li>
             </ul>
           </div>
 
           {/* Legal */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-white/60 mb-4">
               Legal
             </p>
             <ul className="space-y-2.5">
@@ -152,10 +176,10 @@ export function Footer() {
         </div>
 
         <div className="mt-12 pt-6 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-white/60">
             &copy; {new Date().getFullYear()} LeaseGuard. All rights reserved.
           </p>
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-white/55">
             AI-powered analysis for informational purposes only. Not legal or
             accounting advice.
           </p>

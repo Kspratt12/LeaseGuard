@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/cam-charges-explained" },
   title: "What Are CAM Charges in Commercial Leases? | LeaseGuard",
   description:
     "Learn how CAM charges work in commercial leases, how reconciliation statements are calculated, and how tenants can detect potential overcharges.",

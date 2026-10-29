@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Upload, Search, FileText } from "lucide-react";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/about" },
   title: "About LeaseGuard | Commercial Lease CAM Audit Platform",
   description:
     "LeaseGuard helps commercial tenants detect CAM overcharges by analyzing lease clauses and reconciliation statements.",

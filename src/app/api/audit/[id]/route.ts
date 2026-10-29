@@ -1,98 +1,110 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import {
+  UUID_RE,
+  OWNER_READABLE_COLUMNS,
+  authenticate,
+  createUserClient,
+  toPublicAudit,
+} from "@/lib/audit-access";
+import { TIERS, tierForYearCount } from "@/lib/payments";
+import { supabasePaymentStore } from "@/lib/payment-store";
 
 // Prevent Next.js from caching this route
 export const dynamic = "force-dynamic";
 
-/** Retry a Supabase query with short backoff to handle replication lag. */
-async function fetchAuditWithRetry(
-  supabase: ReturnType<typeof createServiceClient>,
+const NO_STORE = { "Cache-Control": "no-store, no-cache, must-revalidate" };
+
+const notFound = () =>
+  NextResponse.json({ error: "Audit not found" }, { status: 404, headers: NO_STORE });
+
+/**
+ * Read an audit as the signed-in user. Row-level security (owner_id =
+ * auth.uid()) decides visibility; the explicit owner_id filter is a second
+ * check. Retries briefly to tolerate insert/read timing right after upload.
+ */
+async function fetchOwnedAuditWithRetry(
+  token: string,
+  userId: string,
   id: string,
   maxAttempts = 3,
 ) {
+  const userClient = createUserClient(token);
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const { data: audit, error } = await supabase
+    const { data } = await userClient
       .from("audits")
-      .select("*")
+      .select(OWNER_READABLE_COLUMNS.join(","))
       .eq("id", id)
-      .single();
+      .eq("owner_id", userId)
+      .maybeSingle();
 
-    if (audit) return { audit, error: null };
-
-    // On last attempt, return the error
-    if (attempt === maxAttempts) {
-      return { audit: null, error };
+    if (data) return data as unknown as Record<string, unknown>;
+    if (attempt < maxAttempts) {
+      await new Promise((r) => setTimeout(r, attempt * 250));
     }
-
-    // Brief backoff before retry (200ms, 500ms)
-    const backoff = attempt * 250;
-    console.warn(
-      `[audit/${id}] Attempt ${attempt}/${maxAttempts} returned no row (code=${error?.code}), retrying in ${backoff}ms...`,
-    );
-    await new Promise((r) => setTimeout(r, backoff));
   }
-  return { audit: null, error: new Error("Exhausted retries") as unknown };
+  return null;
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  console.log(`[audit/${id}] GET request received`);
 
-  const supabase = createServiceClient();
-
-  const { audit, error } = await fetchAuditWithRetry(supabase, id);
-
-  if (error) {
-    console.error(`[audit/${id}] Supabase error after retries: ${JSON.stringify(error)}`);
-  }
-
-  if (error || !audit) {
-    console.log(`[audit/${id}] Not found after retries — error=${!!error}, audit=${!!audit}`);
-    return NextResponse.json({ error: "Audit not found" }, { status: 404 });
-  }
-
-  const findingsCount = Array.isArray(audit.free_findings) ? audit.free_findings.length : 0;
-  const paidCount = Array.isArray(audit.paid_findings) ? audit.paid_findings.length : 0;
-  const findingsFieldType = audit.free_findings === null ? "null" : Array.isArray(audit.free_findings) ? `array[${audit.free_findings.length}]` : typeof audit.free_findings;
-  const paidFieldType = audit.paid_findings === null ? "null" : Array.isArray(audit.paid_findings) ? `array[${audit.paid_findings.length}]` : typeof audit.paid_findings;
-  console.log(
-    `[audit/${id}] Found — status=${audit.status}, free=${findingsFieldType}, paid=${paidFieldType}, savings=${audit.savings_estimate ?? "null"}, overcharge=${audit.estimated_overcharge ?? "null"}, report=${audit.report_pdf_url ? "yes" : "no"}, error=${audit.error_message ?? "none"}`,
-  );
-
-  // Auto-heal: if the audit has result data but status is still "processing",
-  // the background job completed but the status update was lost (e.g. serverless
-  // function terminated). Fix the status in-place and persist it.
-  // IMPORTANT: Only treat non-empty findings as evidence of completion.
-  // An empty array [] may be a DB column default, not actual results.
-  if (
-    audit.status === "processing" &&
-    Array.isArray(audit.free_findings) &&
-    audit.free_findings.length > 0
-  ) {
-    console.warn(
-      `[audit/${id}] Auto-healing stuck audit: has findings but status was "processing" — setting to "completed"`,
+  const user = await authenticate(req);
+  if (!user) {
+    return NextResponse.json(
+      { error: "Sign in required" },
+      { status: 401, headers: NO_STORE },
     );
-    audit.status = "completed";
-    // Persist the fix so future polls don't need to heal again
-    supabase
+  }
+
+  // Same response for "invalid id", "does not exist" and "belongs to someone
+  // else" so audit existence is never revealed.
+  if (!UUID_RE.test(id)) return notFound();
+
+  const audit = await fetchOwnedAuditWithRetry(user.token, user.id, id);
+  if (!audit) return notFound();
+
+  // Ownership is now established. Paid findings are not readable by the user
+  // client (column grant), so read them with the service client for the teaser.
+  const service = createServiceClient();
+  const { data: paidRow } = await service
+    .from("audits")
+    .select("paid_findings,report_pdf_url,recon_year_count")
+    .eq("id", id)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  // Paid content is released only when a webhook-verified payment exists for
+  // this audit AND this owner. Nothing the browser sends can change that.
+  const unlocked = await supabasePaymentStore(service).hasPaid(id, user.id);
+  const tier = tierForYearCount(paidRow?.recon_year_count);
+
+  const publicAudit = toPublicAudit(audit, paidRow?.paid_findings ?? null, {
+    unlocked,
+    tier,
+    amountCents: tier ? TIERS[tier].amount : null,
+    // The PDF is generated on demand from the stored findings, so it is available for any finished audit.
+    reportAvailable: audit.status === "completed",
+  });
+
+  // Auto-heal: findings exist but status is still "processing" (the function
+  // was terminated before the status write). Reflect completion; persistence is
+  // done by the service client because users cannot write audits.
+  if (
+    publicAudit.status === "processing" &&
+    Array.isArray(publicAudit.free_findings) &&
+    publicAudit.free_findings.length > 0
+  ) {
+    publicAudit.status = "completed";
+    await service
       .from("audits")
       .update({ status: "completed" })
       .eq("id", id)
-      .then(({ error: healErr }) => {
-        if (healErr) {
-          console.error(`[audit/${id}] Auto-heal DB update failed:`, healErr.message);
-        } else {
-          console.log(`[audit/${id}] Auto-heal persisted OK`);
-        }
-      });
+      .eq("owner_id", user.id);
   }
 
-  return NextResponse.json(audit, {
-    headers: {
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    },
-  });
+  return NextResponse.json(publicAudit, { headers: NO_STORE });
 }

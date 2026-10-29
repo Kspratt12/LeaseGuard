@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/cam-reconciliation-guide" },
   title: "CAM Reconciliation: What Tenants Need to Know | LeaseGuard",
   description:
     "Understand the annual CAM reconciliation process, how year-end adjustments work, and where discrepancies commonly arise for commercial tenants.",
@@ -74,7 +75,7 @@ export default function CamReconciliationGuide() {
         </li>
         <li>
           <strong>Tenant review period</strong> — The tenant has a window
-          (typically 30-120 days) to review the statement and raise any
+          (the length is set by your lease and can be short) to review the statement and raise any
           objections.
         </li>
       </ul>

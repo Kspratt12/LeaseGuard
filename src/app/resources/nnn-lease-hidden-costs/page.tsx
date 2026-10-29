@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/hidden-costs-in-nnn-leases" },
   title: "Hidden Costs in Triple Net Leases | LeaseGuard",
   description:
     "Discover the hidden costs in NNN leases that commercial tenants often miss — from CAM pass-throughs and capital expenses to insurance and property tax adjustments.",

@@ -5,7 +5,12 @@ import { getLeaseClauseEvidence } from "@/lib/lease-clause-evidence";
 export function AuditResultsFree({
   findings,
   leaseClausesSummary,
+  title = "Audit Findings",
+  limit = 3,
 }: {
+  title?: string;
+  /** Max findings shown. The free preview shows 3; unlocked paid findings show all. */
+  limit?: number;
   findings: Finding[];
   leaseClausesSummary?: LeaseClauseSummary | null;
 }) {
@@ -22,11 +27,11 @@ export function AuditResultsFree({
   }
 
   // Show up to 3 visible findings
-  const visibleFindings = findings.slice(0, 3);
+  const visibleFindings = findings.slice(0, limit);
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Audit Findings</h2>
+      <h2 className="text-lg font-semibold">{title}</h2>
       <ul className="space-y-4">
         {visibleFindings.map((f, i) => (
           <li
@@ -54,10 +59,10 @@ export function AuditResultsFree({
               <p className="text-sm text-gray-600 leading-relaxed">{f.description}</p>
               {f.potential_savings > 0 ? (
                 <p className="text-sm font-semibold text-green-700">
-                  Potential savings: ${f.potential_savings.toLocaleString()}
+                  Potential discrepancy: ${f.potential_savings.toLocaleString()}
                 </p>
               ) : f.insufficientData ? (
-                <p className="text-xs text-amber-600">
+                <p className="text-xs text-review">
                   Manual review recommended
                 </p>
               ) : (

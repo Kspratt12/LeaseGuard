@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/dispute-cam-charges" },
   title: "How to Dispute CAM Charges | LeaseGuard",
   description:
     "Learn how commercial tenants can dispute CAM charges, what documentation is needed, and how lease clauses limit what landlords can bill.",
@@ -190,6 +191,26 @@ export default function DisputeCamCharges() {
           audit clause that would require the landlord to reimburse audit costs
         </li>
       </ul>
+      <h2>Putting Your Questions in Writing</h2>
+      <p>
+        A written request is easier for a landlord to answer, and for you to rely on later, than a phone call. A useful
+        letter usually contains:
+      </p>
+      <ul>
+        <li>The property, suite and the statement period it concerns.</li>
+        <li>Each item as its own numbered point, with the statement line and amount.</li>
+        <li>The lease provision you are relying on, quoted exactly, with its section or page.</li>
+        <li>The arithmetic that led you to question the item, so the landlord can check it.</li>
+        <li>A request for the supporting documents behind each item, such as invoices and allocation workpapers.</li>
+        <li>A clear separation between items you believe are calculation errors and items where you only need an explanation.</li>
+      </ul>
+      <p>
+        Avoid stating legal conclusions or deadlines you have not confirmed. Any time limit for raising questions comes
+        from your lease and applicable law, so check both, and consider having an attorney review a letter before you send
+        it. The full LeaseGuard report includes an editable dispute-letter draft built only from your audit&apos;s findings:
+        it quotes your own documents, shows the calculation for each item, leaves unknown details as placeholders for you
+        to complete, and exports to PDF or Word.
+      </p>
       <p>
         For a comprehensive overview of the most common issues audits uncover,
         see our guide to{" "}
@@ -199,14 +220,9 @@ export default function DisputeCamCharges() {
         >
           common CAM overcharges tenants miss
         </Link>
-        . To run an automated analysis of your own lease and reconciliation
-        statements, visit our{" "}
+        . To compare your own reconciliation statement against your lease, start a{" "}
         <Link
-          href="/resources/how-to-audit-cam-charges"
-          className="text-blue-600 hover:underline"
-        >
-          CAM audit guide
-        </Link>
+          href="/upload" className="text-blue-600 hover:underline" > LeaseGuard audit </Link>
         .
       </p>
     </ArticleLayout>

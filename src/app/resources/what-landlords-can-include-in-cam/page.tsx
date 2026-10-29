@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/what-landlords-can-include-in-cam" },
   title: "What Landlords Can Include in CAM Charges | LeaseGuard",
   description:
     "Learn what expenses landlords are allowed to include in CAM charges, what is typically excluded, and how to verify your charges against your lease agreement.",

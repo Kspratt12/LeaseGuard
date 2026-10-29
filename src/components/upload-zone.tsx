@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Upload, FileText, Loader2, X, Camera, Image as ImageIcon, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { imagesToPdf } from "@/lib/images-to-pdf";
+import { getAuthHeaders } from "@/lib/auth-client";
 import { useAuditDraft } from "@/components/audit-draft-context";
 
 const ACCEPTED_TYPES = [
@@ -351,7 +352,13 @@ export function UploadZone() {
         form.append("extraRecons", reconPdfs[i]);
       }
 
-      const res = await fetch("/api/upload", { method: "POST", body: form });
+      const authHeaders = await getAuthHeaders();
+      if (!authHeaders) {
+        router.push("/login?next=/upload");
+        throw new Error("Please sign in to run an audit. Your files are kept while you sign in.");
+      }
+
+      const res = await fetch("/api/upload", { method: "POST", body: form, headers: authHeaders });
 
       let json: Record<string, unknown>;
       const contentType = res.headers.get("content-type") ?? "";
@@ -416,7 +423,9 @@ export function UploadZone() {
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 text-center">{error}</p>
+        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-center text-sm text-red-800">
+          {error}
+        </p>
       )}
 
       <div className="space-y-2">
@@ -724,7 +733,7 @@ function MultiDocumentDropBox({
       </button>
 
       {duplicateNotice && (
-        <p className="text-xs text-amber-600">{duplicateNotice}</p>
+        <p className="text-xs text-review">{duplicateNotice}</p>
       )}
 
       {/* File list with previews */}

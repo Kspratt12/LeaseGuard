@@ -3,7 +3,8 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Commercial CAM Audit | Detect CAM Overcharges",
+  alternates: { canonical: "/commercial-cam-audit" },
+  title: "What Is a Commercial CAM Audit? How Tenants Review CAM Charges | LeaseGuard",
   description:
     "Run a commercial CAM audit in seconds. Upload your lease and CAM reconciliation statement to identify potential billing discrepancies.",
   keywords: [
@@ -29,7 +30,7 @@ export default function CommercialCamAudit() {
             &larr; All Resources
           </Link>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight tracking-tight">
-            Commercial CAM Audit for Tenants
+            What Is a Commercial CAM Audit?
           </h1>
           <div className="mt-4 flex items-center gap-3 text-sm text-gray-500">
             <time>March 2026</time>

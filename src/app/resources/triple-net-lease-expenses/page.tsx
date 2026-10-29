@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/triple-net-lease-expenses" },
   title: "Triple Net Lease Expenses Explained | LeaseGuard",
   description:
     "Understand the three expense categories in a triple net (NNN) lease: property taxes, insurance, and common area maintenance. Learn what tenants actually pay and how to verify charges.",

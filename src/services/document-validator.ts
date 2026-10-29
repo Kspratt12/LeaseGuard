@@ -2255,10 +2255,7 @@ export async function validateDocuments(
   // Runs in parallel for both documents. Falls back gracefully if no API key.
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const hasApiKey = !!apiKey && apiKey.length > 20 && !apiKey.endsWith("...");
-  console.log(
-    `[validator] ANTHROPIC_API_KEY configured: ${hasApiKey} ` +
-    `(length=${apiKey?.length ?? 0}, prefix=${apiKey ? apiKey.substring(0, 12) + "..." : "NOT SET"})`
-  );
+  console.log(`[validator] ANTHROPIC_API_KEY configured: ${hasApiKey}`);
 
   try {
     console.log("[validator] Attempting AI-powered field extraction...");

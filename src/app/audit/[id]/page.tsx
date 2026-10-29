@@ -6,6 +6,10 @@ import { AuditResultsPaid } from "@/components/audit-results-paid";
 import { AuditProgress } from "@/components/audit-progress";
 import { Loader2, Download, AlertTriangle, RefreshCw, FileText } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { getAuthHeaders } from "@/lib/auth-client";
+import { formatUsdFromCents } from "@/lib/format";
+import { buttonClass } from "@/components/ui";
 import type { Finding, OverchargeLineItem, SourceEvidence, LeaseClauseSummary } from "@/services/audit-logic";
 
 interface Audit {
@@ -24,6 +28,13 @@ interface Audit {
   estimated_overcharge: number | null;
   overcharge_breakdown: OverchargeLineItem[] | null;
   lease_clauses_summary: LeaseClauseSummary | null;
+  report_available?: boolean;
+  payment?: {
+    unlocked: boolean;
+    tier: "single" | "multi" | null;
+    amount_cents: number | null;
+    currency: string;
+  };
 }
 
 export default function AuditPage({
@@ -32,6 +43,7 @@ export default function AuditPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const [audit, setAudit] = useState<Audit | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
@@ -55,6 +67,25 @@ export default function AuditPage({
   if (isProcessing) {
     wasProcessingRef.current = true;
   }
+
+  // Returning from Stripe Checkout: the webhook (not this redirect) unlocks the
+  // report, so poll the server for a short while until payment is verified.
+  const [returnedFromCheckout, setReturnedFromCheckout] = useState(false);
+  useEffect(() => {
+    setReturnedFromCheckout(
+      new URLSearchParams(window.location.search).get("checkout") === "success",
+    );
+  }, []);
+  const paymentUnlocked = audit?.payment?.unlocked === true;
+  useEffect(() => {
+    if (!returnedFromCheckout || paymentUnlocked) return;
+    let tries = 0;
+    const t = setInterval(() => {
+      if (++tries > 20) return clearInterval(t);
+      setRetryKey((k) => k + 1);
+    }, 3000);
+    return () => clearInterval(t);
+  }, [returnedFromCheckout, paymentUnlocked]);
 
   // Scroll to top on mount so the user sees the progress from the beginning
   useEffect(() => {
@@ -119,10 +150,19 @@ export default function AuditPage({
       try {
         pollCount++;
         // Cache-bust to prevent stale responses from CDN or browser cache
+        const authHeaders = await getAuthHeaders();
+        if (!authHeaders) {
+          router.push(`/login?next=${encodeURIComponent(`/audit/${id}`)}`);
+          return;
+        }
         const res = await fetch(`/api/audit/${id}?_t=${Date.now()}`, {
           cache: "no-store",
-          headers: { "Cache-Control": "no-cache" },
+          headers: { "Cache-Control": "no-cache", ...authHeaders },
         });
+        if (res.status === 401) {
+          router.push(`/login?next=${encodeURIComponent(`/audit/${id}`)}`);
+          return;
+        }
         if (!res.ok) {
           // On transient server errors (5xx), keep polling instead of giving up
           if (res.status >= 500 && !cancelled) {
@@ -340,6 +380,7 @@ export default function AuditPage({
         hasOvercharge={hasOvercharge}
         savingsEstimate={savingsEstimate}
         hasFindings={hasFindings}
+        confirmingPayment={returnedFromCheckout && !paymentUnlocked}
       />
     );
   } catch (err) {
@@ -355,6 +396,9 @@ export default function AuditPage({
   }
 }
 
+/** $1,979.60 (always cents) for statement-line amounts. */
+const money2 = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 function AuditResultsRenderer({
   audit,
   freeFindings,
@@ -369,7 +413,9 @@ function AuditResultsRenderer({
   hasOvercharge,
   savingsEstimate,
   hasFindings,
+  confirmingPayment,
 }: {
+  confirmingPayment: boolean;
   audit: Audit;
   freeFindings: Finding[];
   paidFindings: Finding[];
@@ -384,9 +430,61 @@ function AuditResultsRenderer({
   savingsEstimate: number;
   hasFindings: boolean;
 }) {
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const unlocked = audit.payment?.unlocked === true;
+  const priceLabel = formatUsdFromCents(audit.payment?.amount_cents);
+
+  // The price is chosen by the server; the browser only asks to start checkout.
+  async function startCheckout() {
+    setUnlocking(true);
+    setUnlockError(null);
+    try {
+      const headers = await getAuthHeaders();
+      if (!headers) throw new Error("Please sign in again.");
+      const res = await fetch(`/api/audit/${audit.id}/checkout`, { method: "POST", headers });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || typeof json.url !== "string") {
+        throw new Error(typeof json.error === "string" ? json.error : "Could not start checkout.");
+      }
+      window.location.href = json.url;
+    } catch (e) {
+      setUnlockError(e instanceof Error ? e.message : "Could not start checkout.");
+      setUnlocking(false);
+    }
+  }
+
+  async function downloadReport() {
+    setUnlockError(null);
+    try {
+      const headers = await getAuthHeaders();
+      if (!headers) throw new Error("Please sign in again.");
+      const res = await fetch(`/api/audit/${audit.id}/report`, { headers });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(typeof json.error === "string" ? json.error : "Report unavailable.");
+      }
+      const blobUrl = URL.createObjectURL(await res.blob());
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `LeaseGuard-CAM-Audit-${audit.id.slice(0, 8)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+    } catch (e) {
+      setUnlockError(e instanceof Error ? e.message : "Report unavailable.");
+    }
+  }
+
   return (
     <main className="flex flex-col items-center px-4 py-10 sm:py-24">
       <div className="w-full max-w-2xl space-y-6 sm:space-y-8">
+        <div>
+          <Link href="/account" className="inline-flex min-h-11 items-center text-sm text-blue-700 hover:underline">
+            &larr; My audits
+          </Link>
+        </div>
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-2xl sm:text-3xl font-bold">Audit Results</h1>
@@ -422,7 +520,7 @@ function AuditResultsRenderer({
             {/* Document swap warning */}
             {audit.was_swapped && (
               <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
-                <RefreshCw className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                <RefreshCw className="h-5 w-5 text-review mt-0.5 shrink-0" />
                 <p className="text-sm text-amber-800">
                   The uploaded documents appeared to be swapped. The system
                   automatically corrected the order for analysis.
@@ -459,7 +557,7 @@ function AuditResultsRenderer({
                   : "bg-amber-50 border-amber-200";
                 const iconClass = isInfoOnly
                   ? "text-blue-500"
-                  : "text-amber-600";
+                  : "text-review";
                 const textClass = isInfoOnly
                   ? "text-blue-700"
                   : "text-amber-800";
@@ -471,53 +569,42 @@ function AuditResultsRenderer({
                 );
               })()}
 
-            {/* Confidence indicator */}
-            {audit.confidence && (
-              <ConfidenceIndicator
-                level={audit.confidence}
-                score={audit.confidence_score ?? 0}
-              />
-            )}
-
-            {/* Lease Clauses Detected */}
-            {audit.lease_clauses_summary && (
-              <LeaseClausesSection summary={audit.lease_clauses_summary} />
-            )}
-
+            {/* Summary and the report actions: the unlocked report card jumps to the top */}
+            <div className="flex flex-col gap-6 sm:gap-8">
             {/* Savings estimate / Overcharge detected */}
             {hasOvercharge ? (
-              <div className="rounded-xl bg-red-50 border border-red-200 p-5 sm:p-8">
+              <div className="rounded-xl bg-review-soft border border-review/25 p-5 sm:p-8">
                 <div className="text-center space-y-2 sm:space-y-3">
-                  <p className="text-xs text-red-800 font-semibold uppercase tracking-widest">
-                    Estimated Recoverable Overcharges
+                  <p className="font-figures text-[11px] text-review font-medium uppercase tracking-widest">
+                    Potential Billing Discrepancies
                   </p>
-                  <p className="text-4xl sm:text-5xl font-bold text-red-700">
-                    ${estimatedOvercharge.toLocaleString()}
+                  <p className="text-4xl sm:text-5xl font-semibold tracking-tight text-ink tabular-nums">
+                    ${savingsEstimate.toLocaleString()}
                   </p>
-                  <p className="text-sm text-red-600 leading-relaxed max-w-md mx-auto">
-                    Based on detected discrepancies across uploaded lease and CAM documents. Professional review recommended to confirm.
+                  <p className="text-sm text-ink-soft leading-relaxed max-w-md mx-auto">
+                    Calculated from your uploaded lease and CAM documents. These are items to review with your landlord, not confirmed overcharges. Professional review is recommended.
                   </p>
                 </div>
 
                 {/* Overcharge breakdown table */}
-                <div className="mt-6 sm:mt-8 overflow-x-auto -mx-2 sm:mx-0">
+                <div className="mt-6 sm:mt-8 overflow-x-auto -mx-2 sm:mx-0" role="region" aria-label="Breakdown table, scrolls sideways" tabIndex={0}>
                   <table className="w-full text-xs sm:text-sm border-separate min-w-[480px]" style={{ borderSpacing: "0 0" }}>
                     <thead>
-                      <tr className="border-b-2 border-red-200">
-                        <th className="pb-2 sm:pb-3 pr-3 sm:pr-4 font-semibold text-red-800 text-left w-[28%]">Category</th>
-                        <th className="pb-2 sm:pb-3 px-2 sm:px-3 font-semibold text-red-800 text-right w-[18%]">Total Expense</th>
-                        <th className="pb-2 sm:pb-3 px-2 sm:px-3 font-semibold text-red-800 text-center w-[14%]">Tenant Share</th>
-                        <th className="pb-2 sm:pb-3 px-2 sm:px-3 font-semibold text-red-800 text-right w-[18%]">Tenant Charge</th>
-                        <th className="pb-2 sm:pb-3 pl-3 sm:pl-4 font-semibold text-red-800 text-left w-[22%]">Reason</th>
+                      <tr className="border-b-2 border-review/25">
+                        <th className="pb-2 sm:pb-3 pr-3 sm:pr-4 font-semibold text-ink text-left w-[28%]">Category</th>
+                        <th className="pb-2 sm:pb-3 px-2 sm:px-3 font-semibold text-ink text-right w-[18%]">Total Expense</th>
+                        <th className="pb-2 sm:pb-3 px-2 sm:px-3 font-semibold text-ink text-center w-[14%]">Tenant Share</th>
+                        <th className="pb-2 sm:pb-3 px-2 sm:px-3 font-semibold text-ink text-right w-[18%]">Tenant Charge</th>
+                        <th className="pb-2 sm:pb-3 pl-3 sm:pl-4 font-semibold text-ink text-left w-[22%]">Reason</th>
                       </tr>
                     </thead>
                     <tbody>
                       {overchargeBreakdown.map((row, i) => (
-                        <tr key={i} className="border-b border-red-100 last:border-0">
+                        <tr key={i} className="border-b border-review/15 last:border-0">
                           <td className="py-3 pr-4 text-gray-800 capitalize">{row.category}</td>
-                          <td className="py-3 px-3 text-gray-800 text-right tabular-nums">${row.total_expense.toLocaleString()}</td>
+                          <td className="py-3 px-3 text-gray-800 text-right tabular-nums">${money2(row.total_expense)}</td>
                           <td className="py-3 px-3 text-gray-800 text-center tabular-nums">{row.tenant_share_percent}%</td>
-                          <td className="py-3 px-3 font-semibold text-red-700 text-right tabular-nums">${row.tenant_charge.toLocaleString()}</td>
+                          <td className="py-3 px-3 font-semibold text-ink text-right tabular-nums">${money2(row.tenant_charge)}</td>
                           <td className="py-3 pl-4 text-gray-500 text-sm">{row.reason}</td>
                         </tr>
                       ))}
@@ -527,8 +614,8 @@ function AuditResultsRenderer({
 
                 {/* Source Evidence */}
                 {overchargeBreakdown.some((r) => r.sourceEvidence) && (
-                  <div className="mt-8 pt-6 border-t border-red-200">
-                    <p className="text-xs font-semibold text-red-800 uppercase tracking-widest mb-4">
+                  <div className="mt-8 pt-6 border-t border-review/25">
+                    <p className="font-figures text-[11px] font-medium text-review uppercase tracking-widest mb-4">
                       Source Evidence
                     </p>
                     <div className="space-y-3">
@@ -549,53 +636,88 @@ function AuditResultsRenderer({
                 )}
               </div>
             ) : savingsEstimate > 0 ? (
-              <div className="rounded-xl bg-green-50 border border-green-200 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
-                <p className="text-xs text-green-800 font-semibold uppercase tracking-widest">
-                  Estimated Recoverable Overcharges
+              <div className="rounded-xl bg-review-soft border border-review/25 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
+                <p className="font-figures text-[11px] text-review font-medium uppercase tracking-widest">
+                  Potential Billing Discrepancies
                 </p>
-                <p className="text-4xl sm:text-5xl font-bold text-green-700">
+                <p className="text-4xl sm:text-5xl font-semibold tracking-tight text-ink tabular-nums">
                   ${savingsEstimate.toLocaleString()}
                 </p>
-                <p className="text-sm text-green-600 leading-relaxed max-w-md mx-auto">
-                  Based on detected discrepancies across uploaded lease and CAM documents. Professional review recommended to confirm.
+                <p className="text-sm text-ink-soft leading-relaxed max-w-md mx-auto">
+                  Calculated from your uploaded lease and CAM documents. These are items to review with your landlord, not confirmed overcharges. Professional review is recommended.
                 </p>
               </div>
             ) : hasFindings ? (
-              <div className="rounded-xl bg-amber-50 border border-amber-200 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
-                <p className="text-xs text-amber-800 font-semibold uppercase tracking-widest">
+              <div className="rounded-xl bg-review-soft border border-review/25 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
+                <p className="font-figures text-[11px] text-review font-medium uppercase tracking-widest">
                   Potential Discrepancies Detected
                 </p>
-                <p className="text-sm text-amber-700 leading-relaxed max-w-md mx-auto">
+                <p className="text-sm text-ink-soft leading-relaxed max-w-md mx-auto">
                   The audit detected potential discrepancies in your CAM reconciliation that warrant further review.
                   {savingsEstimate > 0 && (
-                    <> Estimated recoverable overcharges: <span className="font-semibold">${savingsEstimate.toLocaleString()}</span>.</>
+                    <> Total of potential discrepancies: <span className="font-semibold">${savingsEstimate.toLocaleString()}</span>.</>
                   )}
                 </p>
               </div>
             ) : (
               <div className="rounded-xl bg-gray-50 border border-gray-200 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
                 <p className="text-xs text-gray-600 font-semibold uppercase tracking-widest">
-                  No Clear Overcharges Detected
+                  No Clear Discrepancies Detected
                 </p>
                 <p className="text-sm text-gray-500 leading-relaxed max-w-md mx-auto">
-                  The uploaded documents did not show a clear recoverable billing discrepancy based on current audit checks.
+                  The uploaded documents did not show a clear billing discrepancy based on current audit checks.
                 </p>
               </div>
             )}
 
-            {/* Download report */}
-            {audit.report_pdf_url && (
-              <div className="text-center">
-                <a
-                  href={`/api/audit/${audit.id}/report`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 transition-colors"
-                >
-                  <Download className="h-4 w-4" />
-                  Download Audit Report
-                </a>
-              </div>
+            {/* Your report: confirmation, download and dispute letter */}
+            {confirmingPayment && (
+              <p role="status" className="order-first rounded-lg border border-line bg-white p-3 text-center text-sm text-ink">
+                Payment received. Confirming it with our payment provider...
+              </p>
+            )}
+            {unlocked && (
+              <section className="order-first rounded-xl border border-verified/30 bg-verified-soft/60 p-4 sm:p-5" aria-labelledby="report-card">
+                <h2 id="report-card" className="text-lg font-semibold text-ink">
+                  Your full report is unlocked
+                </h2>
+                <p className="mt-1 text-sm text-ink-soft">
+                  All findings and their source evidence are below. Download the PDF, or turn the findings into a letter
+                  to your landlord that you can edit before sending.
+                </p>
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  {audit.report_available && (
+                    <button type="button" onClick={downloadReport} className={buttonClass("primary")}>
+                      <Download className="h-4 w-4" aria-hidden />
+                      Download PDF report
+                    </button>
+                  )}
+                  <Link href={`/audit/${audit.id}/letter`} className={buttonClass("secondary")}>
+                    <FileText className="h-4 w-4" aria-hidden />
+                    Prepare dispute letter
+                  </Link>
+                </div>
+                {unlockError && (
+                  <p role="alert" className="mt-3 text-sm text-red-700">
+                    {unlockError}
+                  </p>
+                )}
+              </section>
+            )}
+
+            </div>
+
+            {/* Confidence indicator */}
+            {audit.confidence && (
+              <ConfidenceIndicator
+                level={audit.confidence}
+                score={audit.confidence_score ?? 0}
+              />
+            )}
+
+            {/* Lease Clauses Detected */}
+            {audit.lease_clauses_summary && (
+              <LeaseClausesSection summary={audit.lease_clauses_summary} />
             )}
 
             {/* Free findings */}
@@ -604,8 +726,20 @@ function AuditResultsRenderer({
               leaseClausesSummary={audit.lease_clauses_summary}
             />
 
-            {/* Locked findings with conversion CTA — always shown */}
+            {/* Paid findings: full detail only after verified payment */}
+            {unlocked ? (
+              <AuditResultsFree
+                title="Additional Findings"
+                limit={paidFindings.length}
+                findings={paidFindings}
+                leaseClausesSummary={audit.lease_clauses_summary}
+              />
+            ) : (
             <AuditResultsPaid
+              priceLabel={priceLabel}
+              onUnlock={startCheckout}
+              unlocking={unlocking}
+              unlockError={unlockError}
               findings={paidFindings}
               premiumSavings={paidFindings
                 .filter((f) => !f.insufficientData)
@@ -613,6 +747,7 @@ function AuditResultsRenderer({
               overchargeBreakdown={overchargeBreakdown}
               leaseClausesSummary={audit.lease_clauses_summary}
             />
+            )}
           </>
         )}
 
@@ -624,10 +759,10 @@ function AuditResultsRenderer({
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
           <Link
-            href="/upload"
+            href="/account"
             className="text-sm text-blue-700 underline font-medium py-2 px-4"
           >
-            Back to Upload
+            My audits
           </Link>
           <span className="hidden sm:inline text-xs text-gray-300">|</span>
           <Link

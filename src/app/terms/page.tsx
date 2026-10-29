@@ -1,4 +1,5 @@
 export const metadata = {
+  alternates: { canonical: "/terms" },
   title: "Terms of Service — LeaseGuard",
   description:
     "Terms of Service for LeaseGuard, the AI-powered CAM audit tool for commercial tenants.",
@@ -62,7 +63,7 @@ export default function TermsPage() {
             </h2>
             <p>
               The Free Audit Preview is available at no cost. The Full Evidence
-              Report is available as a one-time purchase of $49 per audit.
+              The full report is available as a one-time purchase: $49 for a one-year audit or $149 for an audit covering two to five years of statements.
               There are no subscriptions, recurring charges, or hidden fees.
               Payments are processed securely through our payment provider.
               Refund requests are handled on a case-by-case basis — contact us

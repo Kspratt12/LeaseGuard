@@ -18,6 +18,20 @@ import {
   type ExtractionMethod,
   type ValidationIssue,
 } from "@/services/document-validator";
+import {
+  computeAdminFeeTenantOvercharge,
+  computeCamCapExcess,
+  totalSavings,
+} from "@/services/savings-math";
+
+/** Lines of the reconciliation that are management/admin fee charges (building level). */
+const ADMIN_FEE_LINE_KEYWORDS = [
+  "admin fee",
+  "administrative fee",
+  "management fee",
+  "property management",
+  "management charge",
+];
 
 export interface SourceEvidence {
   document: string;
@@ -328,10 +342,14 @@ export async function runAudit(
   // ------------------------------------------------------------------
   if (leaseFields.camCapPercentage && reconTotal != null && reconTotal > 0) {
     const capPct = parseFloat(leaseFields.camCapPercentage);
-    // Estimate potential overage: if year-over-year increase exceeds cap,
-    // the excess portion of total charges is the savings estimate.
-    // Conservative estimate: assume 2% above cap as typical overage.
-    const estimatedOverage = reconTotal * (Math.max(capPct, 2) / 100);
+    // Savings are only the PROVEN excess over the cap, which needs a prior-year
+    // baseline. Previously this assumed an overage of max(cap, 2)% of the total
+    // even with no prior year, which fabricated a dollar figure.
+    const estimatedOverage = computeCamCapExcess({
+      currentTotal: reconTotal,
+      priorYearTotal,
+      capPercent: isNaN(capPct) ? null : capPct,
+    });
     const evidence: SourceEvidence[] = [];
     const capSnippet = extractSnippet(leaseText, leaseFields.camCapPercentage + "%");
     if (capSnippet) {
@@ -368,27 +386,67 @@ export async function runAudit(
         const excess = reconTotal! - allowedMax;
         camCapDesc +=
           ` Year-over-year charges increased ${yoyIncrease.toFixed(1)}% (from $${priorYearTotal.toLocaleString()} to $${reconTotal!.toLocaleString()}), ` +
-          `exceeding the ${leaseFields.camCapPercentage}% cap. ` +
-          `The maximum allowable amount was $${Math.round(allowedMax).toLocaleString()}, ` +
-          `resulting in an estimated overcharge of $${Math.round(excess).toLocaleString()}.`;
+          `which is above the ${leaseFields.camCapPercentage}% cap. ` +
+          `The maximum allowable amount under that cap would be $${Math.round(allowedMax).toLocaleString()}, ` +
+          `a potential excess of $${Math.round(excess).toLocaleString()} to review.`;
       } else {
         camCapDesc +=
           ` Year-over-year charges increased ${yoyIncrease.toFixed(1)}% (from $${priorYearTotal.toLocaleString()}), ` +
           `which is within the ${leaseFields.camCapPercentage}% cap. Verify prior-year baseline accuracy to confirm.`;
       }
+      // The cap in many leases applies only to controllable expenses. This check compares the
+      // statement's total, so say so instead of presenting it as a confirmed violation.
+      if (/controllable/i.test(leaseText)) {
+        camCapDesc +=
+          ` Note: your lease refers to controllable expenses, and this comparison uses the statement's total charges, ` +
+          `so it may overstate any excess. Compare only the categories the cap covers to confirm.`;
+      }
     } else {
       camCapDesc +=
-        ` Compare prior-year charges to confirm whether the increase exceeds the contractual cap. ` +
-        `Upload a prior-year reconciliation for a definitive year-over-year comparison.`;
+        ` No prior-year total was found, so the system cannot tell whether the increase exceeds the cap. ` +
+        `Upload the prior-year reconciliation to run this comparison.`;
     }
 
-    freeFindings.push({
-      category: "CAM Cap Exceeded",
-      description: camCapDesc,
-      potential_savings: Math.round(estimatedOverage),
-      severity: "high",
-      sourceEvidence: evidence.length > 0 ? evidence : undefined,
-    });
+    // Three honest states: no baseline (cannot assess), within cap, or potentially exceeded.
+    const baselineAvailable = priorYearTotal != null && priorYearTotal > 0 && !isNaN(capPct);
+    const potentialExcess = Math.round(estimatedOverage);
+    if (priorYearRaw && priorYearTotal != null && priorYearTotal > 0) {
+      const priorSnippet = extractSnippet(reconText, priorYearRaw);
+      if (priorSnippet) {
+        evidence.push({
+          document: reconDocName,
+          page: findPageForText(reconText, priorYearRaw),
+          extractedText: priorSnippet,
+          findingCategory: "CAM Cap",
+        });
+      }
+    }
+    freeFindings.push(
+      !baselineAvailable
+        ? {
+            category: "CAM Cap Review: Prior-Year Data Needed",
+            description: camCapDesc,
+            potential_savings: 0,
+            severity: "medium",
+            insufficientData: true,
+            sourceEvidence: evidence.length > 0 ? evidence : undefined,
+          }
+        : potentialExcess > 0
+          ? {
+              category: "Potential CAM Cap Exceedance",
+              description: camCapDesc,
+              potential_savings: potentialExcess,
+              severity: "high",
+              sourceEvidence: evidence.length > 0 ? evidence : undefined,
+            }
+          : {
+              category: "CAM Cap Within Limit",
+              description: camCapDesc,
+              potential_savings: 0,
+              severity: "low",
+              sourceEvidence: evidence.length > 0 ? evidence : undefined,
+            },
+    );
   } else if (leaseFields.camCapPercentage && !reconTotal) {
     // We found a cap in the lease but no total in the reconciliation
     const capSnippet = extractSnippet(leaseText, leaseFields.camCapPercentage + "%");
@@ -472,24 +530,10 @@ export async function runAudit(
       }
     }
 
-    if (camCapPct != null && increasePercent > camCapPct) {
-      // Cap exceeded — HIGH severity
-      const allowedTotal = priorYearTotal * (1 + camCapPct / 100);
-      const estimatedExcess = Math.max(0, reconTotal - allowedTotal);
-
-      freeFindings.push({
-        category: "Year-over-Year CAM Increase Exceeds Lease Cap",
-        description:
-          `Year-over-year CAM expenses increased by ${increasePercent.toFixed(1)}%, ` +
-          `from $${priorYearTotal.toLocaleString()} to $${reconTotal.toLocaleString()}. ` +
-          `The lease limits annual increases to ${camCapPct}%. ` +
-          `The allowable maximum was $${Math.round(allowedTotal).toLocaleString()}, ` +
-          `resulting in an estimated excess of $${Math.round(estimatedExcess).toLocaleString()} ` +
-          `that may be recoverable.`,
-        potential_savings: Math.round(estimatedExcess),
-        severity: "high",
-        sourceEvidence: yoyEvidence.length > 0 ? yoyEvidence : undefined,
-      });
+    if (camCapPct != null) {
+      // A lease cap exists: section 1 already reports this comparison (exceeded or within
+      // the cap) with its prior-year evidence. A second finding here counted the same
+      // excess dollars twice, so none is added.
     } else if (camCapPct == null && increasePercent > 0) {
       // No cap in lease but increase detected — informational
       freeFindings.push({
@@ -515,6 +559,8 @@ export async function runAudit(
   const reconAdminFee =
     reconFields.adminFeePercentage ?? reconFields.managementFee;
 
+  let adminFeeCheckedByStatedPercent = false;
+
   if (leaseAdminFee && reconAdminFee) {
     const leaseVal = parseFloat(leaseAdminFee);
     const reconVal = parseFloat(reconAdminFee);
@@ -536,19 +582,37 @@ export async function runAudit(
           extractedText: reconAdminSnippet,
         });
       }
+      // The statement's stated percentage takes precedence; section 3e must not
+      // re-evaluate the same fee on a different base (that double counted it).
+      adminFeeCheckedByStatedPercent = true;
       if (reconVal > leaseVal) {
-        // Calculate savings: excess fee percentage applied to total expenses
-        let feeSavings = 0;
-        if (reconTotal != null && reconTotal > 0) {
-          feeSavings = Math.round(reconTotal * ((reconVal - leaseVal) / 100));
+        // Tenant's share of the building-level fee charged above the cap.
+        let feeAmountBuilding = 0;
+        for (const item of reconFields.lineItems) {
+          const catLower = item.category.toLowerCase().trim();
+          if (ADMIN_FEE_LINE_KEYWORDS.some((kw) => catLower.includes(kw))) {
+            const amt = normalizeNumber(item.amount);
+            if (!isNaN(amt) && amt > 0) feeAmountBuilding += amt;
+          }
         }
+        const shareRaw = reconFields.proRataShare ?? leaseFields.proRataShare;
+        const feeSavings = Math.round(
+          computeAdminFeeTenantOvercharge({
+            feeAmountBuilding: feeAmountBuilding > 0 ? feeAmountBuilding : null,
+            statedPercent: reconVal,
+            capPercent: leaseVal,
+            tenantSharePercent: shareRaw ? parseFloat(shareRaw) : null,
+          }),
+        );
         paidFindings.push({
-          category: "Admin Fee Overcharge",
+          category: "Admin Fee Above Lease Cap",
           description:
-            `Management/admin fee charged at ${reconVal}% in the reconciliation, ` +
-            `but the lease caps this fee at ${leaseVal}%. ` +
-            `The ${(reconVal - leaseVal).toFixed(1)}% excess may be recoverable.` +
-            (feeSavings > 0 ? ` Based on total charges, the estimated overcharge is $${feeSavings.toLocaleString()}.` : ""),
+            `The reconciliation shows a management/admin fee at ${reconVal}%, ` +
+            `while the lease caps this fee at ${leaseVal}%. ` +
+            `The ${(reconVal - leaseVal).toFixed(1)}-point difference should be reviewed with the landlord.` +
+            (feeSavings > 0
+              ? ` Applying the cap to the fee line on the statement ($${feeAmountBuilding.toLocaleString("en-US", { maximumFractionDigits: 0 })}) and your ${shareRaw}% share, the difference is approximately $${feeSavings.toLocaleString()}. This is a calculation from the documents, not a confirmed overcharge.`
+              : " The documents did not provide enough detail to calculate a dollar amount."),
           potential_savings: feeSavings,
           severity: "medium",
           sourceEvidence: adminEvidence.length > 0 ? adminEvidence : undefined,
@@ -858,7 +922,7 @@ export async function runAudit(
           `The ${tavAbsDiff.toFixed(2)}% difference indicates the tenant appears to be ${direction}.`;
 
         if (estimatedOverallocation > 0) {
-          desc += ` Estimated recoverable overcharge: $${estimatedOverallocation.toLocaleString()}.`;
+          desc += ` Potential difference to review: $${estimatedOverallocation.toLocaleString()}.`;
         }
 
         desc += statedVsCalcNote;
@@ -999,6 +1063,7 @@ export async function runAudit(
     const adminFeeCap = adminFeeCapRaw ? parseFloat(adminFeeCapRaw) : null;
 
     if (
+      !adminFeeCheckedByStatedPercent &&
       adminFeeCap != null &&
       !isNaN(adminFeeCap) &&
       reconTotal != null &&
@@ -1695,14 +1760,14 @@ export async function runAudit(
   const verifiedFree = freeFindings.filter((f) => {
     if (f.description.length === 0) return false;
     // If we have real findings, drop insufficient-data findings that add no value
-    if (suppressInsufficient && f.insufficientData && f.potential_savings === 0) {
+    if (suppressInsufficient && f.insufficientData && f.potential_savings === 0 && !f.category.startsWith("CAM Cap Review")) {
       return false;
     }
     return true;
   });
   const verifiedPaid = paidFindings.filter((f) => {
     if (f.description.length === 0) return false;
-    if (suppressInsufficient && f.insufficientData && f.potential_savings === 0) {
+    if (suppressInsufficient && f.insufficientData && f.potential_savings === 0 && !f.category.startsWith("CAM Cap Review")) {
       return false;
     }
     return true;
@@ -1756,7 +1821,7 @@ export async function runAudit(
   const findingSavings = [...verifiedFree, ...verifiedPaid]
     .filter((f) => !f.insufficientData)
     .reduce((sum, f) => sum + f.potential_savings, 0);
-  const savings = findingSavings + Math.round(estimatedOvercharge);
+  const savings = totalSavings([...verifiedFree, ...verifiedPaid], estimatedOvercharge);
 
   // Build validation warning — clear, non-alarming messages
   let validationWarning: string | null = null;

@@ -1,4 +1,5 @@
 export const metadata = {
+  alternates: { canonical: "/privacy" },
   title: "Privacy Policy — LeaseGuard",
   description:
     "Privacy Policy for LeaseGuard. Learn how we handle your uploaded documents and personal data.",

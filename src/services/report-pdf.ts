@@ -172,9 +172,9 @@ export async function generateReportPdf(
       borderWidth: 1,
     });
     const labelY = ctx.y - 28;
-    drawCenteredText(ctx.page, "ESTIMATED RECOVERABLE OVERCHARGES", fontBold, 8, RED, labelY);
+    drawCenteredText(ctx.page, "POTENTIAL BILLING DISCREPANCIES", fontBold, 8, RED, labelY);
     const amountY = labelY - 38;
-    drawCenteredText(ctx.page, `$${overcharge.toLocaleString()}`, fontBold, 36, RED, amountY);
+    drawCenteredText(ctx.page, `$${effectiveSavings.toLocaleString()}`, fontBold, 36, RED, amountY);
   } else if (effectiveSavings > 0) {
     ctx.page.drawRectangle({
       x: boxX,
@@ -186,7 +186,7 @@ export async function generateReportPdf(
       borderWidth: 1,
     });
     const labelY = ctx.y - 28;
-    drawCenteredText(ctx.page, "ESTIMATED RECOVERABLE OVERCHARGES", fontBold, 9, GREEN, labelY);
+    drawCenteredText(ctx.page, "POTENTIAL BILLING DISCREPANCIES", fontBold, 9, GREEN, labelY);
     const amountY = labelY - 38;
     drawCenteredText(ctx.page, `$${effectiveSavings.toLocaleString()}`, fontBold, 36, GREEN, amountY);
   } else if (totalFindingsCount > 0) {
@@ -227,10 +227,10 @@ export async function generateReportPdf(
       borderWidth: 1,
     });
     const labelY = ctx.y - 28;
-    drawCenteredText(ctx.page, "NO CLEAR OVERCHARGES DETECTED", fontBold, 9, GRAY, labelY);
+    drawCenteredText(ctx.page, "NO CLEAR DISCREPANCIES DETECTED", fontBold, 9, GRAY, labelY);
     const textY = labelY - 26;
     const noOverchargeLines = wrapText(
-      "The uploaded documents did not show a clear recoverable billing discrepancy based on current audit checks.",
+      "The uploaded documents did not show a clear billing discrepancy based on current audit checks.",
       font,
       9,
       boxW - 24,
@@ -272,9 +272,9 @@ export async function generateReportPdf(
       }
       const catName = row.category.replace(/\b\w/g, (c) => c.toUpperCase());
       ctx.page.drawText(catName, { x: col0Left, y: ctx.y, size: 9, font, color: DARK });
-      drawRightAlignedText(ctx.page, `$${row.total_expense.toLocaleString()}`, font, 9, DARK, col1Right, ctx.y);
+      drawRightAlignedText(ctx.page, `$${row.total_expense.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, font, 9, DARK, col1Right, ctx.y);
       drawRightAlignedText(ctx.page, `${row.tenant_share_percent}%`, font, 9, DARK, col2Right, ctx.y);
-      drawRightAlignedText(ctx.page, `$${row.tenant_charge.toLocaleString()}`, fontBold, 9, RED, col3Right, ctx.y);
+      drawRightAlignedText(ctx.page, `$${row.tenant_charge.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, fontBold, 9, RED, col3Right, ctx.y);
       const reasonMaxW = MARGIN + CONTENT_WIDTH - col4Left;
       const reasonLines = wrapText(row.reason, font, 8, reasonMaxW);
       if (reasonLines.length > 0) {
@@ -608,7 +608,7 @@ export async function generateReportPdf(
       .filter((f) => !f.insufficientData)
       .reduce((sum, f) => sum + f.potential_savings, 0);
     const premiumSummary = premiumSavings > 0
-      ? `${count} additional premium finding${count !== 1 ? "s" : ""} identified with up to $${premiumSavings.toLocaleString()} in additional potential savings.`
+      ? `${count} additional premium finding${count !== 1 ? "s" : ""} identified with up to $${premiumSavings.toLocaleString()} in additional potential billing discrepancies.`
       : `${count} additional premium finding${count !== 1 ? "s" : ""} identified. Full report includes source-level evidence and discrepancy analysis.`;
     ctx.y = drawText(
       ctx.page,
@@ -811,7 +811,7 @@ function drawFinding(ctx: PageCtx, finding: Finding, leaseClausesSummary?: Lease
   // Savings / action line
   if (finding.potential_savings > 0) {
     ctx.page.drawText(
-      `Potential savings: $${finding.potential_savings.toLocaleString()}`,
+      `Potential discrepancy: $${finding.potential_savings.toLocaleString()}`,
       { x: MARGIN, y: ctx.y, size: 11, font: fontBold, color: GREEN },
     );
     ctx.y -= 16; // was 20

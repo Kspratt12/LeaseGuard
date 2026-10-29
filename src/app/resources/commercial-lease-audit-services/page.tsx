@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/commercial-lease-audit-services" },
   title: "Commercial Lease Audit Services | LeaseGuard",
   description:
     "Learn what commercial lease audit services do, why tenants need them, and how automated CAM audits identify billing discrepancies in minutes.",
@@ -61,11 +62,7 @@ export default function CommercialLeaseAuditServices() {
 
       <h2>Why Tenants Perform Audits</h2>
       <p>
-        Most commercial tenants never review their CAM charges in detail. This
-        is understandable — reconciliation statements are complex, and tenants
-        are focused on running their businesses. However, studies consistently
-        show that a significant percentage of reconciliation statements contain
-        errors that favor the landlord.
+        Reconciliation statements are complex, and tenants are busy running their businesses, so CAM charges are not always reviewed in detail. Statements can contain errors, and an error can go in either direction. Reviewing the figures is the only way to find out.
       </p>
       <p>Common reasons tenants initiate an audit include:</p>
       <ul>

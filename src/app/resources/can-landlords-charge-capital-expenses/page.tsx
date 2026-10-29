@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/can-landlords-charge-capital-expenses" },
   title: "Can Landlords Charge Capital Expenses to Tenants? | LeaseGuard",
   description:
     "Understand when landlords can and cannot pass capital expenditures to commercial tenants. Learn the difference between repairs and capital improvements and how amortization works.",

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/cam-reconciliation-audit" },
   title: "CAM Reconciliation Audit | Identify Overcharges",
   description:
     "Analyze CAM reconciliation statements and detect potential lease overcharges using LeaseGuard.",

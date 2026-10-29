@@ -1,8 +1,57 @@
 @import "tailwindcss";
 
+/* "Ledger" design tokens: paper, ink, and two meaning-carrying accents.
+   emerald = arithmetic we verified; amber = an item for the customer to review. */
+@theme {
+  --color-paper: #faf7f2;
+  --color-paper-deep: #f2ede3;
+  --color-ink: #0b1b33;
+  --color-ink-soft: #1a2c4d;
+  --color-ink-muted: #51607a;
+  --color-line: #e4dccd;
+  --color-verified: #0f7b5f;
+  --color-verified-soft: #e3f3ed;
+  --color-review: #9a4507;
+  --color-review-soft: #fdf1dc;
+  /* neutral ramp: paper > line > ink (replaces the cool grays) */
+  --color-gray-50: #faf7f2;
+  --color-gray-100: #f3eee5;
+  --color-gray-200: #e4dccd;
+  --color-gray-300: #d3c9b6;
+  --color-gray-400: #667189;
+  --color-gray-500: #566179;
+  --color-gray-600: #51607a;
+  --color-gray-700: #3b4a66;
+  --color-gray-800: #1a2c4d;
+  --color-gray-900: #0b1b33;
+  --color-gray-950: #070f1f;
+  /* the old bright blue becomes deep ink: buttons, links and accents all read as one brand colour */
+  --color-blue-50: #eef2f8;
+  --color-blue-100: #dfe7f2;
+  --color-blue-200: #c3d1e6;
+  --color-blue-300: #94acd0;
+  --color-blue-400: #5f80b3;
+  --color-blue-500: #1a2c4d;
+  --color-blue-600: #0b1b33;
+  --color-blue-700: #14284a;
+  --color-blue-800: #0b1b33;
+  --color-blue-900: #070f1f;
+  --color-blue-950: #050b16;
+  /* green is reserved for "verified / unlocked" */
+  --color-green-50: #eef8f4;
+  --color-green-100: #e3f3ed;
+  --color-green-200: #bfe3d5;
+  --color-green-500: #1c946f;
+  --color-green-600: #0f7b5f;
+  --color-green-700: #0c6a52;
+  --color-green-800: #0a5642;
+  --font-serif: var(--font-serif-face), Georgia, "Times New Roman", serif;
+  --font-figures: var(--font-figures-face), ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
+  --background: #faf7f2;
+  --foreground: #0b1b33;
   --muted: #f5f5f5;
   --muted-foreground: #737373;
   --border: #e5e5e5;
@@ -67,4 +116,45 @@ body {
 
 .animate-delay-400 {
   animation-delay: 0.4s;
+}
+
+/* Hero demo: a gentle reveal. Disabled for people who prefer reduced motion. */
+@keyframes ledgerReveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ledger-reveal { animation: ledgerReveal 0.55s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .ledger-reveal { animation: none; }
+  html { scroll-behavior: auto; }
+}
+
+/* Shared typography: sans-serif headings. Serif (font-serif) is kept for document text: lease quotes and the dispute letter. */
+h1, h2 {
+  letter-spacing: -0.015em;
+}
+
+/* One focus style for every interactive element that does not define its own. */
+:focus-visible {
+  outline: 2px solid #0b1b33;
+  outline-offset: 2px;
+}
+
+/* Links inside long-form guides are underlined so they read as links on the ink palette. */
+.guide-prose a:not([class*="bg-"]) {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+/* List markers in guides (the reset removes them). */
+.guide-prose ul { list-style: disc; padding-left: 1.4rem; }
+.guide-prose ol { list-style: decimal; padding-left: 1.4rem; }
+.guide-prose li::marker { color: #66718a; }
+
+/* Inline links in running text must be distinguishable without relying on colour alone. */
+p a[class*="text-blue-"], li a[class*="text-blue-"], dd a[class*="text-blue-"] {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }

@@ -1,49 +1,55 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  FileSearch,
-  BarChart3,
-  ShieldCheck,
-  Download,
-  FileText,
-  ChevronRight,
-  Upload,
-  Search,
-  ClipboardCheck,
-  AlertTriangle,
-  Percent,
-  Ban,
-  Check,
-  Star,
-  Clock,
-  Gift,
-  FileDown,
-} from "lucide-react";
-import { AnimateOnScroll } from "@/components/animate-on-scroll";
+import { ArrowRight, Calculator, ChevronRight, ClipboardCheck, FileSearch, Lock, ScrollText, Tag, Upload } from "lucide-react";
+import { HeroDemo } from "@/components/home/hero-demo";
+import { SampleReport } from "@/components/home/sample-report";
+import { Pricing } from "@/components/home/pricing";
+import { AppPreview } from "@/components/home/app-preview";
+import { buttonClass } from "@/components/ui";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
+
+// Matches the visible pricing section: one-time $49 (one year) and $149 (two to five years).
+const softwareAppJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "LeaseGuard",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  description:
+    "CAM audit tool for commercial tenants that compares a lease with a CAM reconciliation statement to identify potential billing discrepancies.",
+  offers: [
+    { "@type": "Offer", name: "One-year CAM audit report", price: "49", priceCurrency: "USD" },
+    { "@type": "Offer", name: "Two-to-five-year CAM audit report", price: "149", priceCurrency: "USD" },
+  ],
+};
 
 const faqItems = [
   {
     q: "What files do I upload?",
-    a: "Upload one PDF of your commercial lease (specifically the CAM or operating expense section) and one or more annual CAM reconciliation statement PDFs from your landlord.",
+    a: "Upload your commercial lease (the CAM or operating expense section is enough) and one or more annual CAM reconciliation statements from your landlord. PDFs and clear photos both work.",
   },
   {
     q: "Can I upload multiple CAM reconciliation PDFs?",
-    a: "Yes. Uploading multiple years of reconciliation statements enables year-over-year comparison, which can reveal escalation patterns, inconsistent charges, and additional discrepancies across billing periods.",
+    a: "Yes. Uploading two to five years of reconciliation statements enables year-over-year comparison, which can reveal escalation patterns, inconsistent charges, and additional discrepancies across billing periods.",
   },
   {
     q: "Is this legal advice?",
     a: "No. LeaseGuard provides AI-powered analysis for informational purposes only. It is not a substitute for legal, accounting, or professional advice. We recommend having a qualified professional review the findings before taking action.",
   },
   {
-    q: "What does the free audit include?",
-    a: "The free audit preview includes a basic findings summary, estimated potential savings, lease clause detection (CAM caps, admin fee limits, excluded expenses), and an overcharge breakdown table.",
+    q: "What does the free preview include?",
+    a: "The free preview includes a total of potential billing discrepancies, the lease clauses detected (CAM caps, admin fee limits, excluded expenses), a breakdown table, and the first findings. A free account is required so your documents stay private.",
   },
   {
-    q: "What does the $49 report include?",
-    a: "The full evidence report is a one-time purchase that adds premium discrepancy findings, source-level evidence references with page numbers, and a downloadable multi-page PDF report with complete analysis.",
+    q: "What does the full report include, and what does it cost?",
+    a: "The full report is a one-time purchase: $49 for a one-year audit, or $149 for an audit covering two to five years of statements. It adds the remaining findings, source references with page numbers, a downloadable multi-page PDF report, and an editable dispute-letter draft built from your findings.",
   },
   {
     q: "How accurate are the results?",
-    a: "Accuracy depends on the clarity and structure of your uploaded documents. LeaseGuard uses text extraction and AI analysis to identify discrepancies, and each finding includes a confidence indicator. Results should always be reviewed by a qualified professional.",
+    a: "Accuracy depends on the clarity and structure of your uploaded documents. LeaseGuard uses text extraction and AI analysis to identify discrepancies, and each audit shows an overall confidence level. Findings are items to review, not confirmed overcharges, and should be reviewed by a qualified professional.",
   },
   {
     q: "What are CAM charges in commercial leases?",
@@ -63,7 +69,7 @@ const faqItems = [
   },
   {
     q: "How long does a CAM audit take with LeaseGuard?",
-    a: "LeaseGuard analyzes lease clauses and CAM reconciliation statements automatically and generates a report highlighting potential issues in about 60 seconds.",
+    a: "LeaseGuard analyzes lease clauses and CAM reconciliation statements automatically and generates a report highlighting potential issues in about a minute.",
   },
 ];
 
@@ -73,581 +79,225 @@ const faqJsonLd = {
   mainEntity: faqItems.map(({ q, a }) => ({
     "@type": "Question",
     name: q,
-    acceptedAnswer: {
-      "@type": "Answer",
-      text: a,
-    },
+    acceptedAnswer: { "@type": "Answer", text: a },
   })),
 };
 
+const STEPS = [
+  { icon: Upload, title: "Upload your lease and CAM statement", text: "Add your lease (the CAM or operating-expense section is enough) and one to five years of reconciliation statements. PDFs or phone photos." },
+  { icon: FileSearch, title: "Compare charges with lease requirements", text: "Fees, shares, caps and exclusions on the statement are checked against the terms found in your lease." },
+  { icon: ClipboardCheck, title: "Review discrepancies, evidence and your report", text: "See the free preview first. Unlock the full report for every finding with its source, a PDF, and an editable dispute letter." },
+];
+
+const CALCULATED = [
+  { title: "Management and admin fees", text: "The fee percentage and dollar amount on the statement against the cap in the lease." },
+  { title: "Tenant share", text: "The share on the statement against the square footage and share in the lease." },
+  { title: "Expense totals", text: "Whether the statement's own totals and reconciliation add up." },
+  { title: "Annual increase cap and year-over-year change", text: "This year against prior years, when you upload more than one statement." },
+];
+
+const JUDGMENT = [
+  { title: "Excluded and capital expenses", text: "Statement lines that may fall under a category your lease excludes. Whether they do depends on the lease wording." },
+  { title: "Gross-up and occupancy adjustments", text: "Signs a variable expense may not have been adjusted as the lease requires." },
+  { title: "Tenant allocation", text: "Whether your share of a category looks consistent with the lease." },
+  { title: "Lease-specific terms", text: "Anything else the lease says that needs a person to interpret it." },
+];
+
+const TRUST = [
+  { icon: Lock, title: "Private to your account", text: "Your documents and results are visible only to you." },
+  { icon: ScrollText, title: "Every finding shows its source", text: "The lease and statement text, and the page, behind each item." },
+  { icon: Tag, title: "One-time pricing", text: "$49 for one year or $149 for two to five years. No subscription." },
+];
+
 export default function Home() {
   return (
-    <main>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
-      {/* ── Hero (dark gradient) ── */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-gray-950 via-blue-950 to-gray-900">
-        {/* Subtle radial glow */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(59,130,246,0.12)_0%,_transparent_70%)]" />
+    <main className="bg-paper text-ink">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }} />
 
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 py-24 sm:py-32 text-center relative z-10">
-          <p className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-1.5 text-sm font-medium text-blue-300 mb-8">
-            AI-powered CAM audit &middot; Results in 60 seconds
-          </p>
-          <h1 className="animate-fade-in-up animate-delay-100 text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.1]">
-            Stop Overpaying
-            <br />
-            <span className="text-blue-400">Your Landlord.</span>
-          </h1>
-          <p className="animate-fade-in-up animate-delay-200 mx-auto mt-6 max-w-2xl text-lg sm:text-xl text-gray-400 leading-relaxed">
-            Upload your commercial lease and CAM reconciliation statements.
-            LeaseGuard compares them line-by-line and flags potential overcharges
-            in about 60 seconds.
-          </p>
-          <p className="animate-fade-in-up animate-delay-200 mt-4 text-sm text-blue-300/70 font-medium">
-            Lease clause analysis and CAM reconciliation review — built for
-            commercial tenants.
-          </p>
-          <div className="animate-fade-in-up animate-delay-300 mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/upload"
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-lg font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-500 hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all duration-200"
-            >
-              Run 60-Second Audit
-              <ChevronRight className="h-5 w-5" />
-            </Link>
-            <a
-              href="#report-preview"
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-600 bg-white/5 px-7 py-3.5 text-lg font-semibold text-gray-200 hover:bg-white/10 hover:border-gray-500 transition-all duration-200"
-            >
-              See Sample Report
-            </a>
-          </div>
-        </div>
-
-        {/* Stats bar */}
-        <div className="animate-fade-in-up animate-delay-400 relative z-10 border-t border-white/10">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
-            <div className="grid grid-cols-3 gap-6 sm:gap-8 text-center">
-              <div className="flex flex-col items-center gap-2">
-                <div className="rounded-full bg-blue-500/10 p-2.5 mb-1">
-                  <Clock className="h-5 w-5 text-blue-400" />
-                </div>
-                <p className="text-3xl sm:text-4xl font-bold text-white">
-                  60s
-                </p>
-                <p className="text-sm text-gray-400">Typical audit time</p>
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <div className="rounded-full bg-blue-500/10 p-2.5 mb-1">
-                  <Gift className="h-5 w-5 text-blue-400" />
-                </div>
-                <p className="text-3xl sm:text-4xl font-bold text-white">$0</p>
-                <p className="text-sm text-gray-400">
-                  Free preview, no upfront cost
-                </p>
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <div className="rounded-full bg-blue-500/10 p-2.5 mb-1">
-                  <FileDown className="h-5 w-5 text-blue-400" />
-                </div>
-                <p className="text-3xl sm:text-4xl font-bold text-white">
-                  PDF
-                </p>
-                <p className="text-sm text-gray-400">
-                  Downloadable audit report
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Audit Preview ── */}
-      <section className="py-20 sm:py-28 bg-white">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <AnimateOnScroll>
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-600 text-center mb-3">
-              Sample Findings
+      {/* ── Hero ── */}
+      <section className="border-b border-line">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 pb-10 pt-6 sm:px-6 sm:pt-14 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:gap-12 lg:pb-16 lg:pt-14">
+          <div>
+            <h1 className="text-[1.75rem] font-semibold leading-[1.12] tracking-tight text-ink sm:text-5xl">Check your CAM charges against your lease.</h1>
+            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-ink-muted sm:mt-4 sm:text-lg">
+              Upload your commercial lease and operating expense statement. LeaseGuard compares the charges against your lease terms, calculates
+              potential discrepancies, and organizes the supporting evidence for your review.
             </p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-4">
-              See What LeaseGuard Finds in Your Lease
-            </h2>
-            <p className="text-center text-gray-500 mb-16 max-w-2xl mx-auto">
-              LeaseGuard analyzes commercial lease clauses and CAM reconciliation
-              statements to identify potential billing discrepancies, caps, and
-              overcharges.
-            </p>
-          </AnimateOnScroll>
-
-          <div className="grid sm:grid-cols-2 gap-6 mb-16">
-            {[
-              {
-                icon: ShieldCheck,
-                title: "CAM Cap Clause Detected",
-                desc: "Lease includes CAM expense limitations.",
-                status: "Detected",
-                statusType: "detected" as const,
-              },
-              {
-                icon: AlertTriangle,
-                title: "Potential Overcharge",
-                desc: "CAM reconciliation shows management fees exceeding lease terms.",
-                status: "Review Recommended",
-                statusType: "review" as const,
-              },
-              {
-                icon: Percent,
-                title: "Pro Rata Share Review",
-                desc: "Tenant share percentage appears higher than expected.",
-                status: "Review Recommended",
-                statusType: "review" as const,
-              },
-              {
-                icon: Ban,
-                title: "Excluded Expenses Flagged",
-                desc: "Certain capital expenses may not be permitted under lease terms.",
-                status: "Review Recommended",
-                statusType: "review" as const,
-              },
-            ].map(({ icon: Icon, title, desc, status, statusType }) => (
-              <AnimateOnScroll key={title}>
-                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-200 h-full">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 shrink-0">
-                      <Icon className="h-5 w-5 text-blue-700" />
-                    </div>
-                    <span
-                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full ${
-                        statusType === "detected"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-amber-100 text-amber-700"
-                      }`}
-                    >
-                      {statusType === "detected" ? (
-                        <Check className="h-3.5 w-3.5" />
-                      ) : (
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                      )}
-                      {status}
-                    </span>
-                  </div>
-                  <h3 className="text-base font-semibold text-gray-900 mb-2">
-                    {title}
-                  </h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">
-                    {desc}
-                  </p>
-                </div>
-              </AnimateOnScroll>
-            ))}
-          </div>
-
-          <AnimateOnScroll>
-            <div className="text-center">
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">
-                Run Your LeaseGuard CAM Audit
-              </h3>
-              <Link
-                href="/upload"
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-lg font-semibold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-500 hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all duration-200"
-              >
-                Run 60-Second Audit
-                <ChevronRight className="h-5 w-5" />
+            <div className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row">
+              <Link href="/upload" className={buttonClass("primary", "!min-h-12 !px-6 !text-base")}>
+                Start Free Preview <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
+              <Link href="/sample-cam-audit-report" className={buttonClass("secondary", "!min-h-12 !px-6 !text-base")}>
+                View Sample Audit Report
               </Link>
             </div>
-          </AnimateOnScroll>
+            <ul className="mt-5 hidden flex-wrap gap-x-5 gap-y-1 text-[13px] sm:flex text-ink-muted sm:text-sm">
+              <li>Free preview, no payment details</li>
+              <li>One-time $49 or $149</li>
+              <li>Private to your account</li>
+            </ul>
+          </div>
+          <HeroDemo />
         </div>
       </section>
 
-      {/* ── Trust Bar ── */}
-      <AnimateOnScroll>
-        <section className="border-b border-gray-100 bg-white py-10">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 text-center mb-6">
-              Built for commercial tenants
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-              {[
-                { icon: FileSearch, text: "Clause-aware CAM audit" },
-                {
-                  icon: BarChart3,
-                  text: "Multi-year reconciliation comparison",
-                },
-                { icon: ShieldCheck, text: "Source-backed findings" },
-                { icon: Download, text: "Downloadable PDF reports" },
-              ].map(({ icon: Icon, text }) => (
-                <div key={text} className="flex flex-col items-center gap-3">
-                  <div className="rounded-xl bg-blue-50 p-3">
-                    <Icon className="h-5 w-5 text-blue-700" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-600">{text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      </AnimateOnScroll>
-
-      {/* ── How It Works ── */}
-      <section id="how-it-works" className="py-20 sm:py-28 bg-white">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <AnimateOnScroll>
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-600 text-center mb-3">
-              Simple by Design
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-4">
-              How Your Commercial Lease Audit Works
-            </h2>
-            <p className="text-center text-gray-500 mb-16 max-w-xl mx-auto">
-              Three steps to uncover potential CAM overcharges and billing
-              discrepancies in your lease.
-            </p>
-          </AnimateOnScroll>
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                step: "01",
-                icon: Upload,
-                title: "Upload Your Documents",
-                desc: "Upload your commercial lease PDF and one or more annual CAM reconciliation statements. Multiple years enable year-over-year comparison.",
-              },
-              {
-                step: "02",
-                icon: Search,
-                title: "AI-Powered Analysis",
-                desc: "LeaseGuard extracts lease clauses — CAM caps, admin fee limits, excluded expenses — and compares them against your billed charges line by line.",
-              },
-              {
-                step: "03",
-                icon: ClipboardCheck,
-                title: "Review Your Results",
-                desc: "Review estimated overcharges, clause-level findings, and download a detailed audit report with source evidence references.",
-              },
-            ].map(({ step, icon: Icon, title, desc }) => (
-              <AnimateOnScroll key={step}>
-                <div className="relative text-center">
-                  <div className="mx-auto mb-6 flex h-10 w-10 items-center justify-center rounded-full bg-gray-900 text-white text-sm font-bold">
-                    {step}
-                  </div>
-                  <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-200">
-                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
-                      <Icon className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      {title}
-                    </h3>
-                    <p className="text-sm text-gray-500 leading-relaxed">
-                      {desc}
-                    </p>
-                  </div>
-                </div>
-              </AnimateOnScroll>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Features ── */}
-      <section id="features" className="py-20 sm:py-28 bg-gray-50">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <AnimateOnScroll>
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-600 text-center mb-3">
-              Capabilities
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-4">
-              Purpose-Built Commercial Lease Audit Checks
-            </h2>
-            <p className="text-center text-gray-500 mb-16 max-w-xl mx-auto">
-              Every audit runs targeted checks against your lease clauses and
-              reconciliation charges.
-            </p>
-          </AnimateOnScroll>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                icon: FileText,
-                title: "Lease Clause Detection",
-                desc: "Automatically extracts CAM caps, admin fee caps, excluded expense categories, and other key provisions from your lease.",
-              },
-              {
-                icon: Percent,
-                title: "CAM Cap Analysis",
-                desc: "Detects when billed CAM charges exceed the cap or escalation limits defined in your commercial lease agreement.",
-              },
-              {
-                icon: Ban,
-                title: "Excluded Expense Detection",
-                desc: "Identifies when expense categories your lease explicitly excludes from CAM are being billed to you anyway.",
-              },
-              {
-                icon: AlertTriangle,
-                title: "Administrative Fee Cap Review",
-                desc: "Flags administrative or management fees that exceed the percentage cap specified in your lease terms.",
-              },
-              {
-                icon: Star,
-                title: "Premium Evidence Findings",
-                desc: "Deep-dive findings with source-level evidence references, page numbers, and detailed discrepancy analysis.",
-              },
-              {
-                icon: Download,
-                title: "Downloadable PDF Reports",
-                desc: "Professional multi-page audit reports with overcharge breakdowns, clause summaries, and source evidence.",
-              },
-            ].map(({ icon: Icon, title, desc }) => (
-              <AnimateOnScroll key={title}>
-                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-200 h-full">
-                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
-                    <Icon className="h-5 w-5 text-blue-700" />
-                  </div>
-                  <h3 className="text-base font-semibold text-gray-900 mb-2">
-                    {title}
-                  </h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">
-                    {desc}
-                  </p>
-                </div>
-              </AnimateOnScroll>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Report Preview ── */}
-      <section id="report-preview" className="py-20 sm:py-28 bg-white">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6">
-          <AnimateOnScroll>
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-600 text-center mb-3">
-              Sample Output
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-4">
-              What Your Audit Report Reveals
-            </h2>
-            <p className="text-center text-gray-500 mb-16 max-w-xl mx-auto">
-              Example findings from a LeaseGuard CAM audit. Each finding
-              includes the discrepancy type, severity, and estimated savings.
-            </p>
-          </AnimateOnScroll>
-          <AnimateOnScroll>
-            <div className="rounded-2xl border border-gray-200 bg-gray-50/60 p-6 sm:p-8 shadow-sm space-y-4">
-              {[
-                {
-                  label: "CAM Cap Exceeded",
-                  detail:
-                    "Billed CAM charges exceed the annual cap defined in lease Section 4.2.",
-                  severity: "High",
-                  savings: "$4,800",
-                  color: "red" as const,
-                },
-                {
-                  label: "Administrative Fee Cap Exceeded",
-                  detail:
-                    "Management fee of 8% exceeds the 5% cap in lease Section 6.1.",
-                  severity: "High",
-                  savings: "$2,100",
-                  color: "red" as const,
-                },
-                {
-                  label: "Excluded Expense Category Billed",
-                  detail:
-                    "Capital improvements billed to tenant despite lease exclusion clause.",
-                  severity: "Medium",
-                  savings: "$1,300",
-                  color: "amber" as const,
-                },
-              ].map((finding) => (
-                <div
-                  key={finding.label}
-                  className="rounded-xl border border-gray-200 bg-white p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:shadow-sm transition-shadow"
-                >
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-semibold text-gray-900">
-                        {finding.label}
-                      </h4>
-                      <span
-                        className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                          finding.color === "red"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}
-                      >
-                        {finding.severity}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500">{finding.detail}</p>
-                  </div>
-                  <p className="text-xl font-bold text-green-700 whitespace-nowrap">
-                    {finding.savings}
-                  </p>
-                </div>
-              ))}
-              <div className="text-center pt-4 pb-2">
-                <p className="text-2xl font-bold text-green-700">
-                  Total estimated savings: $8,200
-                </p>
-                <p className="text-sm text-gray-400 mt-2">
-                  Based on sample lease and reconciliation data.
-                </p>
+      {/* ── What you can rely on (facts about the product only) ── */}
+      <section className="border-b border-line bg-white">
+        <ul className="mx-auto grid max-w-6xl gap-5 px-4 py-6 sm:px-6 md:grid-cols-3">
+          {TRUST.map(({ icon: Icon, title, text }) => (
+            <li key={title} className="flex gap-3">
+              <Icon className="mt-0.5 h-5 w-5 shrink-0 text-ink-soft" aria-hidden />
+              <div>
+                <p className="text-sm font-semibold text-ink">{title}</p>
+                <p className="mt-0.5 text-sm text-ink-muted">{text}</p>
               </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* ── How it works ── */}
+      <section id="how-it-works" className="py-14 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <h2 className="max-w-2xl text-2xl font-semibold leading-tight tracking-tight sm:text-4xl">How an audit works</h2>
+          <ol className="mt-8 grid gap-4 md:grid-cols-3">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="rounded-xl border border-line bg-white p-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-paper-deep text-ink"><s.icon className="h-5 w-5" aria-hidden /></span>
+                  <span className="font-figures text-xs font-medium text-ink-muted">Step {i + 1}</span>
+                </div>
+                <h3 className="mt-3 text-base font-semibold text-ink">{s.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{s.text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* ── What LeaseGuard checks ── */}
+      <section id="features" className="border-y border-line bg-white py-14 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <h2 className="max-w-2xl text-2xl font-semibold leading-tight tracking-tight sm:text-4xl">What LeaseGuard checks</h2>
+          <p className="mt-3 max-w-2xl text-base text-ink-muted">
+            Some results are arithmetic from your documents. Others depend on how your lease is worded, so we say which is which. An audit may
+            find nothing to review, and results are never legal advice.
+          </p>
+          <div className="mt-8 grid gap-5 md:grid-cols-2">
+            <div className="rounded-xl border border-line p-5">
+              <p className="inline-block rounded-full bg-verified-soft px-2.5 py-0.5 text-xs font-semibold text-verified">Calculated from your documents</p>
+              <ul className="mt-4 space-y-4">
+                {CALCULATED.map((c) => (
+                  <li key={c.title}>
+                    <p className="text-sm font-semibold text-ink">{c.title}</p>
+                    <p className="mt-0.5 text-sm text-ink-muted">{c.text}</p>
+                  </li>
+                ))}
+              </ul>
             </div>
-          </AnimateOnScroll>
+            <div className="rounded-xl border border-line p-5">
+              <p className="inline-block rounded-full bg-review-soft px-2.5 py-0.5 text-xs font-semibold text-review">Flagged for your judgment</p>
+              <ul className="mt-4 space-y-4">
+                {JUDGMENT.map((c) => (
+                  <li key={c.title}>
+                    <p className="text-sm font-semibold text-ink">{c.title}</p>
+                    <p className="mt-0.5 text-sm text-ink-muted">{c.text}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Sample report ── */}
+      <section id="sample-report" className="py-14 sm:py-20">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <h2 className="text-2xl font-semibold leading-tight tracking-tight sm:text-4xl">See an audit report before you upload anything</h2>
+          <p className="mt-3 max-w-2xl text-base text-ink-muted">
+            Open the findings table, the evidence behind it, the calculations and a sample dispute letter. It is an invented example that shows
+            the format.
+          </p>
+          <div className="mt-8">
+            <SampleReport />
+          </div>
+          <p className="mt-4 text-sm text-ink-muted">
+            Prefer the full page?{" "}
+            <Link href="/sample-cam-audit-report" className="inline-flex min-h-11 items-center font-medium text-ink underline underline-offset-4">
+              Open the sample report
+            </Link>
+            .
+          </p>
+        </div>
+      </section>
+
+      {/* ── The application ── */}
+      <section className="border-y border-line bg-white py-14 sm:py-20">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-12">
+          <div>
+            <h2 className="text-2xl font-semibold leading-tight tracking-tight sm:text-4xl">Every audit in one place</h2>
+            <p className="mt-3 text-base text-ink-muted">
+              Your account keeps each audit with its documents, its progress, the findings to review, and clear next steps. Documents and results
+              are visible only to you.
+            </p>
+          </div>
+          <AppPreview />
         </div>
       </section>
 
       {/* ── Pricing ── */}
-      <section id="pricing" className="py-20 sm:py-28 bg-gray-50">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6">
-          <AnimateOnScroll>
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-600 text-center mb-3">
-              Simple Pricing
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-4">
-              Pay Once, Not Monthly
-            </h2>
-            <p className="text-center text-gray-500 mb-4 max-w-lg mx-auto">
-              Start with a free audit preview. Only pay if you want the full
-              evidence report. No subscriptions, no hidden fees.
-            </p>
-            <p className="text-center text-sm text-gray-400 mb-16">
-              One-time purchase per audit &mdash; $49 for the complete report.
-            </p>
-          </AnimateOnScroll>
-          <div className="grid sm:grid-cols-2 gap-8 max-w-3xl mx-auto items-start">
-            {/* Free tier */}
-            <AnimateOnScroll>
-              <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm hover:shadow-md transition-shadow duration-200 h-full">
-                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
-                  Free Preview
-                </p>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">
-                  Audit Preview
-                </h3>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-4xl font-bold text-gray-900">$0</span>
-                  <span className="text-sm text-gray-400 ml-1">
-                    no credit card required
-                  </span>
-                </div>
-                <ul className="space-y-3.5 text-sm text-gray-600 mb-8">
-                  {[
-                    "Basic findings summary",
-                    "Estimated potential savings",
-                    "Lease clause detection",
-                    "Overcharge breakdown table",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-2.5">
-                      <Check className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href="/upload"
-                  className="block w-full rounded-xl border border-gray-300 py-3 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all"
-                >
-                  Start Free Audit
-                </Link>
-              </div>
-            </AnimateOnScroll>
+      <Pricing />
 
-            {/* Paid tier */}
-            <AnimateOnScroll>
-              <div className="relative rounded-2xl border-2 border-blue-600 bg-white p-8 shadow-lg hover:shadow-xl transition-shadow duration-200 h-full">
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-4 py-1 text-xs font-semibold text-white shadow-sm">
-                  Recommended
-                </div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-blue-600 mb-3">
-                  Full Report
-                </p>
-                <h3 className="text-xl font-bold text-gray-900 mb-1">
-                  Full Evidence Report
-                </h3>
-                <div className="flex items-baseline gap-1.5 mb-1">
-                  <span className="text-4xl font-bold text-gray-900">$49</span>
-                  <span className="text-sm text-gray-400 ml-1">one-time</span>
-                </div>
-                <p className="text-sm text-gray-500 mb-6">
-                  Per audit, no recurring charges
-                </p>
-                <ul className="space-y-3.5 text-sm text-gray-600 mb-8">
-                  {[
-                    "Everything in the free preview",
-                    "Premium discrepancy findings",
-                    "Source evidence references",
-                    "Downloadable full PDF report",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-2.5">
-                      <Check className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href="/upload"
-                  className="block w-full rounded-xl bg-blue-600 py-3 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-500 hover:shadow-md transition-all"
-                >
-                  Run Audit & Unlock Report
-                </Link>
-              </div>
-            </AnimateOnScroll>
+      {/* ── Calculator ── */}
+      <section className="border-b border-line bg-paper py-10">
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex gap-4">
+            <Calculator className="mt-1 h-6 w-6 shrink-0 text-ink-soft" aria-hidden />
+            <div>
+              <h2 className="text-lg font-semibold text-ink">Only want to check the arithmetic?</h2>
+              <p className="mt-1 text-sm text-ink-muted">The free CAM calculator shows the formula and your balance. No upload, nothing stored.</p>
+            </div>
           </div>
+          <Link href="/cam-calculator" className={buttonClass("secondary", "shrink-0")}>
+            Open the calculator
+          </Link>
         </div>
       </section>
 
       {/* ── FAQ ── */}
-      <section id="faq" className="py-20 sm:py-28 bg-white">
+      <section id="faq" className="py-14 sm:py-20">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
-          <AnimateOnScroll>
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-600 text-center mb-3">
-              FAQ
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-16">
-              Frequently Asked Questions
-            </h2>
-          </AnimateOnScroll>
-          <div className="space-y-4">
+          <h2 className="text-2xl font-semibold leading-tight tracking-tight sm:text-4xl">Frequently asked questions</h2>
+          <div className="mt-8 divide-y divide-line rounded-2xl border border-line bg-white">
             {faqItems.map(({ q, a }) => (
-              <AnimateOnScroll key={q}>
-                <details className="group rounded-xl border border-gray-200 bg-white hover:shadow-sm transition-shadow">
-                  <summary className="flex cursor-pointer items-center justify-between gap-4 p-6 font-semibold text-gray-900 list-none [&::-webkit-details-marker]:hidden">
-                    {q}
-                    <ChevronRight className="h-5 w-5 text-gray-400 shrink-0 transition-transform duration-200 group-open:rotate-90" />
-                  </summary>
-                  <div className="px-6 pb-6 -mt-2">
-                    <p className="text-sm text-gray-500 leading-relaxed">{a}</p>
-                  </div>
-                </details>
-              </AnimateOnScroll>
+              <details key={q} className="group">
+                <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-base font-semibold text-ink [&::-webkit-details-marker]:hidden">
+                  {q}
+                  <ChevronRight className="h-5 w-5 shrink-0 text-ink-muted transition-transform group-open:rotate-90" aria-hidden />
+                </summary>
+                <p className="px-5 pb-5 text-sm leading-relaxed text-ink-muted">{a}</p>
+              </details>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Final CTA ── */}
-      <section className="py-20 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 text-center">
-          <AnimateOnScroll>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
-              Ready to audit your CAM charges?
-            </h2>
-            <p className="text-blue-100 mb-10 text-lg">
-              Upload your lease and reconciliation documents. Get results in
-              about 60 seconds.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                href="/upload"
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-lg font-semibold text-blue-600 shadow-lg hover:bg-blue-50 hover:-translate-y-0.5 transition-all duration-200"
-              >
-                Run 60-Second Audit
-                <ChevronRight className="h-5 w-5" />
-              </Link>
-            </div>
-          </AnimateOnScroll>
+      {/* ── Final call to action (dark) ── */}
+      <section className="bg-ink py-14 text-white sm:py-16">
+        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+          <h2 className="text-2xl font-semibold leading-tight tracking-tight sm:text-4xl">
+            Find out what your statement says about your lease.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base text-white/70">
+            The preview is free. If you want the full report, it is a one-time $49 for one year or $149 for two to five years.
+          </p>
+          <Link
+            href="/upload"
+            className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-paper px-8 text-base font-semibold text-ink transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            Start Free Preview <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
         </div>
       </section>
     </main>

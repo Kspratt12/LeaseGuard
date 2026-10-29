@@ -3,29 +3,47 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { useAuditDraft } from "@/components/audit-draft-context";
+import { supabase } from "@/lib/supabase";
+import { buttonClass } from "@/components/ui";
 
-const navLinks = [
-  { href: "/#features", label: "Features" },
-  { href: "/#pricing", label: "Pricing" },
-  { href: "/#how-it-works", label: "How It Works" },
-  { href: "/#faq", label: "FAQ" },
-];
+/** The same five destinations on every page. Anchor links scroll in place when already on the homepage. */
+const LINKS = [
+  { href: "/#how-it-works", label: "How It Works", match: null },
+  { href: "/sample-cam-audit-report", label: "Sample Report", match: "/sample-cam-audit-report" },
+  { href: "/#pricing", label: "Pricing", match: null },
+  { href: "/cam-calculator", label: "Calculator", match: "/cam-calculator" },
+  { href: "/resources", label: "Guides", match: "/resources" },
+] as const;
 
 export function Navbar() {
   const pathname = usePathname();
   const isLanding = pathname === "/";
   const [mobileOpen, setMobileOpen] = useState(false);
   const { clearDraft } = useAuditDraft();
+  // null until the session has been read, so the account link never flashes the wrong label.
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
-  /**
-   * Clear the upload draft when navigating away from the upload page.
-   * This ensures files don't persist when the user clicks Logo, CAM Audit,
-   * Resources, or any other non-upload link. Files only persist for
-   * the back-button flow (browser back doesn't trigger navbar clicks).
-   */
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => active && setSignedIn(!!data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setSignedIn(!!session));
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  // Close the mobile panel whenever the page changes.
+  useEffect(() => setMobileOpen(false), [pathname]);
+
+  const accountHref = signedIn === false ? "/login" : "/account";
+  const accountLabel = signedIn === null ? "Account" : signedIn ? "My Audits" : "Sign In";
+  const accountActive = pathname.startsWith("/account") || pathname.startsWith("/login");
+
+  /** Leaving the upload page by any nav link discards the in-memory draft (same behaviour as before). */
   const handleNavAway = useCallback(() => {
     clearDraft();
     setMobileOpen(false);
@@ -33,119 +51,94 @@ export function Navbar() {
 
   const handleAnchorClick = useCallback(
     (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-      // Clear draft when navigating away via anchor links
       clearDraft();
       if (isLanding && href.startsWith("/#")) {
         e.preventDefault();
-        const id = href.replace("/#", "");
-        const el = document.getElementById(id);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth" });
-        }
+        document.getElementById(href.replace("/#", ""))?.scrollIntoView({ behavior: "smooth" });
         setMobileOpen(false);
       }
     },
-    [isLanding, clearDraft]
+    [isLanding, clearDraft],
   );
 
+  const linkClass = (active: boolean) =>
+    `relative inline-flex min-h-11 items-center text-sm font-medium transition-colors ${
+      active ? "text-ink after:absolute after:inset-x-0 after:bottom-1.5 after:h-0.5 after:bg-ink" : "text-ink-muted hover:text-ink"
+    }`;
+
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-gray-200/60 bg-white/95 backdrop-blur-md">
-      <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between px-4 sm:px-6">
-        {/* Logo — clears draft when clicked */}
-        <Link href="/" onClick={handleNavAway} className="flex items-center gap-2.5 shrink-0">
+    <nav className="sticky top-0 z-50 w-full border-b border-line bg-paper/95 backdrop-blur-md" aria-label="Main">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <Link href="/" onClick={handleNavAway} className="flex shrink-0 items-center gap-2.5">
           <Image
             src="/leaseguard-logo.png"
             alt="LeaseGuard CAM audit software logo"
             width={180}
             height={44}
-            className="h-12 sm:h-14 w-auto"
+            className="h-10 w-auto sm:h-11"
             priority
           />
         </Link>
 
-        {/* Desktop nav links */}
-        <div className="hidden md:flex items-center gap-8">
-          {isLanding &&
-            navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={(e) => handleAnchorClick(e, link.href)}
-                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                {link.label}
+        {/* Desktop */}
+        <div className="hidden items-center gap-6 md:flex">
+          {LINKS.map((l) =>
+            l.match ? (
+              <Link key={l.href} href={l.href} onClick={handleNavAway} className={linkClass(pathname.startsWith(l.match))} aria-current={pathname.startsWith(l.match) ? "page" : undefined}>
+                {l.label}
+              </Link>
+            ) : (
+              <a key={l.href} href={l.href} onClick={(e) => handleAnchorClick(e, l.href)} className={linkClass(false)}>
+                {l.label}
               </a>
-            ))}
-          <Link
-            href="/cam-audit"
-            onClick={handleNavAway}
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            CAM Audit
+            ),
+          )}
+          <Link href={accountHref} onClick={handleNavAway} className={linkClass(accountActive)} aria-current={accountActive ? "page" : undefined}>
+            {accountLabel}
           </Link>
-          <Link
-            href="/resources"
-            onClick={handleNavAway}
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            Resources
-          </Link>
-          <Link
-            href="/upload"
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 hover:shadow-md transition-all"
-          >
-            Run Audit
+          <Link href="/upload" onClick={handleNavAway} className={buttonClass("primary", "!py-2")}>
+            Start Free Preview
           </Link>
         </div>
 
-        {/* Mobile hamburger */}
+        {/* Mobile toggle */}
         <button
-          className="md:hidden p-2 text-gray-600 hover:text-gray-900"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label="Toggle menu"
+          type="button"
+          className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted hover:text-ink md:hidden"
+          onClick={() => setMobileOpen((o) => !o)}
+          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-menu"
         >
-          {mobileOpen ? (
-            <X className="h-5 w-5" />
-          ) : (
-            <Menu className="h-5 w-5" />
-          )}
+          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile panel */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white px-4 pb-4 pt-2 space-y-1">
-          {isLanding &&
-            navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={(e) => handleAnchorClick(e, link.href)}
-                className="block rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              >
-                {link.label}
-              </a>
+        <div id="mobile-menu" className="border-t border-line bg-paper px-4 pb-5 pt-2 md:hidden">
+          <ul className="divide-y divide-line">
+            {LINKS.map((l) => (
+              <li key={l.href}>
+                {l.match ? (
+                  <Link href={l.href} onClick={handleNavAway} className="flex min-h-12 items-center text-base font-medium text-ink">
+                    {l.label}
+                  </Link>
+                ) : (
+                  <a href={l.href} onClick={(e) => handleAnchorClick(e, l.href)} className="flex min-h-12 items-center text-base font-medium text-ink">
+                    {l.label}
+                  </a>
+                )}
+              </li>
             ))}
-          <Link
-            href="/cam-audit"
-            onClick={handleNavAway}
-            className="block rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-          >
-            CAM Audit
-          </Link>
-          <Link
-            href="/resources"
-            onClick={handleNavAway}
-            className="block rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-          >
-            Resources
-          </Link>
-          <Link
-            href="/upload"
-            onClick={() => setMobileOpen(false)}
-            className="block rounded-lg bg-blue-600 px-3 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-500 mt-2"
-          >
-            Run Audit
+            <li>
+              <Link href={accountHref} onClick={handleNavAway} className="flex min-h-12 items-center text-base font-medium text-ink">
+                {accountLabel}
+              </Link>
+            </li>
+          </ul>
+          <Link href="/upload" onClick={handleNavAway} className={buttonClass("primary", "mt-4 w-full")}>
+            Start Free Preview
           </Link>
         </div>
       )}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/common-cam-overcharges" },
   title: "5 Common CAM Overcharges Tenants Miss | LeaseGuard",
   description:
     "Discover the most frequently overlooked CAM billing errors that cost commercial tenants thousands of dollars. Learn what to look for in your reconciliation statements.",

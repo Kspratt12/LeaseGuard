@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/how-to-audit-cam-charges" },
   title: "How to Audit Your CAM Charges: A Step-by-Step Guide | LeaseGuard",
   description:
     "Step-by-step guide for commercial tenants who want to audit their CAM charges. Learn what to look for, common red flags, and how to exercise your audit rights.",
@@ -29,10 +30,7 @@ export default function HowToAuditCamCharges() {
       <p>
         For commercial tenants — whether you operate a retail store, a medical
         office, a franchise location, or a professional services firm — CAM
-        charges represent a significant and often unpredictable expense. Studies
-        consistently show that a meaningful percentage of CAM reconciliation
-        statements contain errors, and those errors almost always result in
-        tenants paying more than they should.
+        charges represent a significant and often unpredictable expense. Statements can contain errors, and an error can go in either direction, so it is worth checking the figures instead of assuming they are right.
       </p>
       <p>
         Whether you&apos;re spending $5,000 or $50,000 per year on CAM, a

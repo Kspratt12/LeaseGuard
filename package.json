@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "npx tsx src/lib/__tests__/admin-access.test.ts && npx tsx src/lib/__tests__/sample-data.test.ts && npx tsx src/services/__tests__/extraction.test.ts && npx tsx src/services/__tests__/savings.test.ts && npx tsx src/lib/__tests__/audit-access.test.ts && npx tsx src/lib/__tests__/upload-validation.test.ts && npx tsx src/lib/__tests__/payments.test.ts && npx tsx src/services/__tests__/dispute-letter.test.ts && npx tsx src/lib/__tests__/cam-calculator.test.ts && npx tsx src/lib/__tests__/seo-integrity.test.ts && npx tsx src/lib/__tests__/format.test.ts && npx tsx src/lib/__tests__/recovery.test.ts"
   },
   "keywords": [],
   "author": "",
@@ -20,8 +21,9 @@
     "@types/react": "^19.2.14",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "docx": "^9.15.0",
     "lucide-react": "^0.577.0",
-    "next": "^16.1.6",
+    "next": "^16.4.3",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^4.9.155",

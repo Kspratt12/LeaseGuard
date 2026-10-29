@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/commercial-tenant-cam-audit-guide" },
   title: "Commercial Tenant CAM Audit Guide | How to Detect CAM Overcharges",
   description:
     "Learn how commercial tenants audit CAM charges, review reconciliation statements, and detect common lease overcharges.",
@@ -47,8 +48,7 @@ export default function CommercialTenantCamAuditGuide() {
           <p>
             For commercial tenants — retail operators, office tenants, medical
             practices, franchise owners, and small business operators — CAM
-            charges represent one of the largest variable costs in a lease. Yet
-            most tenants never verify whether those charges are accurate. A CAM
+            charges represent one of the largest variable costs in a lease. Yet tenants do not always verify whether those charges are accurate. A CAM
             audit is the process of reviewing your{" "}
             <Link
               href="/resources/cam-charges-explained"
@@ -113,10 +113,7 @@ export default function CommercialTenantCamAuditGuide() {
 
           <h2>Why Commercial Tenants Audit CAM Charges</h2>
           <p>
-            The financial risk of not auditing is substantial. Industry studies
-            consistently show that a significant percentage of commercial
-            reconciliation statements contain errors — and those errors almost
-            always favor the landlord. Here is why auditing matters:
+            CAM charges can be large and can change from year to year, and statements can contain errors. Here is why reviewing them matters:
           </p>
 
           <h3>Billing Errors Are Common</h3>
@@ -158,13 +155,9 @@ export default function CommercialTenantCamAuditGuide() {
             administrative complexity is significant.
           </p>
 
-          <h3>Tenants Have Legal Rights They Rarely Use</h3>
+          <h3>Your Lease May Give You Review Rights</h3>
           <p>
-            Most leases grant audit rights that tenants never exercise. By not
-            auditing, tenants leave money on the table and implicitly accept
-            whatever the landlord calculates. Regular auditing signals to the
-            landlord that you are paying attention, which can improve billing
-            accuracy even in years you don&apos;t conduct a formal audit.
+            Many leases include a right to review the landlord&apos;s records, with specific procedures and time limits that differ from lease to lease. Depending on your lease, letting a review period pass can limit your ability to question a statement later. Check your lease for the exact terms.
           </p>
 
           <h2>Common CAM Overcharges</h2>

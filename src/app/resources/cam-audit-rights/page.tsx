@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/cam-audit-rights" },
   title: "CAM Audit Rights in Commercial Leases | LeaseGuard",
   description:
     "Understand your audit rights as a commercial tenant — including review periods, access to records, and how to exercise your right to audit CAM charges.",
@@ -33,9 +34,7 @@ export default function CamAuditRights() {
         >
           CAM charges
         </Link>{" "}
-        and operating expenses. Despite this, the majority of tenants never
-        exercise this right — often because they are unaware it exists or
-        unsure how to begin. Understanding your audit rights is the first step
+        and operating expenses. Many tenants are unsure whether their lease includes this right or how to begin. Understanding your audit rights is the first step
         toward verifying that your charges are accurate.
       </p>
 

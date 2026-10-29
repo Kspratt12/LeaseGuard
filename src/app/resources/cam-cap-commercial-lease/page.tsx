@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/cam-cap-commercial-lease" },
   title: "CAM Caps in Commercial Leases Explained | LeaseGuard",
   description:
     "Learn what CAM caps are, how cumulative and non-cumulative caps work, and how to verify your landlord is applying your cap correctly.",

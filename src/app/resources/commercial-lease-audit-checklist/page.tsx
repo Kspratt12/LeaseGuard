@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/resources/commercial-lease-audit-checklist" },
   title: "Commercial Lease Audit Checklist | LeaseGuard",
   description:
     "A practical checklist for commercial tenants auditing their lease charges. Covers CAM reconciliation, operating expenses, proportionate share, and lease compliance.",

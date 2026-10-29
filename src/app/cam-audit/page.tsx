@@ -3,7 +3,8 @@ import Link from "next/link";
 import { CheckCircle, Upload, Search, FileText, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Commercial CAM Audit | Detect CAM Overcharges in Your Lease",
+  alternates: { canonical: "/cam-audit" },
+  title: "Check Your CAM Charges Against Your Lease | CAM Audit Tool | LeaseGuard",
   description:
     "Run a commercial CAM audit in seconds. Upload your lease and CAM reconciliation statement to identify overcharges, caps, and billing discrepancies.",
   keywords: [
@@ -25,7 +26,7 @@ export default function CamAuditPage() {
       <section className="border-b border-gray-100 bg-gray-50/60">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 py-16 sm:py-24 text-center">
           <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 tracking-tight leading-tight">
-            Commercial CAM Audit for Tenants
+            Check Your CAM Charges Against Your Lease
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
             A CAM audit is a review of your{" "}
