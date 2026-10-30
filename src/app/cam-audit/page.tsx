@@ -67,8 +67,8 @@ export default function CamAuditPage() {
           Common CAM Overcharges Tenants Miss
         </h2>
         <p className="text-gray-600 text-center max-w-2xl mx-auto mb-12 leading-relaxed">
-          CAM billing errors are not always intentional, but they can happen and
-          are easy to miss. These are the issues that a{" "}
+          CAM billing discrepancies can happen and can be easy to miss. These
+          are the issues that a{" "}
           <Link
             href="/resources/how-to-audit-cam-charges"
             className="text-blue-600 hover:underline"
@@ -137,7 +137,8 @@ export default function CamAuditPage() {
               operation of the property&quot; give landlords wide discretion
               over what they pass through. Without clear exclusion lists,
               tenants may be charged for marketing, legal fees, or other costs
-              that should be the landlord&apos;s responsibility. Review our guide on{" "}
+              that their lease may or may not allow, depending on its wording
+              and applicable law. Review our guide on{" "}
               <Link
                 href="/resources/common-cam-overcharges"
                 className="text-blue-600 hover:underline"

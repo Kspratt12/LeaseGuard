@@ -104,11 +104,13 @@ export default function CommercialTenantCamAuditGuide() {
             </li>
           </ol>
           <p>
-            Most commercial leases include an audit rights clause that entitles
-            tenants to inspect the landlord&apos;s books and records supporting
-            the reconciliation. This right is the legal foundation for
-            conducting a CAM audit, and exercising it periodically is one of the
-            most effective financial protections available to tenants.
+            Some commercial leases include an audit rights clause that lets
+            tenants inspect the landlord&apos;s books and records supporting the
+            reconciliation. Whether your lease has one, and the procedure and
+            deadlines it sets, depends on its wording. Reviewing your own
+            statement against your lease does not require that right, but
+            inspecting the landlord&apos;s records depends on what your lease or
+            applicable law allows.
           </p>
 
           <h2>Why Commercial Tenants Audit CAM Charges</h2>
@@ -131,17 +133,16 @@ export default function CommercialTenantCamAuditGuide() {
           <p>
             A billing error in one year doesn&apos;t just cost you money that
             year, it often establishes the baseline for future calculations. If
-            your proportionate share is overstated, every subsequent
-            reconciliation will carry the same error forward. If your{" "}
+            your proportionate share is overstated and the same figure is
+            reused, the error can carry into later reconciliations. If your{" "}
             <Link
               href="/resources/cam-cap-commercial-lease"
               className="text-blue-600 hover:underline"
             >
               CAM cap
             </Link>{" "}
-            base year is calculated incorrectly, the cap ceiling for every
-            future year is wrong. Over a five- or ten-year lease term, a single
-            uncorrected error can cost tens of thousands of dollars.
+            base year is calculated incorrectly, the error can carry into later
+            years, depending on how the cap is structured.
           </p>
 
           <h3>Lease Language Creates Ambiguity</h3>
@@ -223,7 +224,8 @@ export default function CommercialTenantCamAuditGuide() {
             give landlords wide discretion over what they pass through. Without
             a specific exclusion list, tenants may find themselves paying for
             marketing, legal fees, leasing commissions, or other costs that
-            should be the landlord&apos;s responsibility.
+            their lease may or may not allow, depending on its wording and
+            applicable law.
           </p>
 
           <h2>How CAM Reconciliation Works</h2>
@@ -333,9 +335,9 @@ export default function CommercialTenantCamAuditGuide() {
           <h3>Step 6: Request Supporting Documentation</h3>
           <p>
             For any charges that appear unusual, request the underlying invoices
-            and vendor contracts. Your lease&apos;s audit rights clause
-            typically entitles you to inspect these records, but be aware of
-            any deadline for exercising this right (set by your lease, so check it).
+            and vendor contracts. If your lease has an audit rights clause, it
+            may entitle you to inspect these records. Be aware of any deadline
+            for exercising that right (set by your lease, so check it).
           </p>
 
           <h2>How LeaseGuard Helps</h2>
@@ -348,20 +350,23 @@ export default function CommercialTenantCamAuditGuide() {
             do this every year.
           </p>
           <p>
-            LeaseGuard automates the most labor-intensive part of the process.
-            By uploading your lease agreement and CAM reconciliation statement,
-            the platform cross-references the two documents to identify
-            potential discrepancies across all of the categories described in
-            this guide, from capital expense classification and management fee
-            accuracy to proportionate share verification and{" "}
+            LeaseGuard automates the comparison step. When you upload your lease
+            agreement and CAM reconciliation statement, it calculates some items
+            directly from your documents: the fee percentage on the statement
+            against the lease limit, your share against the lease, whether the
+            statement&apos;s own totals add up, and the year-over-year change
+            against an{" "}
             <Link
               href="/resources/cam-cap-commercial-lease"
               className="text-blue-600 hover:underline"
             >
-              CAM cap compliance
-            </Link>. The analysis gives you a
-            prioritized list of issues to investigate rather than starting from
-            scratch.
+              annual increase cap
+            </Link>{" "}
+            when prior-year figures are available. It flags other items for
+            your judgment, such as statement lines that may fall under a
+            category your lease excludes. It does not interpret your lease or
+            decide whether a charge is allowed. The analysis gives you a list of
+            items to look into rather than starting from scratch.
           </p>
           <p>
             Whether you use LeaseGuard as your primary audit tool or as a

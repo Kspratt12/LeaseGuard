@@ -29,9 +29,9 @@ export default function CanLandlordsChargeCapitalExpenses() {
       description="When landlords can pass capital expenditures to commercial tenants, how repairs differ from capital improvements, and how amortization works."
     >
       <p>
-        One of the most significant, and most disputed, issues in commercial
-        leasing is whether a landlord can pass capital expenditures through to
-        tenants as part of their{" "}
+        An issue that can lead to disputes in commercial leasing is whether a
+        landlord can pass capital expenditures through to tenants as part of
+        their{" "}
         <Link
           href="/resources/cam-charges-explained"
           className="text-blue-600 hover:underline"
@@ -39,14 +39,8 @@ export default function CanLandlordsChargeCapitalExpenses() {
           CAM charges
         </Link>{" "}
         or operating expenses. The short answer is: it depends entirely on your
-        lease language. But in practice, capital expenses are one of the most{" "}
-        <Link
-          href="/resources/common-cam-overcharges"
-          className="text-blue-600 hover:underline"
-        >
-          common sources of CAM overcharges
-        </Link>, making this a critical area for every commercial tenant to
-        understand.
+        lease language. Capital expenses are another item to check against your
+        lease.
       </p>
       <p>
         For the wider list of what a lease can pass through, see <Link href="/resources/what-landlords-can-include-in-cam" className="text-blue-600 hover:underline">what landlords can include in CAM charges</Link>.
@@ -140,10 +134,9 @@ export default function CanLandlordsChargeCapitalExpenses() {
 
       <h3>Misclassification of Capital Work as Repairs</h3>
       <p>
-        This is the most costly issue. A landlord or property manager
-        classifies a major project as a &quot;repair&quot; to pass the full
-        cost through as an operating expense rather than amortizing it. For
-        example:
+        A major project may be classified as a &quot;repair&quot; and passed
+        through in full as an operating expense, rather than amortized if your
+        lease requires amortization. For example:
       </p>
       <ul>
         <li>A complete parking lot resurface billed as &quot;parking lot repairs&quot;</li>
@@ -223,25 +216,27 @@ export default function CanLandlordsChargeCapitalExpenses() {
 
       <h2>How LeaseGuard Helps</h2>
       <p>
-        LeaseGuard is specifically designed to catch capital expense issues. By
-        uploading your lease and{" "}
+        When you upload your lease and{" "}
         <Link
           href="/resources/cam-reconciliation-guide"
           className="text-blue-600 hover:underline"
         >
           CAM reconciliation statement
-        </Link>, the platform identifies potential misclassifications, charges
-        that appear to be capital in nature but are being passed through as
-        operating expenses, amortization calculations that may not align with
-        your lease terms, and expenses that your lease excludes entirely. The analysis gives you a clear starting point
-        for follow-up with your landlord.
+        </Link>, LeaseGuard flags statement lines whose labels look like capital
+        items (for example, a roof replacement) or fall under a category your
+        lease excludes, so you can ask the landlord about them. These are
+        possible issues for your review, not conclusions. LeaseGuard does not
+        read invoices, decide whether work was a repair or a capital
+        improvement, or check amortization schedules, useful lives or interest.
+        Whether a cost can be passed through depends on your lease and
+        applicable law.
       </p>
 
       <h2>Key Takeaways</h2>
       <ul>
         <li>Whether capital expenses can be passed to tenants depends on your specific lease language</li>
-        <li>Most well-negotiated leases either exclude capital expenses or require amortization over useful life</li>
-        <li>Misclassifying capital work as repairs is one of the most costly CAM overcharges</li>
+        <li>Leases differ: some exclude capital expenses, some require amortization over useful life, and some use broad language that may include them</li>
+        <li>Capital work classified as a repair can be passed through in a single year, which may be an overcharge if your lease does not allow it</li>
         <li>Always request invoices for large one-time charges in repair or maintenance categories</li>
         <li>Capital expenses improperly included in operating costs also inflate percentage-based management fees</li>
       </ul>

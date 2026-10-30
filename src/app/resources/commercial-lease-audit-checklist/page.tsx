@@ -155,9 +155,9 @@ export default function CommercialLeaseAuditChecklist() {
 
       <h2>Step 3: Check for Excluded Expenses</h2>
       <p>
-        Most commercial leases include a list of expenses that the landlord
-        cannot pass through to tenants. Review your lease&apos;s exclusion list
-        and confirm that none of these costs appear on your reconciliation:
+        Your lease may include a list of expenses that the landlord cannot pass
+        through to tenants. If it does, review that exclusion list and confirm
+        that none of these costs appear on your reconciliation:
       </p>
       <ul>
         <li>Capital expenditures (unless your lease specifically permits them or requires amortization)</li>
@@ -220,8 +220,8 @@ export default function CommercialLeaseAuditChecklist() {
 
       <h2>Step 7: Exercise Your Audit Rights</h2>
       <p>
-        Most commercial leases include audit rights that allow tenants to inspect
-        the landlord&apos;s books and records. If your review reveals
+        Your lease may include audit rights that allow tenants to inspect the
+        landlord&apos;s books and records. If it does, and your review reveals
         discrepancies:
       </p>
       <ol>
@@ -253,12 +253,13 @@ export default function CommercialLeaseAuditChecklist() {
       <p>
         LeaseGuard automates the most time-consuming parts of this checklist. By
         uploading your lease agreement and CAM reconciliation statement, the
-        platform cross-references the two documents to flag potential issues
-        across excluded expenses, proportionate share calculations, CAM cap
-        compliance, capital expense classification, and management fee
-        accuracy. This gives you a prioritized
-        list of items to investigate rather than having to review every line
-        manually.
+        platform cross-references the two documents to flag potential issues:
+        statement lines that may fall under a lease exclusion or look like
+        capital items, a proportionate share or management fee percentage that
+        differs from the lease, and, when prior-year figures are available, a
+        year-over-year change above a cap. These are items to investigate, not
+        conclusions about what your lease allows, so you do not have to review
+        every line from scratch.
       </p>
 
       <h2>Key Takeaways</h2>

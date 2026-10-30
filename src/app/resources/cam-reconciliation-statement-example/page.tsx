@@ -193,9 +193,9 @@ export default function CamReconciliationStatementExample() {
 
       <h2>How to Request Supporting Documentation</h2>
       <p>
-        If anything on the reconciliation looks questionable, most commercial
-        leases give you the right to request supporting documentation. Here is
-        how to approach it:
+        If anything on the reconciliation looks questionable, your lease may
+        give you the right to request supporting documentation. Check its audit
+        or records provision. Here is how to approach it:
       </p>
       <ol>
         <li>
@@ -226,9 +226,13 @@ export default function CamReconciliationStatementExample() {
       <p>
         Instead of manually reviewing each line item against your lease,
         LeaseGuard automates the comparison. Upload your lease agreement and
-        reconciliation statement, and the platform identifies potential
-        discrepancies, including excluded expenses, proportionate share errors,
-        management fee miscalculations, capital expense misclassification, and potential CAM cap discrepancies. The analysis gives you a clear starting point for any follow-up with your landlord.
+        reconciliation statement, and the platform flags potential
+        discrepancies for your review, including statement lines that may fall
+        under a lease exclusion or look like capital items, a proportionate
+        share or management fee percentage that differs from the lease, and,
+        when prior-year figures are available, a year-over-year change above a
+        cap. The analysis gives you a clear starting point for any follow-up
+        with your landlord.
       </p>
 
       <h2>Key Takeaways</h2>

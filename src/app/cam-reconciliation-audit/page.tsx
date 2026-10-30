@@ -117,10 +117,11 @@ export default function CamReconciliationAudit() {
             </li>
           </ul>
           <p>
-            Many tenants do not realize they have the right to audit these
-            statements. Most commercial leases include an audit clause that
-            allows tenants to review the landlord&apos;s books and records
-            related to CAM charges. Understanding{" "}
+            Many tenants are unsure whether their lease lets them audit these
+            statements. A lease may include an audit clause that allows tenants
+            to review the landlord&apos;s books and records related to CAM
+            charges; whether yours does, and what it allows, depends on its
+            wording. Understanding{" "}
             <Link
               href="/resources/common-cam-overcharges"
               className="text-blue-600 hover:underline"

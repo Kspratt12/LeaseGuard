@@ -65,9 +65,11 @@ export default function TripleNetLeaseExpenses() {
       </p>
       <ul>
         <li>
-          <strong>Reassessments after sale:</strong> When a property changes
-          hands, the assessed value may increase significantly. Some leases cap
-          the tenant&apos;s exposure to tax increases caused by a sale.
+          <strong>Reassessments after sale:</strong> In some jurisdictions, when
+          a property changes hands, the assessed value may increase
+          significantly. Whether that happens depends on local assessment
+          rules. Some leases cap the tenant&apos;s exposure to tax increases
+          caused by a sale.
         </li>
         <li>
           <strong>Tax appeals:</strong> If the landlord successfully appeals the
@@ -240,10 +242,10 @@ export default function TripleNetLeaseExpenses() {
           and look for unusual spikes or new line items.
         </li>
         <li>
-          <strong>Exercise your audit rights.</strong> Most NNN leases grant
-          tenants the right to review the landlord&apos;s books and records. Use
-          this right periodically, especially after years with large true-up
-          charges.
+          <strong>Exercise your audit rights.</strong> Check whether your lease
+          gives you the right to review the landlord&apos;s books and records.
+          If it does, consider using this right periodically, especially after
+          years with large true-up charges.
         </li>
         <li>
           <strong>Track your costs over time.</strong> Year-over-year trends can
@@ -254,12 +256,15 @@ export default function TripleNetLeaseExpenses() {
 
       <h2>How LeaseGuard Helps</h2>
       <p>
-        LeaseGuard helps NNN tenants verify their expense charges by
+        LeaseGuard helps NNN tenants review the CAM part of their charges by
         cross-referencing lease terms against reconciliation statements. The
-        platform identifies potential issues including excluded expenses being
-        passed through, incorrect proportionate share calculations, capital
-        expenses improperly classified as operating costs, and potential CAM cap discrepancies. Upload your lease and reconciliation statement to get a
-        detailed analysis.
+        platform flags possible issues for your review, including statement
+        lines that may fall under a lease exclusion or look like capital items,
+        a proportionate share that differs from the lease, and, when prior-year
+        figures are available, a year-over-year change above a cap. It does not
+        assess property tax or insurance bills or decide whether a charge is
+        allowed. Upload your lease and reconciliation statement to see what it
+        finds.
       </p>
 
       <h2>Key Takeaways</h2>

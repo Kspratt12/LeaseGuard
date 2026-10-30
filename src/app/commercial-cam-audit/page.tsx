@@ -66,7 +66,7 @@ export default function CommercialCamAudit() {
             your lease, calculated correctly, and properly allocated.
           </p>
           <p>
-            Most commercial leases include provisions governing what expenses
+            Your commercial lease may include provisions governing what expenses
             landlords can include in{" "}
             <Link
               href="/resources/cam-charges-explained"
