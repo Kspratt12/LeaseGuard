@@ -27,7 +27,7 @@ export default function CamAuditRights() {
       description="Understand your audit rights as a commercial tenant, including review periods, access to records, and how to exercise your right to audit CAM charges."
     >
       <p>
-        Most commercial leases include an audit clause that gives tenants the
+        A commercial lease may include an audit clause that gives tenants the
         right to review the landlord&apos;s books and records related to{" "}
         <Link
           href="/resources/cam-charges-explained"
@@ -35,7 +35,7 @@ export default function CamAuditRights() {
         >
           CAM charges
         </Link>{" "}
-        and operating expenses. Many tenants are unsure whether their lease includes this right or how to begin. Understanding your audit rights is the first step
+        and operating expenses. Whether yours does, and what it allows, depends on its wording. Many tenants are unsure whether their lease includes this right or how to begin. Understanding your audit rights is the first step
         toward verifying that your charges are accurate.
       </p>
       <p>
@@ -165,9 +165,9 @@ export default function CamAuditRights() {
       <h2>Why Tenants Audit CAM Charges</h2>
       <p>
         Tenants audit CAM charges because reconciliation statements are prepared
-        by the landlord or their property management company, and errors,
-        whether accidental or intentional, are common. Without an audit, these
-        errors compound year after year.
+        by the landlord or their property management company, and they can
+        contain errors that go unnoticed. Without a review, an error can carry
+        into later years.
       </p>
       <p>The most common reasons tenants exercise their audit rights include:</p>
       <ul>
@@ -195,9 +195,11 @@ export default function CamAuditRights() {
         </li>
       </ul>
       <p>
-        LeaseGuard helps tenants exercise their audit rights by automating the
-        comparison of lease terms against reconciliation charges. Upload your
-        lease and reconciliation statement to receive your findings. For a step-by-step overview, see our guide on{" "}
+        LeaseGuard does not exercise audit rights for you, and it cannot inspect
+        the landlord&apos;s books and records. That step is governed by your
+        lease. LeaseGuard compares the lease terms and reconciliation statement
+        you upload and flags items you may want to question before you decide
+        whether to use an audit right. For a step-by-step overview, see our guide on{" "}
         <Link
           href="/resources/how-to-audit-cam-charges"
           className="text-blue-600 hover:underline"

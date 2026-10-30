@@ -47,9 +47,9 @@ export default function HiddenCostsInNnnLeases() {
         How fees and caps interact is covered in <Link href="/resources/management-fees-and-cam-caps" className="text-blue-600 hover:underline">management fees and CAM caps</Link>. For what each of the three nets covers, see <Link href="/resources/triple-net-lease-expenses" className="text-blue-600 hover:underline">triple net lease expenses explained</Link>.
       </p>
       <p>
-        This article identifies the most common hidden costs that commercial
-        tenants, retail operators, franchise owners, medical practices, and
-        small businesses, encounter in NNN leases.
+        This article describes hidden costs that commercial tenants, retail
+        operators, franchise owners, medical practices, and small businesses
+        can encounter in NNN leases.
       </p>
 
       <h2>1. Administrative and Management Fee Markups</h2>
@@ -75,9 +75,9 @@ export default function HiddenCostsInNnnLeases() {
         for any line items that appear to be redundant.
       </p>
 
-      <h2>2. Capital Expenses Disguised as Operating Costs</h2>
+      <h2>2. Capital Expenses Classified as Operating Costs</h2>
       <p>
-        This is one of the most significant hidden costs in NNN leases. When a
+        This can be a significant hidden cost in NNN leases. When a
         landlord replaces a roof, repaves a parking lot, or installs a new HVAC
         system, these are capital expenditures, investments in the property
         that should not be passed through to tenants as routine operating
@@ -109,12 +109,13 @@ export default function HiddenCostsInNnnLeases() {
 
       <h2>4. Property Tax Reassessment After Sale</h2>
       <p>
-        When a commercial property is sold, the property tax assessment often
-        increases, sometimes dramatically, to reflect the purchase price. If
-        your NNN lease passes through property taxes without any cap or
-        limitation, a building sale can result in a significant and sudden
-        increase in your tax pass-through charges, even though nothing about
-        your tenancy has changed.
+        In some jurisdictions, a sale of a commercial property can lead to a
+        reassessment that raises the property tax bill. Whether that happens
+        depends on local assessment rules, so check how your jurisdiction
+        treats sales. If your NNN lease passes through property taxes without
+        any cap or limitation and a reassessment follows a sale, your tax
+        pass-through charges could rise significantly and suddenly, even though
+        nothing about your tenancy has changed.
       </p>
       <p>
         Some leases include protections against this, for example, capping
@@ -152,7 +153,6 @@ export default function HiddenCostsInNnnLeases() {
         Large true-up charges are a common surprise because:
       </p>
       <ul>
-        <li>The landlord may have intentionally kept estimates low to make the space seem more affordable</li>
         <li>Unexpected expenses arose during the year (emergency repairs, insurance claims, etc.)</li>
         <li>New expenses were added that weren&apos;t anticipated in the estimate</li>
         <li>The landlord failed to adjust estimates after a high-cost prior year</li>
@@ -233,9 +233,9 @@ export default function HiddenCostsInNnnLeases() {
           </Link>, and verify the calculations.
         </li>
         <li>
-          <strong>Exercise your audit rights.</strong> Most NNN leases include
-          audit provisions. Use them, especially after years with large
-          true-ups or unusual charges. See our{" "}
+          <strong>Exercise your audit rights.</strong> Check whether your NNN
+          lease includes audit provisions. If it does, consider using them,
+          especially after years with large true-ups or unusual charges. See our{" "}
           <Link
             href="/resources/how-to-audit-cam-charges"
             className="text-blue-600 hover:underline"
@@ -253,18 +253,22 @@ export default function HiddenCostsInNnnLeases() {
 
       <h2>How LeaseGuard Helps</h2>
       <p>
-        LeaseGuard helps NNN tenants uncover hidden costs by cross-referencing
-        lease terms against reconciliation statements. The platform flags
-        potential issues including unauthorized pass-throughs, capital expenses
-        misclassified as operating costs, potential management fee overcharges, potential CAM cap discrepancies, and proportionate share differences. Upload your lease and
-        reconciliation statement to get a detailed analysis.
+        LeaseGuard helps NNN tenants review the CAM part of their charges by
+        comparing lease terms with reconciliation statements. The platform
+        flags possible issues for your review, including statement lines that
+        may fall under a lease exclusion or look like capital items, a
+        management fee percentage that differs from the lease limit, a year-over-year change
+        above a cap when prior-year figures are available, and a share that
+        differs from the lease. It does not assess property tax or insurance
+        bills, and it does not decide whether a charge is allowed. Upload your
+        lease and reconciliation statement to see what it finds.
       </p>
 
       <h2>Key Takeaways</h2>
       <ul>
         <li>NNN lease costs extend well beyond base rent: understand your full exposure before signing</li>
-        <li>Management fee markups, capital expense misclassification, and vacant space subsidies are the most common hidden costs</li>
-        <li>Property tax reassessments after a building sale can cause sudden, large increases</li>
+        <li>Management fee markups, capital expense misclassification, and vacant space subsidies are examples of hidden costs to check for</li>
+        <li>In some jurisdictions, property tax reassessments after a building sale can cause sudden, large increases</li>
         <li>Year-end true-up charges are often the first sign of hidden cost issues</li>
         <li>CAM caps, exclusion lists, and annual audits are your best protections against hidden NNN costs</li>
       </ul>

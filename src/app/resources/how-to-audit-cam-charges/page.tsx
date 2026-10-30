@@ -69,9 +69,10 @@ export default function HowToAuditCamCharges() {
           </Link>?
         </li>
         <li>
-          <strong>Audit rights:</strong> Almost every commercial lease grants
-          tenants the right to inspect the landlord&apos;s books. Look for the
-          specific process, deadlines, and any limitations.
+          <strong>Audit rights:</strong> Your lease may give you the right to
+          inspect the landlord&apos;s books. If it does, look for the specific
+          process, deadlines, and any limitations. If you cannot find one,
+          consider asking a qualified commercial real estate attorney.
         </li>
         <li>
           <strong>Base year or expense stop:</strong> Some leases only charge
@@ -182,9 +183,9 @@ export default function HowToAuditCamCharges() {
 
       <h2>Step 7: Exercise Your Formal Audit Rights</h2>
       <p>
-        If you find issues, your lease likely gives you the right to formally
-        inspect the landlord&apos;s books. Most leases require you to notify the
-        landlord in writing within a specific timeframe (the lease sets the window, so check yours).
+        If you find issues, your lease may give you the right to formally
+        inspect the landlord&apos;s books. Check its notice requirements,
+        deadlines and delivery method, which differ from lease to lease.
       </p>
       <p>
         For larger discrepancies, consider hiring a professional CAM auditor.

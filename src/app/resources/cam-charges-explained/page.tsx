@@ -155,8 +155,8 @@ export default function CamChargesExplained() {
         </li>
         <li>
           <strong>Capital expense disputes:</strong> Disagreements about whether a cost is a
-          routine maintenance expense (passable to tenants) or a capital
-          improvement (the landlord&apos;s responsibility) are extremely common.
+          routine maintenance expense or a capital improvement, and whether
+          your lease allows either to be passed through, can lead to disputes.
         </li>
         <li>
           <strong>Management fee overcharges:</strong> If the management fee is calculated as
@@ -192,7 +192,7 @@ export default function CamChargesExplained() {
         <li>The definition of &quot;operating expenses&quot; or &quot;CAM costs&quot;</li>
         <li>Any exclusions or carve-outs</li>
         <li>CAM cap provisions and how they&apos;re structured</li>
-        <li>Your audit rights (most leases grant them)</li>
+        <li>Your audit rights, if your lease grants them</li>
         <li>How your proportionate share is calculated</li>
       </ul>
 
@@ -202,18 +202,20 @@ export default function CamChargesExplained() {
         line by line is time-consuming, but it&apos;s essential for catching
         overcharges. LeaseGuard allows commercial tenants to upload their lease
         and CAM reconciliation statements, then cross-references the two
-        documents to flag potential discrepancies. The platform checks for
-        excluded cost pass-throughs, pro rata share errors, management fee
-        issues, and CAM cap compliance.
+        documents to flag potential discrepancies. The platform flags statement
+        lines that may fall under a lease exclusion, a share or management fee
+        percentage that differs from the lease, and, when prior-year figures
+        are available, a year-over-year change above a cap. These are items to
+        review, not conclusions about what your lease allows.
       </p>
 
       <h2>Key Takeaways</h2>
       <ul>
         <li>CAM charges cover shared building maintenance costs allocated across tenants</li>
         <li>Your lease defines exactly what can and can&apos;t be included: read it carefully</li>
-        <li>Billing errors and vague lease language are the most common sources of overcharges</li>
+        <li>Billing errors and vague lease language can lead to overcharges</li>
         <li>Annual reconciliation statements should be reviewed every year, not just filed away</li>
-        <li>Tenants typically have the right to audit CAM charges: exercise it</li>
+        <li>Check whether your lease gives you a right to audit CAM charges, and use it within the deadline if it does</li>
       </ul>
     </ArticleLayout>
   );

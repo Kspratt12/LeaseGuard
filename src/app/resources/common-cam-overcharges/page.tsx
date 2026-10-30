@@ -51,7 +51,8 @@ export default function CommonCamOvercharges() {
 
       <h2>1. Capital Expenditures Charged as Operating Expenses</h2>
       <p>
-        This is arguably the most common and most costly CAM overcharge.
+        Capital expenditures billed as operating expenses are a possible
+        discrepancy to check for.
         There&apos;s an important distinction between a repair (operating
         expense) and a capital improvement (the landlord&apos;s investment in
         the property):
@@ -67,10 +68,11 @@ export default function CommonCamOvercharges() {
         </li>
       </ul>
       <p>
-        Most leases either exclude capital expenditures entirely or require them
-        to be amortized over their useful life (for example, a $100,000 roof
-        replacement amortized over 15 years would be roughly $6,700 per year,
-        not $100,000 in a single year).
+        Some leases exclude capital expenditures entirely, and others allow them
+        only if they are amortized over their useful life (for example, a
+        $100,000 roof replacement amortized over 15 years would be roughly
+        $6,700 per year, not $100,000 in a single year). Your lease decides
+        which applies.
       </p>
       <p>
         The problem is that the line between &quot;repair&quot; and
@@ -193,9 +195,9 @@ export default function CommonCamOvercharges() {
         </li>
       </ul>
       <p>
-        A cap that is applied incorrectly tends to compound over time. A miscalculated base in Year
-        1 compounds in every subsequent year, potentially resulting in thousands
-        of dollars in cumulative overcharges.
+        A miscalculated base in Year
+        1 can carry into later years, depending on how the cap is structured,
+        potentially resulting in thousands of dollars in cumulative overcharges.
       </p>
 
       <h2>Why These Overcharges Go Unnoticed</h2>
@@ -239,17 +241,20 @@ export default function CommonCamOvercharges() {
 
       <h2>How LeaseGuard Helps</h2>
       <p>
-        LeaseGuard was designed to address exactly these issues. By uploading
-        both your lease and your CAM reconciliation statement, the platform
-        cross-references the two documents to identify potential discrepancies
-        across all five categories described above, from capital expense
-        classification to CAM cap compliance to excluded cost pass-throughs to
-        management fee calculations. The analysis gives you a clear picture of where to focus your review.
+        When you upload your lease and your CAM reconciliation statement,
+        LeaseGuard compares the two. It calculates some items directly from your
+        documents, such as the management fee percentage against the lease
+        limit, your share against the lease, and the year-over-year change
+        against a cap when prior-year figures are available. It flags others for
+        your judgment, such as statement lines that may fall under a capital or
+        excluded category your lease lists. It does not decide whether a charge
+        is allowed or whether work was a repair or a capital improvement. The
+        analysis gives you a clearer picture of where to focus your review.
       </p>
 
       <h2>Key Takeaways</h2>
       <ul>
-        <li>Capital expenditures disguised as operating expenses are the most costly overcharge</li>
+        <li>Capital expenditures classified as operating expenses can be an overcharge if your lease does not allow them to be passed through</li>
         <li>Management fees compound other overcharges: always verify the percentage</li>
         <li>Cross-reference your reconciliation against your lease&apos;s exclusion list</li>
         <li>Even a small proportionate share error affects every line item on your statement</li>

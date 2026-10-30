@@ -105,7 +105,7 @@ const articles = [
     slug: "can-landlords-charge-capital-expenses",
     title: "Can Landlords Charge Capital Expenses to Tenants?",
     description:
-      "Understand when landlords can and cannot pass capital expenditures to commercial tenants, including amortization rules and common misclassification issues.",
+      "Explains how a lease may treat capital expenditures (excluded, amortized over their useful life, or passed through) and why classification disputes arise.",
   },
   {
     slug: "hidden-costs-in-nnn-leases",

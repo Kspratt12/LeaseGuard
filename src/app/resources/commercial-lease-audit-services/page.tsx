@@ -96,10 +96,9 @@ export default function CommercialLeaseAuditServices() {
 
       <h2>Common Billing Discrepancies</h2>
       <p>
-        Lease audits frequently uncover the same types of billing errors. These
-        are not always intentional, many result from accounting mistakes,
-        software errors, or misinterpretation of lease terms. The most common
-        discrepancies include:
+        A lease audit can surface several types of billing discrepancies. They
+        can arise from accounting mistakes, software errors, or differing
+        readings of lease terms. Discrepancies to look for include:
       </p>
       <ul>
         <li>

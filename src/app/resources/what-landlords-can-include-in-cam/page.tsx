@@ -93,8 +93,9 @@ export default function WhatLandlordsCanIncludeInCam() {
       <h3>Administrative Costs</h3>
       <ul>
         <li>
-          Property management fees, usually calculated as a percentage (3% to
-          8%) of total operating expenses. Verify that your lease specifies the
+          Property management fees, often expressed as a percentage of
+          operating expenses. The percentage, and what it is applied to, are
+          set by your lease. Verify that your lease specifies the
           percentage and that the{" "}
           <Link
             href="/resources/cam-reconciliation-guide"
@@ -110,24 +111,26 @@ export default function WhatLandlordsCanIncludeInCam() {
       <h2>Expenses Typically Excluded from CAM</h2>
       <p>
         Well-drafted commercial leases include an exclusion list, specific
-        categories that the landlord cannot pass through to tenants. Even if
-        your lease doesn&apos;t explicitly list every exclusion, certain costs
-        are widely understood to be the landlord&apos;s responsibility:
+        categories that the landlord cannot pass through to tenants. The
+        categories below are ones leases often address as exclusions. If your
+        lease does not mention a cost, whether it can be passed through depends
+        on the lease&apos;s wording and applicable law:
       </p>
 
       <h3>Capital Expenditures</h3>
       <p>
         Major improvements that extend the life of the property or add value,
         such as a new roof, parking lot replacement, or building facade
-        renovation, are generally not passable as{" "}
+        renovation, may or may not be passable as{" "}
         <Link
           href="/resources/cam-charges-explained"
           className="text-blue-600 hover:underline"
         >
           CAM charges
-        </Link>. Some leases allow capital expenses to be amortized over their
-        useful life, but they should never be charged in full during a single
-        year. For more on this topic, see our article on{" "}
+        </Link>, depending on your lease. Some leases exclude them entirely,
+        some allow them only if spread (amortized) over their useful life, and
+        some use broad language that may include them. For more on this topic,
+        see our article on{" "}
         <Link
           href="/resources/can-landlords-charge-capital-expenses"
           className="text-blue-600 hover:underline"
@@ -217,7 +220,7 @@ export default function WhatLandlordsCanIncludeInCam() {
           what the landlord can include.
         </li>
         <li>
-          <strong>Find the exclusion list.</strong> Most leases include a
+          <strong>Find the exclusion list.</strong> Your lease may include a
           separate section listing specific exclusions. Cross-reference this
           list against your reconciliation line items.
         </li>
@@ -243,17 +246,20 @@ export default function WhatLandlordsCanIncludeInCam() {
       <p>
         LeaseGuard automates the comparison between your lease language and your
         reconciliation statement. The platform reads both documents and flags
-        charges that may not be authorized, including expenses that appear on
-        your lease&apos;s exclusion list, capital expenditures classified as
-        operating costs, management fee miscalculations, and potential CAM cap discrepancies. This analysis gives you a
-        clear picture of which charges warrant further investigation.
+        possible issues for your review, including statement lines that may fall
+        under your lease&apos;s exclusion list or look like capital items, a
+        management fee percentage that differs from the lease limit, and a
+        year-over-year change above a cap when prior-year figures are
+        available. It does not decide whether a charge is allowed. This
+        analysis gives you a clearer picture of which charges warrant further
+        investigation.
       </p>
 
       <h2>Key Takeaways</h2>
       <ul>
         <li>What landlords can include in CAM is defined by your specific lease: not by general practice</li>
-        <li>Most leases include both an inclusion list and an exclusion list: review both carefully</li>
-        <li>Gray areas around repairs vs. replacements and above-standard services are the most common source of disputes</li>
+        <li>Your lease may include both an inclusion list and an exclusion list: review both carefully</li>
+        <li>Gray areas around repairs vs. replacements and above-standard services can lead to disputes</li>
         <li>Always cross-reference reconciliation line items against your lease language</li>
         <li>Request supporting invoices for any charge you cannot clearly match to a permitted expense category</li>
       </ul>

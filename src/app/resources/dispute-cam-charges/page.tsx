@@ -138,7 +138,7 @@ export default function DisputeCamCharges() {
           dispute
         </li>
         <li>
-          <strong>Excluded expense categories:</strong> Most leases define
+          <strong>Excluded expense categories:</strong> A lease may define
           categories of expenses that cannot be included in CAM. Common
           exclusions include{" "}
           <Link
