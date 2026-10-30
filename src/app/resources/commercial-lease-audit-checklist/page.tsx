@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/resources/commercial-lease-audit-checklist" },
   title: "Commercial Lease Audit Checklist | LeaseGuard",
   description:
-    "A practical checklist for commercial tenants auditing their lease charges. Covers CAM reconciliation, operating expenses, proportionate share, and lease compliance.",
+    "A practical checklist for commercial tenants reviewing lease charges: CAM reconciliation, operating expenses, proportionate share and lease terms.",
   keywords: [
     "commercial lease audit checklist",
     "lease audit checklist",
@@ -23,9 +23,10 @@ export default function CommercialLeaseAuditChecklist() {
   return (
     <ArticleLayout
       title="Commercial Lease Audit Checklist"
-      publishedDate="March 2026"
+      publishedDate="March 14, 2026"
+      modifiedDate="October 29, 2026"
       readTime="10 min read"
-      description="A practical checklist for commercial tenants auditing their lease charges. Covers CAM reconciliation, operating expenses, proportionate share, and lease compliance."
+      description="A practical checklist for commercial tenants reviewing lease charges: CAM reconciliation, operating expenses, proportionate share and lease terms."
     >
       <p>
         A lease audit is one of the most effective ways for commercial tenants to
@@ -185,10 +186,7 @@ export default function CommercialLeaseAuditChecklist() {
           authorization.
         </li>
         <li>
-          <strong>Gross-up provisions</strong> are applied correctly if the
-          building has vacancy. Variable expenses should be adjusted to reflect
-          what they would be at full occupancy so that existing tenants are not
-          subsidizing empty space.
+          <strong>Gross-up provisions</strong>, if your lease has one, are applied as written: the specified occupancy level and only eligible variable expenses. A missing or different adjustment is not automatically an overcharge.
         </li>
       </ul>
 
@@ -237,8 +235,7 @@ export default function CommercialLeaseAuditChecklist() {
           contracts, and vendor agreements for any charges you want to verify.
         </li>
         <li>
-          <strong>Note the deadline.</strong> Many leases require audit requests
-          within 90 to 180 days of receiving the reconciliation. Missing this
+          <strong>Note the deadline.</strong> Many leases set a time limit for requesting an audit after you receive the reconciliation. Check the limit in your lease. Missing this
           window may waive your rights for that year.
         </li>
       </ol>
@@ -259,7 +256,7 @@ export default function CommercialLeaseAuditChecklist() {
         platform cross-references the two documents to flag potential issues
         across excluded expenses, proportionate share calculations, CAM cap
         compliance, capital expense classification, and management fee
-        accuracy, all in about 60 seconds. This gives you a prioritized
+        accuracy. This gives you a prioritized
         list of items to investigate rather than having to review every line
         manually.
       </p>

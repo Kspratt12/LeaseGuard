@@ -1,15 +1,23 @@
 "use client";
 
+
+import { formatMoney, ROUNDING_NOTE } from "@/lib/format";
 import { useEffect, useState, useRef, use } from "react";
 import { AuditResultsFree } from "@/components/audit-results-free";
 import { AuditResultsPaid } from "@/components/audit-results-paid";
+import { NoPurchasePanel } from "@/components/audit-no-purchase";
+import { CoverageNotice } from "@/components/coverage-notice";
+import { CONFIDENCE_COVERAGE_CAPTION, CONFIDENCE_COVERAGE_QUALIFIER, coverageOf, isAiTruncated } from "@/lib/analysis-coverage";
 import { AuditProgress } from "@/components/audit-progress";
+import { SUPPORT_EMAIL } from "@/lib/constants";
 import { Loader2, Download, AlertTriangle, RefreshCw, FileText } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getAuthHeaders } from "@/lib/auth-client";
 import { formatUsdFromCents } from "@/lib/format";
 import { buttonClass } from "@/components/ui";
+import { ReviewPlanPanel } from "@/components/review-plan";
+import { buildReviewPlan } from "@/services/review-plan";
 import type { Finding, OverchargeLineItem, SourceEvidence, LeaseClauseSummary } from "@/services/audit-logic";
 
 interface Audit {
@@ -35,6 +43,10 @@ interface Audit {
     amount_cents: number | null;
     currency: string;
   };
+  /** Decided by the server (same rule checkout enforces): whether this audit may be sold, and how complete it is. */
+  purchase?:
+    | { eligible: true; completeness: "complete" | "partial"; notes: string[] }
+    | { eligible: false; reason: "nothing_to_unlock" | "insufficient_analysis"; coverageNote?: string };
 }
 
 export default function AuditPage({
@@ -77,15 +89,28 @@ export default function AuditPage({
     );
   }, []);
   const paymentUnlocked = audit?.payment?.unlocked === true;
+  // After about a minute of checking we stop polling and tell the customer what is happening and what to do.
+  // "Check again" starts another round. Nothing here unlocks anything: only the server's verified payment record does.
+  const [confirmGaveUp, setConfirmGaveUp] = useState(false);
+  const [confirmRound, setConfirmRound] = useState(0);
   useEffect(() => {
     if (!returnedFromCheckout || paymentUnlocked) return;
+    setConfirmGaveUp(false);
     let tries = 0;
     const t = setInterval(() => {
-      if (++tries > 20) return clearInterval(t);
+      if (++tries > 20) {
+        clearInterval(t);
+        setConfirmGaveUp(true);
+        return;
+      }
       setRetryKey((k) => k + 1);
     }, 3000);
     return () => clearInterval(t);
-  }, [returnedFromCheckout, paymentUnlocked]);
+  }, [returnedFromCheckout, paymentUnlocked, confirmRound]);
+  const checkAgain = () => {
+    setRetryKey((k) => k + 1);
+    setConfirmRound((r) => r + 1);
+  };
 
   // Scroll to top on mount so the user sees the progress from the beginning
   useEffect(() => {
@@ -381,6 +406,8 @@ export default function AuditPage({
         savingsEstimate={savingsEstimate}
         hasFindings={hasFindings}
         confirmingPayment={returnedFromCheckout && !paymentUnlocked}
+        confirmGaveUp={confirmGaveUp}
+        onCheckAgain={checkAgain}
       />
     );
   } catch (err) {
@@ -414,8 +441,12 @@ function AuditResultsRenderer({
   savingsEstimate,
   hasFindings,
   confirmingPayment,
+  confirmGaveUp,
+  onCheckAgain,
 }: {
   confirmingPayment: boolean;
+  confirmGaveUp: boolean;
+  onCheckAgain: () => void;
   audit: Audit;
   freeFindings: Finding[];
   paidFindings: Finding[];
@@ -433,6 +464,8 @@ function AuditResultsRenderer({
   const [unlocking, setUnlocking] = useState(false);
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const unlocked = audit.payment?.unlocked === true;
+  // Set when the AI step read only the start of a long document (stored with the clause summary).
+  const coverage = coverageOf(audit.lease_clauses_summary);
   const priceLabel = formatUsdFromCents(audit.payment?.amount_cents);
 
   // The price is chosen by the server; the browser only asks to start checkout.
@@ -528,6 +561,9 @@ function AuditResultsRenderer({
               </div>
             )}
 
+            {/* Coverage: the AI step read only part of a long document. Always shown, in every audit mode. */}
+            {isAiTruncated(coverage) && <CoverageNotice coverage={coverage} />}
+
             {/* Limited audit mode banner */}
             {audit.audit_mode === "limited" && (
               <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 sm:p-4 flex items-start gap-3">
@@ -579,7 +615,7 @@ function AuditResultsRenderer({
                     Potential Billing Discrepancies
                   </p>
                   <p className="text-4xl sm:text-5xl font-semibold tracking-tight text-ink tabular-nums">
-                    ${savingsEstimate.toLocaleString()}
+                    {formatMoney(savingsEstimate)}
                   </p>
                   <p className="text-sm text-ink-soft leading-relaxed max-w-md mx-auto">
                     Calculated from your uploaded lease and CAM documents. These are items to review with your landlord, not confirmed overcharges. Professional review is recommended.
@@ -641,13 +677,20 @@ function AuditResultsRenderer({
                   Potential Billing Discrepancies
                 </p>
                 <p className="text-4xl sm:text-5xl font-semibold tracking-tight text-ink tabular-nums">
-                  ${savingsEstimate.toLocaleString()}
+                  {formatMoney(savingsEstimate)}
                 </p>
                 <p className="text-sm text-ink-soft leading-relaxed max-w-md mx-auto">
                   Calculated from your uploaded lease and CAM documents. These are items to review with your landlord, not confirmed overcharges. Professional review is recommended.
                 </p>
               </div>
-            ) : hasFindings ? (
+            ) : audit.purchase && !audit.purchase.eligible && audit.purchase.reason === "insufficient_analysis" ? (
+              <div className="rounded-xl bg-gray-50 border border-gray-200 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
+                <p className="text-xs text-gray-600 font-semibold uppercase tracking-widest">Analysis Incomplete</p>
+                <p className="text-sm text-gray-500 leading-relaxed max-w-md mx-auto">
+                  We could not complete enough checks on these documents to report discrepancies. This is not a clean result. See the notices on this page.
+                </p>
+              </div>
+            ) : hasFindings && !(audit.purchase && !audit.purchase.eligible) ? (
               <div className="rounded-xl bg-review-soft border border-review/25 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
                 <p className="font-figures text-[11px] text-review font-medium uppercase tracking-widest">
                   Potential Discrepancies Detected
@@ -655,7 +698,7 @@ function AuditResultsRenderer({
                 <p className="text-sm text-ink-soft leading-relaxed max-w-md mx-auto">
                   The audit detected potential discrepancies in your CAM reconciliation that warrant further review.
                   {savingsEstimate > 0 && (
-                    <> Total of potential discrepancies: <span className="font-semibold">${savingsEstimate.toLocaleString()}</span>.</>
+                    <> Total of potential discrepancies: <span className="font-semibold">{formatMoney(savingsEstimate)}</span>.</>
                   )}
                 </p>
               </div>
@@ -670,11 +713,51 @@ function AuditResultsRenderer({
               </div>
             )}
 
+            {savingsEstimate > 0 && (
+              <p className="text-center text-xs leading-relaxed text-ink-muted">{ROUNDING_NOTE}</p>
+            )}
+
             {/* Your report: confirmation, download and dispute letter */}
             {confirmingPayment && (
-              <p role="status" className="order-first rounded-lg border border-line bg-white p-3 text-center text-sm text-ink">
-                Payment received. Confirming it with our payment provider...
-              </p>
+              <section
+                role="status"
+                aria-live="polite"
+                className="order-first rounded-xl border border-line bg-white p-4 text-sm text-ink sm:p-5"
+                aria-labelledby="confirming-title"
+              >
+                <h2 id="confirming-title" className="text-base font-semibold text-ink">
+                  {confirmGaveUp ? "Still confirming your payment" : "Confirming your payment"}
+                </h2>
+                {confirmGaveUp ? (
+                  <>
+                    <p className="mt-1 text-ink-soft">
+                      We have not yet received Stripe&apos;s confirmation. This can take a few minutes. Your report has not been unlocked, and it unlocks
+                      automatically as soon as the confirmation arrives.
+                    </p>
+                    <p className="mt-2 font-semibold text-ink">Please do not pay again.</p>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-ink-soft">
+                      <li>Wait a few minutes, then choose Check again or refresh this page.</li>
+                      <li>If the charge does not appear on your card statement, the payment did not go through and you have not been charged.</li>
+                      <li>
+                        Still stuck? Email{" "}
+                        <a className="font-medium text-ink underline" href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Payment confirmation for LeaseGuard reference " + audit.id.slice(0, 8).toUpperCase())}`}>
+                          {SUPPORT_EMAIL}
+                        </a>{" "}
+                        and include this reference: <span className="font-figures font-semibold">{audit.id.slice(0, 8).toUpperCase()}</span>.
+                      </li>
+                    </ul>
+                    <button type="button" onClick={onCheckAgain} className={`${buttonClass("secondary")} mt-3`}>
+                      <RefreshCw className="h-4 w-4" aria-hidden />
+                      Check again
+                    </button>
+                  </>
+                ) : (
+                  <p className="mt-1 text-ink-soft">
+                    We are confirming with Stripe that your payment went through. This usually takes a few seconds, and this page updates by itself.
+                    Please do not pay again.
+                  </p>
+                )}
+              </section>
             )}
             {unlocked && (
               <section className="order-first rounded-xl border border-verified/30 bg-verified-soft/60 p-4 sm:p-5" aria-labelledby="report-card">
@@ -696,6 +779,9 @@ function AuditResultsRenderer({
                     <FileText className="h-4 w-4" aria-hidden />
                     Prepare dispute letter
                   </Link>
+                  <a href="#review-plan" className={buttonClass("secondary")}>
+                    Open your CAM Review Plan
+                  </a>
                 </div>
                 {unlockError && (
                   <p role="alert" className="mt-3 text-sm text-red-700">
@@ -712,6 +798,7 @@ function AuditResultsRenderer({
               <ConfidenceIndicator
                 level={audit.confidence}
                 score={audit.confidence_score ?? 0}
+                coverageLimited={isAiTruncated(coverage)}
               />
             )}
 
@@ -734,8 +821,12 @@ function AuditResultsRenderer({
                 findings={paidFindings}
                 leaseClausesSummary={audit.lease_clauses_summary}
               />
+            ) : audit.purchase && !audit.purchase.eligible ? (
+              <NoPurchasePanel reason={audit.purchase.reason} coverageNote={audit.purchase.coverageNote} />
             ) : (
             <AuditResultsPaid
+              partialNotes={audit.purchase?.eligible && audit.purchase.completeness === "partial" ? audit.purchase.notes : undefined}
+              confirmingPayment={confirmingPayment}
               priceLabel={priceLabel}
               onUnlock={startCheckout}
               unlocking={unlocking}
@@ -747,6 +838,18 @@ function AuditResultsRenderer({
               overchargeBreakdown={overchargeBreakdown}
               leaseClausesSummary={audit.lease_clauses_summary}
             />
+            )}
+
+            {/* CAM Review Plan: built from the findings already shown above, so it adds no new data access */}
+            {unlocked && (
+              <ReviewPlanPanel
+                plan={buildReviewPlan({
+                  findings: [...freeFindings, ...paidFindings],
+                  overchargeBreakdown,
+                  leaseClausesSummary: audit.lease_clauses_summary,
+                  confidence: audit.confidence,
+                })}
+              />
             )}
           </>
         )}
@@ -811,9 +914,12 @@ function StatusBadge({ status }: { status: string }) {
 function ConfidenceIndicator({
   level,
   score,
+  coverageLimited,
 }: {
   level: "high" | "medium" | "low";
   score: number;
+  /** The AI step read only part of a long document: the level must not read as confidence in full coverage. */
+  coverageLimited?: boolean;
 }) {
   const config = {
     high: {
@@ -836,7 +942,8 @@ function ConfidenceIndicator({
     },
   };
 
-  const c = config[level];
+  // Amber (never green) when part of the document was not read by the AI step.
+  const c = coverageLimited ? { ...config[level], color: "text-amber-700", bg: "bg-amber-100", barColor: "bg-amber-500" } : config[level];
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -848,6 +955,7 @@ function ConfidenceIndicator({
           className={`text-xs font-semibold px-2 py-0.5 rounded-full ${c.bg} ${c.color}`}
         >
           {c.label}
+          {coverageLimited ? ` (${CONFIDENCE_COVERAGE_QUALIFIER})` : ""}
         </span>
       </div>
       <div className="w-full bg-gray-100 rounded-full h-2">
@@ -857,7 +965,7 @@ function ConfidenceIndicator({
         />
       </div>
       <p className="text-xs text-gray-400 mt-1.5">
-        Based on completeness of extracted data and document clarity.
+        {coverageLimited ? CONFIDENCE_COVERAGE_CAPTION : "Based on completeness of extracted data and document clarity."}
       </p>
     </div>
   );
@@ -915,7 +1023,7 @@ function SourceEvidenceCard({
           <span>
             <span className="font-medium text-gray-700">Detected Amount:</span>{" "}
             <span className="tabular-nums">
-              ${totalExpense.toLocaleString()}
+              {formatMoney(totalExpense)}
             </span>
           </span>
           <span>
@@ -923,9 +1031,9 @@ function SourceEvidenceCard({
             <span className="tabular-nums">{tenantShare}%</span>
           </span>
           <span>
-            <span className="font-medium text-red-700">Overcharge:</span>{" "}
-            <span className="tabular-nums font-semibold text-red-700">
-              ${tenantCharge.toLocaleString()}
+            <span className="font-medium text-ink">Potential discrepancy:</span>{" "}
+            <span className="tabular-nums font-semibold text-ink">
+              {formatMoney(tenantCharge)}
             </span>
           </span>
         </p>

@@ -4,7 +4,7 @@ import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/resources/how-to-audit-cam-charges" },
-  title: "How to Audit Your CAM Charges: A Step-by-Step Guide | LeaseGuard",
+  title: "How to Audit CAM Charges: Step-by-Step Guide | LeaseGuard",
   description:
     "Step-by-step guide for commercial tenants who want to audit their CAM charges. Learn what to look for, common red flags, and how to exercise your audit rights.",
   keywords: [
@@ -23,7 +23,8 @@ export default function HowToAuditCamCharges() {
   return (
     <ArticleLayout
       title="How to Audit Your CAM Charges"
-      publishedDate="March 2026"
+      publishedDate="March 13, 2026"
+      modifiedDate="October 29, 2026"
       readTime="10 min read"
       description="Step-by-step guide for commercial tenants who want to audit their CAM charges. Learn what to look for, common red flags, and how to exercise your audit rights."
     >
@@ -31,6 +32,9 @@ export default function HowToAuditCamCharges() {
         For commercial tenants, whether you operate a retail store, a medical
         office, a franchise location, or a professional services firm, CAM
         charges represent a significant and often unpredictable expense. Statements can contain errors, and an error can go in either direction, so it is worth checking the figures instead of assuming they are right.
+      </p>
+      <p>
+        To check the arithmetic first, see <Link href="/resources/how-to-calculate-cam-charges" className="text-blue-600 hover:underline">how to calculate CAM charges</Link>. If you would rather hand the review to someone else, read about <Link href="/resources/commercial-lease-audit-services" className="text-blue-600 hover:underline">commercial lease audit services</Link>.
       </p>
       <p>
         Whether you&apos;re spending $5,000 or $50,000 per year on CAM, a
@@ -180,13 +184,11 @@ export default function HowToAuditCamCharges() {
       <p>
         If you find issues, your lease likely gives you the right to formally
         inspect the landlord&apos;s books. Most leases require you to notify the
-        landlord in writing within a specific timeframe (often 60-120 days after
-        receiving the reconciliation).
+        landlord in writing within a specific timeframe (the lease sets the window, so check yours).
       </p>
       <p>
         For larger discrepancies, consider hiring a professional CAM auditor.
-        Many work on a contingency basis, they only get paid if they find
-        savings.
+        Some work on a contingency basis, meaning they are paid only if they find savings. Terms vary, so ask how fees are calculated.
       </p>
 
       <h2>How LeaseGuard Helps</h2>
@@ -195,8 +197,7 @@ export default function HowToAuditCamCharges() {
         preliminary review to determine whether a deeper look is warranted.
         LeaseGuard lets you upload your lease and CAM reconciliation statement,
         then automatically cross-references the two documents to flag potential
-        issues, from excluded cost pass-throughs to pro rata share errors to
-        CAM cap violations. This kind of initial screening can help you decide
+        issues, from excluded cost pass-throughs to pro rata share errors to potential CAM cap discrepancies. This kind of initial screening can help you decide
         whether to exercise your formal audit rights and gives you specific
         items to investigate further.
       </p>

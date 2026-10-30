@@ -21,7 +21,8 @@ export default function CamAuditRights() {
   return (
     <ArticleLayout
       title="CAM Audit Rights in Commercial Leases"
-      publishedDate="March 2026"
+      publishedDate="March 14, 2026"
+      modifiedDate="October 29, 2026"
       readTime="7 min read"
       description="Understand your audit rights as a commercial tenant, including review periods, access to records, and how to exercise your right to audit CAM charges."
     >
@@ -36,6 +37,12 @@ export default function CamAuditRights() {
         </Link>{" "}
         and operating expenses. Many tenants are unsure whether their lease includes this right or how to begin. Understanding your audit rights is the first step
         toward verifying that your charges are accurate.
+      </p>
+      <p>
+        Whatever your audit rights say, a polite written request for explanations often comes first; here is a <Link href="/resources/commercial-lease-dispute-letter-template" className="text-blue-600 hover:underline">plain template for that letter</Link>.
+      </p>
+      <p>
+        Once you have found items to question, <Link href="/resources/dispute-cam-charges" className="text-blue-600 hover:underline">how to dispute CAM charges</Link> explains how to organize your evidence and raise them with your landlord.
       </p>
 
       <h2>Tenant Audit Rights</h2>
@@ -65,7 +72,7 @@ export default function CamAuditRights() {
       </ul>
       <p>
         Some leases also include a provision that if the audit reveals an
-        overcharge above a certain threshold, often 3% to 5%, the landlord
+        overcharge above a threshold stated in the lease, the landlord
         must reimburse the tenant for the cost of the audit in addition to
         refunding the overcharge.
       </p>
@@ -131,7 +138,7 @@ export default function CamAuditRights() {
           >
             CAM caps
           </Link>{" "}
-          or violate escalation limits
+          or appear to exceed escalation limits
         </li>
         <li>
           Flagging{" "}
@@ -190,8 +197,7 @@ export default function CamAuditRights() {
       <p>
         LeaseGuard helps tenants exercise their audit rights by automating the
         comparison of lease terms against reconciliation charges. Upload your
-        lease and reconciliation statement to receive findings in about 60
-        seconds. For a step-by-step overview, see our guide on{" "}
+        lease and reconciliation statement to receive your findings. For a step-by-step overview, see our guide on{" "}
         <Link
           href="/resources/how-to-audit-cam-charges"
           className="text-blue-600 hover:underline"

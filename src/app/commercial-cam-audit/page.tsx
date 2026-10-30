@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/commercial-cam-audit" },
   title: "What Is a Commercial CAM Audit? How Tenants Review CAM Charges | LeaseGuard",
   description:
-    "Run a commercial CAM audit in seconds. Upload your lease and CAM reconciliation statement to identify potential billing discrepancies.",
+    "Run a commercial CAM audit online. Upload your lease and CAM reconciliation statement to identify potential billing discrepancies.",
   keywords: [
     "commercial CAM audit",
     "CAM overcharges",
@@ -81,9 +81,7 @@ export default function CommercialCamAudit() {
 
           <h2>Common CAM Overcharges</h2>
           <p>
-            CAM overcharges are more common than most tenants realize. Without a
-            systematic review, these discrepancies often go undetected year after
-            year. Here are some of the most frequent issues identified in{" "}
+            CAM overcharges can go unnoticed without a systematic review. Here are some of the issues commonly reviewed in{" "}
             <Link
               href="/resources/common-cam-overcharges"
               className="text-blue-600 hover:underline"
@@ -96,8 +94,7 @@ export default function CommercialCamAudit() {
             <li>
               <strong>Inflated management fees</strong> &mdash; Landlords may
               charge administrative or management fees that exceed the percentage
-              cap defined in the lease. A fee listed at 8% when the lease caps
-              it at 5% results in a direct overcharge.
+              cap defined in the lease. A fee listed at 8% when the lease caps it at 5% would be a potential discrepancy to raise with the landlord.
             </li>
             <li>
               <strong>Incorrect pro rata share calculations</strong> &mdash; If
@@ -135,8 +132,7 @@ export default function CommercialCamAudit() {
           <ol>
             <li>
               <strong>Upload your lease and CAM reconciliation statement</strong>{" "}
-              &mdash; Upload a PDF of your commercial lease (specifically the
-              CAM or operating expense section) along with one or more annual CAM
+              &mdash; Upload a PDF of your commercial lease (including the CAM or operating expense provisions, the definitions and exhibits that affect them, and any amendments) along with one or more annual CAM
               reconciliation statements from your landlord.
             </li>
             <li>
@@ -209,13 +205,13 @@ export default function CommercialCamAudit() {
           </h2>
           <p className="text-gray-600 mb-8 max-w-xl mx-auto leading-relaxed">
             Upload your lease and CAM reconciliation statement. LeaseGuard
-            identifies potential billing discrepancies in about 60 seconds.
+            identifies potential billing discrepancies for your review.
           </p>
           <Link
             href="/upload"
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-7 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-500 hover:shadow-md transition-all"
           >
-            Run 60-Second Audit
+            Run Audit
             <ArrowRight className="h-4 w-4" />
           </Link>
           <div className="mt-6 flex items-center justify-center gap-6 text-sm text-gray-500">

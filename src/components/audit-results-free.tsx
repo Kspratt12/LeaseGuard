@@ -1,3 +1,4 @@
+import { formatMoney } from "@/lib/format";
 import { CheckCircle, AlertCircle, Scale } from "lucide-react";
 import type { Finding, LeaseClauseSummary } from "@/services/audit-logic";
 import { getLeaseClauseEvidence } from "@/lib/lease-clause-evidence";
@@ -17,7 +18,7 @@ export function AuditResultsFree({
   if (findings.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 text-center text-gray-500">
-        <p>No overcharges detected in the free preview.</p>
+        <p>No potential discrepancies were flagged in the free preview.</p>
         <p className="text-sm mt-1">
           The uploaded documents did not trigger any free-tier audit flags.
           Additional checks may be available in the full report below.
@@ -59,7 +60,7 @@ export function AuditResultsFree({
               <p className="text-sm text-gray-600 leading-relaxed">{f.description}</p>
               {f.potential_savings > 0 ? (
                 <p className="text-sm font-semibold text-green-700">
-                  Potential discrepancy: ${f.potential_savings.toLocaleString()}
+                  Potential discrepancy: {formatMoney(f.potential_savings)}
                 </p>
               ) : f.insufficientData ? (
                 <p className="text-xs text-review">
@@ -71,7 +72,7 @@ export function AuditResultsFree({
                 </p>
               )}
 
-              {/* Lease Clause Evidence */}
+              {/* Detected in your lease (summary, not a quotation) */}
               {(() => {
                 const clause = getLeaseClauseEvidence(f, leaseClausesSummary);
                 if (!clause) return null;
@@ -80,14 +81,14 @@ export function AuditResultsFree({
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Scale className="h-3.5 w-3.5 text-blue-600 shrink-0" />
                       <p className="text-xs font-semibold text-blue-800">
-                        Lease Clause Evidence
+                        Detected in your lease (summary, not a quotation)
                       </p>
                     </div>
                     <p className="text-xs font-medium text-blue-700 mb-1">
                       {clause.section}
                     </p>
                     <p className="text-xs text-gray-600 italic leading-relaxed pl-3 border-l-2 border-blue-200">
-                      &ldquo;{clause.text}&rdquo;
+                      {clause.text}
                     </p>
                   </div>
                 );

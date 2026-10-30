@@ -17,6 +17,8 @@ interface AuditSummary {
   years: number | null;
   price_cents: number | null;
   unlocked: boolean;
+  /** False when the audit has nothing to unlock: no price or purchase is mentioned for it. */
+  purchasable?: boolean;
 }
 
 type View = "processing" | "failed" | "unlocked" | "preview" | "unknown";
@@ -72,15 +74,18 @@ function AuditCard({ a }: { a: AuditSummary }) {
           <span className="text-gray-500"> (items to review, not confirmed overcharges)</span>
         </p>
       )}
-      {view === "preview" && (
+      {view === "preview" && a.purchasable !== false && (
         <p className="mt-1 text-sm text-gray-600">
           {price
             ? `The full report with evidence and a dispute letter draft is a one-time ${price}.`
             : "Open the audit to see your options for the full report."}
         </p>
       )}
+      {view === "preview" && a.purchasable === false && (
+        <p className="mt-1 text-sm text-gray-600">There are no additional findings to unlock for this audit, so no purchase is offered.</p>
+      )}
       {view === "processing" && (
-        <p className="mt-3 text-sm text-gray-600">This usually takes about a minute. This page updates on its own.</p>
+        <p className="mt-3 text-sm text-gray-600">Processing time depends on your documents. This page updates on its own when your audit is ready.</p>
       )}
       {view === "failed" && (
         <p className="mt-3 text-sm text-gray-600">
@@ -101,7 +106,7 @@ function AuditCard({ a }: { a: AuditSummary }) {
         )}
         {view === "preview" && (
           <Link href={`/audit/${a.id}`} className={buttonClass("primary")}>
-            Review results{price ? ` and unlock for ${price}` : ""}
+            Review results{price && a.purchasable !== false ? ` and unlock for ${price}` : ""}
           </Link>
         )}
         {view === "processing" && (

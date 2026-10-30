@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/resources/common-cam-overcharges" },
   title: "5 Common CAM Overcharges Tenants Miss | LeaseGuard",
   description:
-    "Discover the most frequently overlooked CAM billing errors that cost commercial tenants thousands of dollars. Learn what to look for in your reconciliation statements.",
+    "Five CAM billing issues worth checking on a reconciliation statement: capital expenses, management fees, excluded costs, share errors and cap problems.",
   keywords: [
     "CAM overcharges",
     "CAM billing errors",
@@ -23,9 +23,10 @@ export default function CommonCamOvercharges() {
   return (
     <ArticleLayout
       title="5 Common CAM Overcharges Tenants Miss"
-      publishedDate="March 2026"
+      publishedDate="March 13, 2026"
+      modifiedDate="October 29, 2026"
       readTime="9 min read"
-      description="Discover the most frequently overlooked CAM billing errors that cost commercial tenants thousands of dollars. Learn what to look for in your reconciliation statements."
+      description="Five CAM billing issues worth checking on a reconciliation statement: capital expenses, management fees, excluded costs, share errors and cap problems."
     >
       <p>
         CAM overcharges affect commercial tenants of every type, retail
@@ -38,7 +39,10 @@ export default function CommonCamOvercharges() {
         <Link href="/resources/cam-reconciliation-guide" className="text-blue-600 hover:underline">
           CAM reconciliation statements
         </Link>{" "}
-        may be overpaying by thousands of dollars every year.
+        may miss billing discrepancies that are worth raising with their landlord.
+      </p>
+      <p>
+        Fee and cap questions are covered in <Link href="/resources/management-fees-and-cam-caps" className="text-blue-600 hover:underline">management fees and CAM caps</Link>, and lease-wide surprises in <Link href="/resources/hidden-costs-in-nnn-leases" className="text-blue-600 hover:underline">hidden costs in NNN leases</Link>. If you find something to question, see <Link href="/resources/dispute-cam-charges" className="text-blue-600 hover:underline">how to dispute CAM charges</Link>.
       </p>
       <p>
         Here are five of the most commonly overlooked CAM overcharges that
@@ -81,7 +85,7 @@ export default function CommonCamOvercharges() {
       <h2>2. Management Fee Overcharges</h2>
       <p>
         Property management fees are typically calculated as a percentage of
-        total operating expenses, usually between 3% and 8%. The overcharge
+        total operating expenses, with the percentage set by the lease. The overcharge
         risk comes from multiple angles:
       </p>
       <ul>
@@ -153,10 +157,7 @@ export default function CommonCamOvercharges() {
           statement wasn&apos;t updated.
         </li>
         <li>
-          <strong>Missing gross-up:</strong> When the building isn&apos;t fully
-          occupied, variable costs should be adjusted upward to simulate full
-          occupancy. If the landlord doesn&apos;t apply this adjustment, you
-          may be subsidizing vacant space.
+          <strong>Gross-up not matching the lease:</strong> Where your lease authorizes a gross-up, check that the specified occupancy level and eligible variable expenses were used. A missing or different adjustment is not automatically an overcharge.
         </li>
         <li>
           <strong>Inconsistent shares:</strong> Some landlords use different
@@ -165,13 +166,13 @@ export default function CommonCamOvercharges() {
         </li>
       </ul>
 
-      <h2>5. CAM Cap Violations</h2>
+      <h2>5. Charges Above the CAM Cap</h2>
       <p>
         If your lease includes a{" "}
         <Link href="/resources/cam-cap-commercial-lease" className="text-blue-600 hover:underline">
           CAM cap
         </Link>, it places a ceiling on how much your CAM charges can increase
-        year over year. Cap violations are surprisingly common because:
+        year over year. A cap can be applied incorrectly for several reasons:
       </p>
       <ul>
         <li>
@@ -192,7 +193,7 @@ export default function CommonCamOvercharges() {
         </li>
       </ul>
       <p>
-        Cap violations tend to get worse over time. A miscalculated base in Year
+        A cap that is applied incorrectly tends to compound over time. A miscalculated base in Year
         1 compounds in every subsequent year, potentially resulting in thousands
         of dollars in cumulative overcharges.
       </p>
@@ -207,11 +208,11 @@ export default function CommonCamOvercharges() {
         time or expertise to do it every year.
       </p>
 
-      <h2>What to Do If You Find Overcharges</h2>
+      <h2>What to Do If You Find a Possible Overcharge</h2>
       <ol>
         <li>
           <strong>Document everything.</strong> Note the specific charges you
-          believe are incorrect and the lease provisions they violate.
+          believe are incorrect and the lease provisions you believe apply.
         </li>
         <li>
           <strong>Contact your landlord or property manager.</strong> Start with
@@ -243,8 +244,7 @@ export default function CommonCamOvercharges() {
         cross-references the two documents to identify potential discrepancies
         across all five categories described above, from capital expense
         classification to CAM cap compliance to excluded cost pass-throughs to
-        management fee calculations. The analysis is delivered in about 60
-        seconds, giving you a clear picture of where to focus your review.
+        management fee calculations. The analysis gives you a clear picture of where to focus your review.
       </p>
 
       <h2>Key Takeaways</h2>
@@ -253,7 +253,7 @@ export default function CommonCamOvercharges() {
         <li>Management fees compound other overcharges: always verify the percentage</li>
         <li>Cross-reference your reconciliation against your lease&apos;s exclusion list</li>
         <li>Even a small proportionate share error affects every line item on your statement</li>
-        <li>CAM cap violations accumulate over time and can cost thousands over a lease term</li>
+        <li>A cap applied incorrectly can accumulate over time and add up over a lease term</li>
       </ul>
     </ArticleLayout>
   );

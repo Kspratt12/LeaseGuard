@@ -28,7 +28,7 @@ export function getLeaseClauseEvidence(
     if (summary.camCap) {
       return {
         section: "CAM Expense Cap Provision",
-        text: `The lease limits annual increases in CAM or controllable operating expenses to ${summary.camCap} over the prior year. Any charges exceeding this cap are not the tenant's responsibility.`,
+        text: `The lease sets a cap of ${summary.camCap} on annual increases in CAM or controllable operating expenses.`,
       };
     }
   }
@@ -38,7 +38,7 @@ export function getLeaseClauseEvidence(
     if (summary.adminFeeCap) {
       return {
         section: "Administrative Fee Limitation",
-        text: `The lease limits administrative or overhead fees to ${summary.adminFeeCap} of total operating expenses. Charges exceeding this percentage should be credited to the tenant.`,
+        text: `The lease limits administrative or overhead fees to ${summary.adminFeeCap} of total operating expenses.`,
       };
     }
     // Fall through to management fee if admin cap not found
@@ -55,7 +55,7 @@ export function getLeaseClauseEvidence(
     if (summary.managementFeeCap) {
       return {
         section: "Property Management Fee Cap",
-        text: `Property management fees are contractually capped at ${summary.managementFeeCap} of total operating expenses. Any management fee charged above this rate constitutes an overcharge.`,
+        text: `The lease caps property management fees at ${summary.managementFeeCap} of total operating expenses.`,
       };
     }
     if (summary.adminFeeCap) {
@@ -75,14 +75,13 @@ export function getLeaseClauseEvidence(
   ) {
     if (summary.tenantProRataShare) {
       const parts: string[] = [
-        `The lease establishes the tenant's pro-rata share at ${summary.tenantProRataShare}`,
+        `The lease states the tenant's pro-rata share as ${summary.tenantProRataShare}`,
       ];
       if (summary.tenantSquareFootage && summary.buildingSquareFootage) {
         parts.push(`calculated from ${summary.tenantSquareFootage} of tenant premises within a ${summary.buildingSquareFootage} total building area`);
       } else if (summary.tenantSquareFootage) {
         parts.push(`based on tenant premises of ${summary.tenantSquareFootage}`);
       }
-      parts.push(`Any billing at a higher share percentage constitutes an overcharge`);
       return {
         section: "Tenant Pro-Rata Share",
         text: parts.join(", ") + ".",
@@ -95,7 +94,7 @@ export function getLeaseClauseEvidence(
     if (summary.camCap) {
       return {
         section: "CAM Expense Cap / Gross-Up",
-        text: `Annual CAM escalation is capped at ${summary.camCap} per lease terms. Gross-up adjustments must comply with this limitation.`,
+        text: `The lease sets a cap of ${summary.camCap} on annual CAM increases. Check how any gross-up adjustment interacts with that cap in your lease.`,
       };
     }
   }
@@ -106,7 +105,7 @@ export function getLeaseClauseEvidence(
       const displayCats = summary.excludedCategories.slice(0, 10).join(", ");
       return {
         section: "Excluded Expense Categories",
-        text: `The lease explicitly excludes the following from tenant reimbursement: ${displayCats}. Any pass-through of these expenses to the tenant is a breach of the lease exclusion provisions.`,
+        text: `The lease lists these categories as excluded from tenant reimbursement: ${displayCats}.`,
       };
     }
   }
@@ -116,7 +115,7 @@ export function getLeaseClauseEvidence(
     if (summary.camCap) {
       return {
         section: "Operating Expense Provisions",
-        text: `The lease establishes a ${summary.camCap} cap on annual CAM increases. Complete reconciliation data is required to verify compliance.`,
+        text: `The lease sets a cap of ${summary.camCap} on annual CAM increases. A complete reconciliation with totals is needed to test it.`,
       };
     }
   }
@@ -131,7 +130,7 @@ export function getLeaseClauseEvidence(
     if (clauseParts.length > 0) {
       return {
         section: "Extracted Lease Terms",
-        text: `Key lease provisions detected: ${clauseParts.join(", ")}.`,
+        text: `Lease terms detected: ${clauseParts.join(", ")}.`,
       };
     }
   }

@@ -7,6 +7,11 @@ import {
 } from "pdf-lib";
 import type { Finding, OverchargeLineItem, LeaseClauseSummary } from "@/services/audit-logic";
 import { getLeaseClauseEvidence } from "@/lib/lease-clause-evidence";
+import { buildReviewPlan } from "@/services/review-plan";
+import { drawReviewPlanPages } from "@/services/review-plan-pdf";
+import { toWinAnsi } from "@/services/dispute-letter";
+import { ROUNDING_NOTE } from "@/lib/format";
+import { CONFIDENCE_COVERAGE_QUALIFIER, coverageOf, coverageSentence, isAiTruncated } from "@/lib/analysis-coverage";
 
 interface ReportInput {
   auditId: string;
@@ -84,15 +89,29 @@ function estimateFindingHeight(
   // Add space for lease clause evidence
   const clauseRef = getLeaseClauseEvidence(finding, leaseClausesSummary);
   if (clauseRef) {
-    const clauseLines = wrapText(`"${clauseRef.text}"`, font, 9, CONTENT_WIDTH - 26);
+    const clauseLines = wrapText(clauseRef.text, font, 9, CONTENT_WIDTH - 26);
     h += 14 + 14 + clauseLines.length * 13 + 10; // label + section + quote lines + padding
   }
   return h;
 }
 
+/**
+ * Standard PDF fonts can only encode WinAnsi, and pdf-lib throws on anything else (an emoji or an arrow in a
+ * quoted lease line would otherwise make the whole report fail). Every string in the input is made safe once, here.
+ */
+const usd = (n: number) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
+
+function winAnsiDeep<T>(v: T): T {
+  if (typeof v === "string") return toWinAnsi(v) as unknown as T;
+  if (Array.isArray(v)) return v.map(winAnsiDeep) as unknown as T;
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as object).map(([k, x]) => [k, winAnsiDeep(x)])) as T;
+  return v;
+}
+
 export async function generateReportPdf(
-  input: ReportInput,
+  rawInput: ReportInput,
 ): Promise<Buffer> {
+  const input = winAnsiDeep(rawInput);
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -174,7 +193,7 @@ export async function generateReportPdf(
     const labelY = ctx.y - 28;
     drawCenteredText(ctx.page, "POTENTIAL BILLING DISCREPANCIES", fontBold, 8, RED, labelY);
     const amountY = labelY - 38;
-    drawCenteredText(ctx.page, `$${effectiveSavings.toLocaleString()}`, fontBold, 36, RED, amountY);
+    drawCenteredText(ctx.page, `${usd(effectiveSavings)}`, fontBold, 36, RED, amountY);
   } else if (effectiveSavings > 0) {
     ctx.page.drawRectangle({
       x: boxX,
@@ -188,7 +207,7 @@ export async function generateReportPdf(
     const labelY = ctx.y - 28;
     drawCenteredText(ctx.page, "POTENTIAL BILLING DISCREPANCIES", fontBold, 9, GREEN, labelY);
     const amountY = labelY - 38;
-    drawCenteredText(ctx.page, `$${effectiveSavings.toLocaleString()}`, fontBold, 36, GREEN, amountY);
+    drawCenteredText(ctx.page, `${usd(effectiveSavings)}`, fontBold, 36, GREEN, amountY);
   } else if (totalFindingsCount > 0) {
     const BG_AMBER = rgb(0.99, 0.97, 0.92);
     ctx.page.drawRectangle({
@@ -242,11 +261,19 @@ export async function generateReportPdf(
     }
   }
   ctx.y = ctx.y - boxH;
+  if (effectiveSavings > 0) {
+    // one shared sentence explaining the rounding, in the same words as the results page
+    ctx.y -= 12;
+    for (const line of wrapText(winAnsiDeep(ROUNDING_NOTE), font, 8, CONTENT_WIDTH)) {
+      ctx.page.drawText(line, { x: MARGIN, y: ctx.y, size: 8, font, color: GRAY });
+      ctx.y -= 11;
+    }
+  }
 
   // Overcharge breakdown table (on page 1 if space, otherwise continuation)
   if (hasOvercharge) {
     ctx.y -= 28;
-    drawCenteredText(ctx.page, "Excluded Expense Overcharge Breakdown", fontBold, 11, DARK, ctx.y);
+    drawCenteredText(ctx.page, "Excluded Expense Breakdown", fontBold, 11, DARK, ctx.y);
     ctx.y -= 24;
 
     const col0Left = MARGIN;
@@ -286,17 +313,21 @@ export async function generateReportPdf(
     // Total row
     ctx.y -= 2;
     ctx.page.drawLine({ start: { x: MARGIN, y: ctx.y + 10 }, end: { x: MARGIN + CONTENT_WIDTH, y: ctx.y + 10 }, thickness: 0.75, color: LINE_GRAY });
-    ctx.page.drawText("Total Estimated Overcharge", { x: col0Left, y: ctx.y, size: 9, font: fontBold, color: DARK });
-    drawRightAlignedText(ctx.page, `$${overcharge.toLocaleString()}`, fontBold, 9, RED, col3Right, ctx.y);
+    ctx.page.drawText("Total potential discrepancy (excluded expenses)", { x: col0Left, y: ctx.y, size: 9, font: fontBold, color: DARK });
+    drawRightAlignedText(ctx.page, `${usd(overcharge)}`, fontBold, 9, RED, col3Right, ctx.y);
     ctx.y -= 18;
   }
 
   // Confidence indicator
   if (input.confidence) {
     ctx.y -= 36;
-    const confLabel = `Audit Confidence: ${input.confidence.toUpperCase()}`;
+    const confLabel = `Audit Confidence: ${input.confidence.toUpperCase()}${isAiTruncated(coverageOf(input.leaseClausesSummary)) ? ` (${CONFIDENCE_COVERAGE_QUALIFIER})` : ""}`;
+    // Amber (never green) when part of the document was not read by the AI step: a green label would read as strong coverage.
+    const coverageLimited = isAiTruncated(coverageOf(input.leaseClausesSummary));
     const confColor =
-      input.confidence === "high"
+      coverageLimited
+        ? AMBER
+        : input.confidence === "high"
         ? GREEN
         : input.confidence === "medium"
           ? AMBER
@@ -318,13 +349,27 @@ export async function generateReportPdf(
     }
   }
 
+  // Coverage: the AI step read only the start of a long document. Stated in the report itself, not only on screen.
+  {
+    const cov = coverageOf(input.leaseClausesSummary);
+    if (isAiTruncated(cov)) {
+      ctx.y -= 16;
+      drawCenteredText(ctx.page, "This review does not cover your whole document", fontBold, 9, AMBER, ctx.y);
+      ctx.y -= 14;
+      for (const line of wrapText(coverageSentence(cov), font, 9, CONTENT_WIDTH)) {
+        drawCenteredText(ctx.page, line, font, 9, AMBER, ctx.y);
+        ctx.y -= 14;
+      }
+    }
+  }
+
   // Summary paragraph
   ctx.y -= 52;
   const summaryLines = wrapText(
-    "This report summarizes detected discrepancies between your commercial lease " +
-      "terms and the CAM reconciliation statement(s) provided. Each finding references " +
-      "a specific gap between what your lease allows and what was billed. " +
-      "Professional review is recommended to confirm findings before taking action.",
+    "This report compares your commercial lease terms with the CAM reconciliation " +
+      "statement(s) provided. Each finding is a potential discrepancy to review with your landlord, " +
+      "not a confirmed overcharge. " +
+      "Professional review is recommended before you take action.",
     font,
     10,
     CONTENT_WIDTH,
@@ -547,9 +592,9 @@ export async function generateReportPdf(
 
       // Amount details
       const detailLine =
-        `Detected Amount: $${item.total_expense.toLocaleString()}` +
+        `Detected Amount: ${usd(item.total_expense)}` +
         `    Tenant Share: ${item.tenant_share_percent}%` +
-        `    Estimated Overcharge: $${item.tenant_charge.toLocaleString()}`;
+        `    Potential discrepancy: ${usd(item.tenant_charge)}`;
       ctx.page.drawText(detailLine, {
         x: MARGIN,
         y: ctx.y,
@@ -608,7 +653,7 @@ export async function generateReportPdf(
       .filter((f) => !f.insufficientData)
       .reduce((sum, f) => sum + f.potential_savings, 0);
     const premiumSummary = premiumSavings > 0
-      ? `${count} additional premium finding${count !== 1 ? "s" : ""} identified with up to $${premiumSavings.toLocaleString()} in additional potential billing discrepancies.`
+      ? `${count} additional premium finding${count !== 1 ? "s" : ""} identified with up to ${usd(premiumSavings)} in additional potential billing discrepancies.`
       : `${count} additional premium finding${count !== 1 ? "s" : ""} identified. Full report includes source-level evidence and discrepancy analysis.`;
     ctx.y = drawText(
       ctx.page,
@@ -666,6 +711,21 @@ export async function generateReportPdf(
     );
   }
   } // end if premium findings exist
+
+  // CAM Review Plan: only in the paid report, built from the same findings printed above
+  if (input.isPaid) {
+    drawReviewPlanPages(
+      doc,
+      font,
+      fontBold,
+      buildReviewPlan({
+        findings: [...input.freeFindings, ...input.paidFindings],
+        overchargeBreakdown: input.overchargeBreakdown ?? [],
+        leaseClausesSummary: input.leaseClausesSummary,
+        confidence: input.confidence,
+      }),
+    );
+  }
 
   // Footer on last page bottom
   const lastPage = doc.getPages()[doc.getPageCount() - 1];
@@ -811,7 +871,7 @@ function drawFinding(ctx: PageCtx, finding: Finding, leaseClausesSummary?: Lease
   // Savings / action line
   if (finding.potential_savings > 0) {
     ctx.page.drawText(
-      `Potential discrepancy: $${finding.potential_savings.toLocaleString()}`,
+      `Potential discrepancy: ${usd(finding.potential_savings)}`,
       { x: MARGIN, y: ctx.y, size: 11, font: fontBold, color: GREEN },
     );
     ctx.y -= 16; // was 20
@@ -857,7 +917,7 @@ function drawFinding(ctx: PageCtx, finding: Finding, leaseClausesSummary?: Lease
     ctx.y -= 4;
 
     // Draw bordered background box
-    const clauseTextLines = wrapText(`"${clauseRef.text}"`, font, 9, CONTENT_WIDTH - 26);
+    const clauseTextLines = wrapText(clauseRef.text, font, 9, CONTENT_WIDTH - 26);
     const boxHeight = 14 + 14 + clauseTextLines.length * 13 + 8;
     const BG_CLAUSE = rgb(0.94, 0.96, 1.0);
     const BORDER_CLAUSE = rgb(0.78, 0.84, 0.95);
@@ -873,7 +933,7 @@ function drawFinding(ctx: PageCtx, finding: Finding, leaseClausesSummary?: Lease
 
     // Label
     ctx.y -= 12;
-    ctx.page.drawText("Lease Clause Evidence", { x: MARGIN + 8, y: ctx.y, size: 8, font: fontBold, color: BLUE });
+    ctx.page.drawText("Detected in your lease (summary, not a quotation)", { x: MARGIN + 8, y: ctx.y, size: 8, font: fontBold, color: BLUE });
     ctx.y -= 14;
 
     // Section name

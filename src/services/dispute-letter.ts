@@ -13,6 +13,9 @@
  */
 import type { Finding, OverchargeLineItem, LeaseClauseSummary, SourceEvidence } from "@/services/audit-logic";
 import { totalSavings } from "@/services/savings-math";
+import { formatMoney, ROUNDING_NOTE_SHORT } from "@/lib/format";
+import { coverageOf, isAiTruncated } from "@/lib/analysis-coverage";
+import { findingKind, isExcludedCategoryFinding } from "@/services/finding-classification";
 
 export interface LetterItem {
   kind: "adjustment" | "clarify";
@@ -31,8 +34,9 @@ export interface DisputeLetter {
   placeholders: string[];
 }
 
+// Exact: whole dollars only when there are no cents (the old whole-dollar rounding made lines not add up to the total).
 const money = (n: number, cents = false) =>
-  "$" + n.toLocaleString("en-US", cents ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 });
+  cents ? "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : formatMoney(n);
 
 function evidenceOf(list: SourceEvidence[] | SourceEvidence | undefined) {
   const arr = Array.isArray(list) ? list : list ? [list] : [];
@@ -51,7 +55,6 @@ const uniqueEvidence = <T extends { quote: string }>(list: T[]): T[] => {
   return list.filter((e) => (seen.has(e.quote) ? false : (seen.add(e.quote), true)));
 };
 
-const isExcludedCategoryFinding = (f: Finding) => /excluded category/i.test(f.category);
 
 export function buildDisputeLetter(input: {
   findings: Finding[];
@@ -64,7 +67,9 @@ export function buildDisputeLetter(input: {
   // Evidence for excluded categories lives on the "Excluded Category Billed" finding(s)
   // (lease exclusion wording) and on each breakdown row (the statement line).
   const exclusionEvidence = evidenceOf(
-    findings.filter(isExcludedCategoryFinding).flatMap((f) => f.sourceEvidence ?? []),
+    // Only the LEASE wording: the finding's statement snippet is a loose slice of the statement that may not
+    // contain the charged line; the exact statement line comes from each breakdown row.
+    findings.filter(isExcludedCategoryFinding).flatMap((f) => f.sourceEvidence ?? []).filter((e) => /lease/i.test(e.document)),
   );
 
   // A. Calculation-backed items
@@ -81,7 +86,7 @@ export function buildDisputeLetter(input: {
     });
   }
   for (const f of findings) {
-    if (f.insufficientData || isExcludedCategoryFinding(f) || !(f.potential_savings > 0)) continue;
+    if (findingKind(f) !== "adjustment") continue;
     items.push({
       kind: "adjustment",
       title: f.category,
@@ -94,9 +99,7 @@ export function buildDisputeLetter(input: {
   // B. Questions: needs review, but no proven dollar amount. Low-severity $0 findings are
   //    compliance/informational notes and are left out of the letter.
   for (const f of findings) {
-    if (isExcludedCategoryFinding(f)) continue;
-    const isQuestion = f.insufficientData || (f.potential_savings === 0 && f.severity !== "low");
-    if (!isQuestion) continue;
+    if (findingKind(f) !== "clarify") continue;
     items.push({
       kind: "clarify",
       title: f.category,
@@ -121,6 +124,9 @@ export function buildDisputeLetter(input: {
   const src = (e: { document: string; page: number | null; quote: string }) =>
     `   Source: ${e.document}${e.page != null ? `, page ${e.page}` : ""}: "${e.quote}"`;
 
+  // The customer, not the landlord, needs this: the review read only part of a long lease. It is a bracketed item so it
+  // is listed as still to be removed, and the letter page explains it. The letter never claims a provision is absent.
+  if (isAiTruncated(coverageOf(input.leaseClausesSummary))) L.push("[Delete before sending: AI read only part of lease]", "");
   L.push("[Date]", "", "[Landlord or property manager name]", "[Address]", "");
   L.push("Re: [Premises address / suite] - CAM reconciliation for [period or year]");
   L.push("    Lease dated [lease date]", "");
@@ -140,7 +146,7 @@ export function buildDisputeLetter(input: {
       for (const e of it.evidence.slice(0, 3)) L.push(src(e));
       L.push("");
     });
-    L.push(`Total of the items above: ${money(total)}`, "");
+    L.push(`Total of the items above: ${money(total)}`, `(${ROUNDING_NOTE_SHORT})`, "");
   }
 
   if (clarifications.length) {

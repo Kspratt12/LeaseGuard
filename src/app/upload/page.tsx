@@ -33,8 +33,7 @@ export default function UploadPage() {
           <div>
             <p className="text-sm font-semibold text-gray-900">Upload Lease PDF</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              Upload the section of your lease that contains CAM or operating
-              expense clauses.
+              Upload the CAM or operating expense provisions of your lease, plus the definitions, schedules, exhibits and amendments that affect the charges. An excerpt may support only a limited review.
             </p>
           </div>
         </div>

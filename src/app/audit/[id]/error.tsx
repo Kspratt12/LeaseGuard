@@ -12,7 +12,7 @@ export default function AuditError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[audit-error-boundary]", error);
+    console.error("[audit-error-boundary]", error.name, error.digest);
   }, [error]);
 
   return (

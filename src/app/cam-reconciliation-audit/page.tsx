@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/cam-reconciliation-audit" },
-  title: "CAM Reconciliation Audit | Identify Overcharges",
+  title: "CAM Reconciliation Audit | Flag Potential Overcharges",
   description:
     "Analyze CAM reconciliation statements and detect potential lease overcharges using LeaseGuard.",
   keywords: [
@@ -135,7 +135,7 @@ export default function CamReconciliationAudit() {
             LeaseGuard automates the reconciliation audit process. Instead of
             hiring consultants or manually cross-referencing documents, tenants
             can upload their lease and reconciliation statements and receive an
-            automated analysis in about 60 seconds.
+            automated analysis.
           </p>
           <p>The system works by:</p>
           <ul>
@@ -213,13 +213,13 @@ export default function CamReconciliationAudit() {
           </h2>
           <p className="text-gray-600 mb-8 max-w-xl mx-auto leading-relaxed">
             Upload your lease and CAM reconciliation statement. LeaseGuard
-            identifies potential billing discrepancies in about 60 seconds.
+            identifies potential billing discrepancies for your review.
           </p>
           <Link
             href="/upload"
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-7 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-500 hover:shadow-md transition-all"
           >
-            Run 60-Second Audit
+            Run Audit
             <ArrowRight className="h-4 w-4" />
           </Link>
           <div className="mt-6 flex items-center justify-center gap-6 text-sm text-gray-500">

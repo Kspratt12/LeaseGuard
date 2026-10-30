@@ -4,9 +4,9 @@ import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/resources/can-landlords-charge-capital-expenses" },
-  title: "Can Landlords Charge Capital Expenses to Tenants? | LeaseGuard",
+  title: "Can Landlords Charge Tenants for Capital Costs? | LeaseGuard",
   description:
-    "Understand when landlords can and cannot pass capital expenditures to commercial tenants. Learn the difference between repairs and capital improvements and how amortization works.",
+    "When landlords can pass capital expenditures to commercial tenants, how repairs differ from capital improvements, and how amortization works.",
   keywords: [
     "capital expenses commercial lease",
     "capital expenditures tenant",
@@ -23,9 +23,10 @@ export default function CanLandlordsChargeCapitalExpenses() {
   return (
     <ArticleLayout
       title="Can Landlords Charge Capital Expenses to Tenants?"
-      publishedDate="March 2026"
+      publishedDate="March 14, 2026"
+      modifiedDate="October 29, 2026"
       readTime="9 min read"
-      description="Understand when landlords can and cannot pass capital expenditures to commercial tenants. Learn the difference between repairs and capital improvements and how amortization works."
+      description="When landlords can pass capital expenditures to commercial tenants, how repairs differ from capital improvements, and how amortization works."
     >
       <p>
         One of the most significant, and most disputed, issues in commercial
@@ -46,6 +47,9 @@ export default function CanLandlordsChargeCapitalExpenses() {
           common sources of CAM overcharges
         </Link>, making this a critical area for every commercial tenant to
         understand.
+      </p>
+      <p>
+        For the wider list of what a lease can pass through, see <Link href="/resources/what-landlords-can-include-in-cam" className="text-blue-600 hover:underline">what landlords can include in CAM charges</Link>.
       </p>
 
       <h2>What Counts as a Capital Expenditure?</h2>
@@ -229,8 +233,7 @@ export default function CanLandlordsChargeCapitalExpenses() {
         </Link>, the platform identifies potential misclassifications, charges
         that appear to be capital in nature but are being passed through as
         operating expenses, amortization calculations that may not align with
-        your lease terms, and expenses that your lease excludes entirely. The
-        analysis takes about 60 seconds and gives you a clear starting point
+        your lease terms, and expenses that your lease excludes entirely. The analysis gives you a clear starting point
         for follow-up with your landlord.
       </p>
 

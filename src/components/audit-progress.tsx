@@ -197,8 +197,8 @@ export function AuditProgress({ isComplete }: AuditProgressProps) {
       {/* Contextual message */}
       <p className="mt-8 text-center text-xs text-gray-400">
         {waitingForBackend
-          ? "Waiting for analysis to complete \u2014 this may take a moment\u2026"
-          : "This usually takes under a minute"}
+          ? "Still working. Larger or scanned documents take longer."
+          : "Your results appear here when the analysis finishes."}
       </p>
     </div>
   );

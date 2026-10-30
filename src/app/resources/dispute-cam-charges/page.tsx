@@ -21,7 +21,8 @@ export default function DisputeCamCharges() {
   return (
     <ArticleLayout
       title="How to Dispute CAM Charges"
-      publishedDate="March 2026"
+      publishedDate="March 14, 2026"
+      modifiedDate="October 29, 2026"
       readTime="7 min read"
       description="Learn how commercial tenants can dispute CAM charges, what documentation is needed, and how lease clauses limit what landlords can bill."
     >
@@ -37,6 +38,12 @@ export default function DisputeCamCharges() {
         The dispute process requires preparation, documentation, and a clear
         understanding of your lease terms. This guide explains how tenants
         challenge CAM charges and what to expect during the process.
+      </p>
+      <p>
+        If you want a starting point for the written request, see our <Link href="/resources/commercial-lease-dispute-letter-template" className="text-blue-600 hover:underline">CAM dispute letter template</Link>, and to check one common source of differences first, see <Link href="/resources/check-your-pro-rata-share" className="text-blue-600 hover:underline">how to check your pro-rata share</Link>.
+      </p>
+      <p>
+        If you are deciding who should do the review, see our overview of <Link href="/resources/commercial-lease-audit-services" className="text-blue-600 hover:underline">commercial lease audit services</Link>.
       </p>
 
       <h2>How Tenants Challenge CAM Charges</h2>
@@ -64,8 +71,7 @@ export default function DisputeCamCharges() {
         </li>
         <li>
           <strong>Document the discrepancies:</strong> Prepare a written
-          summary of each disputed charge, including the lease clause it
-          violates, the amount billed, and the amount you believe is correct
+          summary of each disputed charge, including the lease clause you believe applies, the amount billed, and the amount you believe is correct
         </li>
         <li>
           <strong>Submit a formal dispute:</strong> Send a written notice to

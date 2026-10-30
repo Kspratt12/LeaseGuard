@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePaidAudit } from "@/lib/paid-access";
+import { coverageOf, coverageSentence, isAiTruncated } from "@/lib/analysis-coverage";
 import { buildDisputeLetter, letterToDocx, letterToPdf } from "@/services/dispute-letter";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       headlineTotal: a.savings_estimate ?? null,
       placeholders: letter.placeholders,
       items: letter.items,
+      // Set when the AI step read only part of a long lease; the letter page shows it above the text.
+      coverageNote: isAiTruncated(coverageOf(a.lease_clauses_summary)) ? coverageSentence(coverageOf(a.lease_clauses_summary)!) : null,
     },
     { headers: NO_STORE },
   );

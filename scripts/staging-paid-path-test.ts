@@ -9,6 +9,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
+import zlib from "node:zlib";
 
 const REF = "hxjquglxcbxxqjuqvuuy";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -77,6 +78,23 @@ async function main() {
     const rep = await call(`/api/audit/${id}/report`, A.token);
     const repBytes = Buffer.from(await rep.arrayBuffer());
     check("paid: report downloads as a real PDF", rep.status === 200 && repBytes.subarray(0, 5).toString() === "%PDF-" && repBytes.length > 1500, `${rep.status} ${repBytes.length}b`);
+    // The paid PDF must carry the CAM Review Plan. pdf-lib writes page text as hex strings inside compressed streams.
+    const pdfText = (() => {
+      const r = repBytes.toString("latin1");
+      let out = "", from = 0;
+      for (;;) {
+        const st = r.indexOf("stream", from);
+        if (st < 0) break;
+        const begin = r[st + 6] === "\r" ? st + 8 : st + 7;
+        const end = r.indexOf("endstream", begin);
+        if (end < 0) break;
+        try { out += "\n" + zlib.inflateSync(Buffer.from(r.slice(begin, end), "latin1")).toString("latin1"); } catch { /* not compressed */ }
+        from = end + 9;
+      }
+      return [...out.matchAll(/<([0-9A-Fa-f]+)>\s*Tj/g)].map((m) => Buffer.from(m[1], "hex").toString("latin1")).join("\n");
+    })();
+    check("paid: the PDF includes the CAM Review Plan", pdfText.includes("CAM Review Plan") && pdfText.includes("One-page checklist and action summary"));
+    check("paid: the PDF does not call potential discrepancies confirmed overcharges", !/Total Estimated Overcharge|breach of the lease|constitutes an overcharge/.test(pdfText));
     const dr = await call(`/api/audit/${id}/letter`, A.token);
     const draft = (await dr.json()) as { text: string; total: number; headlineTotal: number };
     check("paid: dispute letter draft generated", dr.status === 200 && draft.text.includes("[Your name]"), String(dr.status));

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { errorInfo } from "@/lib/safe-log";
 import { createServiceClient } from "@/lib/supabase";
 import { authenticate, userOwnsAudit, UUID_RE } from "@/lib/audit-access";
 import { authorizeReportAccess } from "@/lib/payments";
@@ -75,7 +76,7 @@ export async function GET(
       },
     });
   } catch (err) {
-    console.error(`[report:${id}] PDF generation failed:`, err instanceof Error ? err.message : "unknown");
+    console.error(`[report:${id}] PDF generation failed:`, errorInfo(err));
     return NextResponse.json({ error: "Failed to generate the report" }, { status: 500, headers: NO_STORE });
   }
 }

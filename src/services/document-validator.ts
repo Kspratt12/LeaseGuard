@@ -13,12 +13,14 @@
 // pdf-parse is loaded dynamically to avoid module-init failures on Vercel
 // (its internal require('./test/data/...') can break in bundled environments)
 import {
-  extractTextWithOcr,
+  extractTextWithOcrDetailed,
   OCR_TEXT_THRESHOLD,
   type ExtractionMethod,
   type ExtractionResult,
 } from "@/services/ocr-extractor";
 import { extractTextFromRawBuffer } from "@/services/raw-pdf-extractor";
+import { errorInfo, stackFrames } from "@/lib/safe-log";
+import { buildCoverage, type AnalysisCoverage } from "@/lib/analysis-coverage";
 import {
   extractLeaseFieldsWithAI,
   extractReconFieldsWithAI,
@@ -89,6 +91,24 @@ export interface ValidationIssue {
   message: string;
 }
 
+/** Fewer non-space characters than this means no usable text was recovered from the document. */
+const MIN_READABLE_CHARS = 50;
+
+/** A page with fewer non-space characters than this is treated as having no text layer. */
+const MIN_PAGE_CHARS = 20;
+
+/** Thrown when a document yields no readable text. The message is shown to the customer as-is. */
+export class UnreadableDocumentError extends Error {
+  constructor(label: string, ocrWasTried: boolean) {
+    super(
+      ocrWasTried
+        ? `We could not read the text in your ${label}. It appears to be a scanned or image-only PDF and automatic text recognition did not succeed. Please upload a text-based PDF (for example, download it again from the landlord or property manager portal) or a clearer, higher-resolution scan. No audit was run and nothing was charged.`
+        : `We could not find readable text in your ${label}. The file may be damaged, password-protected or blank. Please check that it opens normally, then upload it again. No audit was run and nothing was charged.`,
+    );
+    this.name = "UnreadableDocumentError";
+  }
+}
+
 export interface DocumentValidationResult {
   leaseClassification: DocumentClassification;
   reconClassification: DocumentClassification;
@@ -105,6 +125,8 @@ export interface DocumentValidationResult {
   canProceed: boolean;
   auditMode: AuditMode;
   userMessage: string | null;
+  /** Set when the AI step received only the start of a document (see analysis-coverage.ts); null when nothing was cut. */
+  coverage?: AnalysisCoverage | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -750,7 +772,7 @@ export async function extractTextFromPdf(
   // Validate buffer looks like a PDF
   const header = buffer.slice(0, 5).toString("ascii");
   if (!header.startsWith("%PDF")) {
-    console.warn(`[extractText] Buffer does not start with %PDF header (got "${header}"). Size: ${buffer.length} bytes`);
+    console.warn(`[extractText] Buffer does not start with a %PDF header. Size: ${buffer.length} bytes`);
   }
 
   const pipeline: ExtractorAttempt[] = [];
@@ -761,17 +783,15 @@ export async function extractTextFromPdf(
   const unpdfStart = Date.now();
   try {
     const { extractText } = await import("unpdf");
-    const { text, totalPages } = await extractText(new Uint8Array(buffer), { mergePages: true });
-    unpdfText = text ?? "";
+    // Pages are joined with a form feed so evidence can be traced back to a page (see findPageForText).
+    const { text, totalPages } = await extractText(new Uint8Array(buffer), { mergePages: false });
+    unpdfText = Array.isArray(text) ? text.join("\n\f\n") :(text ?? "");
     console.log(`[extractText] unpdf extracted ${unpdfText.trim().length} chars, ${wordCount(unpdfText)} words, ${totalPages} pages`);
-    if (unpdfText.trim().length > 0) {
-      console.log(`[extractText] unpdf first 200 chars: ${unpdfText.substring(0, 200).replace(/[\n\r]+/g, " | ")}`);
-    }
   } catch (err) {
-    unpdfError = err instanceof Error ? err.message : String(err);
-    console.warn("[extractText] unpdf failed:", unpdfError);
+    unpdfError = errorInfo(err);
+    console.warn(`[extractText] unpdf failed: ${unpdfError}`);
     if (err instanceof Error && err.stack) {
-      console.warn("[extractText] unpdf stack:", err.stack.split("\n").slice(0, 3).join(" > "));
+      console.warn("[extractText] unpdf stack:", stackFrames(err));
     }
   }
   pipeline.push({
@@ -789,14 +809,11 @@ export async function extractTextFromPdf(
   try {
     pdfjsText = await extractWithPdfjsDist(buffer);
     console.log(`[extractText] pdfjs-dist extracted ${pdfjsText.trim().length} chars, ${wordCount(pdfjsText)} words`);
-    if (pdfjsText.trim().length > 0) {
-      console.log(`[extractText] pdfjs-dist first 200 chars: ${pdfjsText.substring(0, 200).replace(/[\n\r]+/g, " | ")}`);
-    }
   } catch (err) {
-    pdfjsError = err instanceof Error ? err.message : String(err);
-    console.warn("[extractText] pdfjs-dist failed:", pdfjsError);
+    pdfjsError = errorInfo(err);
+    console.warn(`[extractText] pdfjs-dist failed: ${pdfjsError}`);
     if (err instanceof Error && err.stack) {
-      console.warn("[extractText] pdfjs-dist stack:", err.stack.split("\n").slice(0, 3).join(" > "));
+      console.warn("[extractText] pdfjs-dist stack:", stackFrames(err));
     }
   }
   pipeline.push({
@@ -817,14 +834,11 @@ export async function extractTextFromPdf(
     const result = await pdfParse(buffer);
     legacyText = result.text ?? "";
     console.log(`[extractText] pdf-parse extracted ${legacyText.trim().length} chars, ${wordCount(legacyText)} words`);
-    if (legacyText.trim().length > 0) {
-      console.log(`[extractText] pdf-parse first 200 chars: ${legacyText.substring(0, 200).replace(/[\n\r]+/g, " | ")}`);
-    }
   } catch (err) {
-    legacyError = err instanceof Error ? err.message : String(err);
-    console.warn("[extractText] pdf-parse failed:", legacyError);
+    legacyError = errorInfo(err);
+    console.warn(`[extractText] pdf-parse failed: ${legacyError}`);
     if (err instanceof Error && err.stack) {
-      console.warn("[extractText] pdf-parse stack:", err.stack.split("\n").slice(0, 3).join(" > "));
+      console.warn("[extractText] pdf-parse stack:", stackFrames(err));
     }
   }
   pipeline.push({
@@ -842,12 +856,9 @@ export async function extractTextFromPdf(
   try {
     rawText = extractTextFromRawBuffer(buffer);
     console.log(`[extractText] raw-buffer extracted ${rawText.trim().length} chars, ${wordCount(rawText)} words`);
-    if (rawText.trim().length > 0) {
-      console.log(`[extractText] raw-buffer first 200 chars: ${rawText.substring(0, 200).replace(/[\n\r]+/g, " | ")}`);
-    }
   } catch (err) {
-    rawError = err instanceof Error ? err.message : String(err);
-    console.warn("[extractText] raw-buffer failed:", rawError);
+    rawError = errorInfo(err);
+    console.warn(`[extractText] raw-buffer failed: ${rawError}`);
   }
   pipeline.push({
     method: "raw-buffer",
@@ -865,7 +876,7 @@ export async function extractTextFromPdf(
       `pdfjs=${pdfjsText.trim().length} chars (error: ${pdfjsError ?? "none"}), ` +
       `pdf-parse=${legacyText.trim().length} chars (error: ${legacyError ?? "none"}), ` +
       `raw-buffer=${rawText.trim().length} chars (error: ${rawError ?? "none"}). ` +
-      `Buffer: ${buffer.length} bytes, header: "${buffer.slice(0, 10).toString("ascii").replace(/[^\x20-\x7E]/g, "?")}"`
+      `Buffer: ${buffer.length} bytes.`
     );
   }
 
@@ -879,6 +890,9 @@ export async function extractTextFromPdf(
   candidates.sort((a, b) => {
     const wDiff = wordCount(b.text) - wordCount(a.text);
     if (wDiff !== 0) return wDiff;
+    // Equal word counts: prefer the extractor that kept page breaks, so evidence can cite a page number.
+    const pageAware = Number(b.text.includes("\f")) - Number(a.text.includes("\f"));
+    if (pageAware !== 0) return pageAware;
     return b.text.trim().length - a.text.trim().length;
   });
   let pdfText = candidates[0].text;
@@ -892,10 +906,33 @@ export async function extractTextFromPdf(
   pdfText = normalizeExtractedText(pdfText);
 
   if (pdfText.trim().length >= OCR_TEXT_THRESHOLD) {
+    // Mixed documents: most pages have text, but some (a scanned amendment, a stamped exhibit) are only images.
+    // Read just those pages with OCR, and say which pages still had nothing readable.
+    const ocrAdded: number[] = [];
+    let pagesWithoutText: number[] = [];
+    if (pdfText.includes("\f")) {
+      const pages = pdfText.split("\f");
+      const blank = pages.map((p, i) => (p.replace(/\s/g, "").length < MIN_PAGE_CHARS ? i + 1 : 0)).filter((p) => p > 0);
+      if (blank.length > 0 && blank.length < pages.length) {
+        try {
+          const o = await extractTextWithOcrDetailed(buffer, { pages: blank });
+          o.pageNumbers.forEach((pn, k) => {
+            const t = normalizeExtractedText(o.pageTexts[k] ?? "");
+            if (t.replace(/\s/g, "").length >= MIN_PAGE_CHARS) { pages[pn - 1] = t; ocrAdded.push(pn); }
+          });
+        } catch (err) {
+          console.warn(`[extractText] OCR of empty pages failed: ${errorInfo(err)}`);
+        }
+        pagesWithoutText = blank.filter((p) => !ocrAdded.includes(p));
+        if (ocrAdded.length > 0) pdfText = pages.join("\f");
+        console.log(`[extractText] ${blank.length} page(s) without text; OCR recovered ${ocrAdded.length}, ${pagesWithoutText.length} still empty`);
+      }
+    }
     const quality = scoreExtractionQuality(pdfText);
     return {
-      text: pdfText, method: "pdf_text", ocrTriggered: false, ocrTextLength: 0, ocrError: null,
+      text: pdfText, method: "pdf_text", ocrTriggered: ocrAdded.length > 0, ocrTextLength: 0, ocrError: null,
       pipeline, qualityScore: quality.score, qualityTier: quality.tier,
+      ocrPagesAdded: ocrAdded, pagesWithoutText,
     };
   }
 
@@ -906,11 +943,15 @@ export async function extractTextFromPdf(
   let ocrText = "";
   let ocrError: string | null = null;
   const ocrStart = Date.now();
+  let ocrPagesTotal: number | undefined;
+  let ocrPagesNotRead: number | undefined;
   try {
-    const rawOcrText = await extractTextWithOcr(buffer);
-    ocrText = normalizeExtractedText(rawOcrText);
+    const outcome = await extractTextWithOcrDetailed(buffer);
+    ocrText = normalizeExtractedText(outcome.text);
+    ocrPagesTotal = outcome.totalPages;
+    ocrPagesNotRead = outcome.pagesNotProcessed;
   } catch (err) {
-    ocrError = err instanceof Error ? err.message : String(err);
+    ocrError = errorInfo(err);
     console.error(`[extractText] OCR fallback error: ${ocrError}`);
   }
   pipeline.push({
@@ -932,14 +973,14 @@ export async function extractTextFromPdf(
     const quality = scoreExtractionQuality(ocrText);
     return {
       text: ocrText, method: "ocr", ocrTriggered: true, ocrTextLength: ocrText.trim().length, ocrError,
-      pipeline, qualityScore: quality.score, qualityTier: quality.tier,
+      pipeline, qualityScore: quality.score, qualityTier: quality.tier, ocrPagesTotal, ocrPagesNotRead,
     };
   }
 
   const quality = scoreExtractionQuality(pdfText);
   return {
     text: pdfText, method: "pdf_text", ocrTriggered: true, ocrTextLength: ocrText.trim().length, ocrError,
-    pipeline, qualityScore: quality.score, qualityTier: quality.tier,
+    pipeline, qualityScore: quality.score, qualityTier: quality.tier, ocrPagesTotal, ocrPagesNotRead,
   };
 }
 
@@ -964,7 +1005,7 @@ async function extractWithPdfjsDist(buffer: Buffer): Promise<string> {
       console.log(`[pdfjs] Successfully imported from: ${importPath}`);
       break;
     } catch (err) {
-      importError = err instanceof Error ? err.message : String(err);
+      importError = errorInfo(err);
       console.warn(`[pdfjs] Import failed for ${importPath}: ${importError}`);
     }
   }
@@ -1053,7 +1094,7 @@ async function extractWithPdfjsDist(buffer: Buffer): Promise<string> {
       lastWidth = width;
     }
     if (lineText) pageTexts.push(lineText);
-    pageTexts.push(""); // Page break
+    pageTexts.push("\f"); // Page break (form feed, split on by findPageForText)
   }
 
   doc.destroy();
@@ -1480,7 +1521,7 @@ export function extractFields(text: string): ExtractedFields {
     if (!isNaN(tSqFt) && !isNaN(bSqFt) && bSqFt > 0 && tSqFt > 0 && tSqFt < bSqFt) {
       derivedProRataShare = ((tSqFt / bSqFt) * 100).toFixed(2);
       proRataShare = derivedProRataShare;
-      console.log(`[extractFields] Derived pro-rata share: ${derivedProRataShare}% (${tSqFt} / ${bSqFt})`);
+      console.log("[extractFields] Derived pro-rata share from square footage");
     }
   }
 
@@ -2043,14 +2084,7 @@ export function extractFields(text: string): ExtractedFields {
   const nullFields = Object.entries(fields)
     .filter(([k, v]) => v === null && k !== "baseRent")
     .map(([k]) => k);
-  console.log(
-    `[extractFields] text=${textLen} chars | ` +
-    `camCap=${camCapPercentage ?? "MISS"} | adminFee=${adminFeePercentage ?? "MISS"} | ` +
-    `mgmtFee=${managementFee ?? "MISS"} | proRata=${proRataShare ?? "MISS"} | ` +
-    `totalCam=${totalCamCharges ?? "MISS"} | reconTotal=${reconciliationTotal ?? "MISS"} | ` +
-    `year=${reconciliationYear ?? "MISS"} | lineItems=${lineItems.length} | ` +
-    `excludedTerms=${excludedTerms.length} | nullFields=[${nullFields.join(",")}]`
-  );
+  console.log(`[extractFields] text=${textLen} chars | lineItems=${lineItems.length} | excludedTerms=${excludedTerms.length} | fields not found: ${nullFields.length}`);
 
   return fields;
 }
@@ -2187,8 +2221,11 @@ export async function validateDocuments(
   const issues: ValidationIssue[] = [];
 
   // 1. Extract text from both PDFs (with OCR fallback)
-  let leaseExtraction = await extractTextFromPdf(leaseBuffer);
-  let reconExtraction = await extractTextFromPdf(reconBuffer);
+  // In parallel: two scanned documents read one after the other could outlast the validation time limit.
+  const [leaseExtraction, reconExtraction] = await Promise.all([
+    extractTextFromPdf(leaseBuffer),
+    extractTextFromPdf(reconBuffer),
+  ]);
   let leaseText = leaseExtraction.text;
   let reconText = reconExtraction.text;
   let leaseExtractionMethod = leaseExtraction.method;
@@ -2199,6 +2236,32 @@ export async function validateDocuments(
   // with very limited text.  Blocking here was the primary cause of the
   // "stuck at 95%" / "does not contain readable data" errors.
   const MIN_TEXT_LENGTH = 20;
+
+  // The one exception: a document with no readable text at all. Auditing nothing would produce a report that looks
+  // like a clean result, so stop with a clear message instead. No document content or file name goes into it.
+  for (const [label, extraction] of [["lease", leaseExtraction], ["reconciliation statement", reconExtraction]] as const) {
+    if (extraction.text.replace(/\s/g, "").length < MIN_READABLE_CHARS) throw new UnreadableDocumentError(label, extraction.ocrTriggered);
+  }
+  // A scan that was only partly read must say so.
+  for (const [label, extraction] of [["lease", leaseExtraction], ["reconciliation statement", reconExtraction]] as const) {
+    if (extraction.method === "ocr" && (extraction.ocrPagesNotRead ?? 0) > 0) {
+      issues.unshift({
+        field: "ocr_partial",
+        message: `Only part of your scanned ${label} could be read (${extraction.ocrPagesNotRead} of ${extraction.ocrPagesTotal} pages were not processed), so findings may be incomplete.`,
+      });
+    }
+  }
+
+  for (const [label, extraction] of [["lease", leaseExtraction], ["reconciliation statement", reconExtraction]] as const) {
+    const empty = extraction.pagesWithoutText ?? [];
+    if (empty.length > 0) {
+      const list = empty.slice(0, 8).join(", ") + (empty.length > 8 ? ", and more" : "");
+      issues.unshift({
+        field: "pages_unreadable",
+        message: `Page${empty.length > 1 ? "s" : ""} ${list} of your ${label} had no readable text, so anything printed there was not reviewed. If those pages contain charges or lease terms, upload a clearer copy.`,
+      });
+    }
+  }
 
   if (leaseText.trim().length < MIN_TEXT_LENGTH) {
     console.warn(
@@ -2247,15 +2310,19 @@ export async function validateDocuments(
   let reconFields = extractFields(reconText);
 
   // Log regex extraction results for diagnosis
-  console.log(`[validator] Regex lease fields — camCap: ${leaseFields.camCapPercentage ?? "NULL"}, adminFee: ${leaseFields.adminFeePercentage ?? "NULL"}, mgmtFee: ${leaseFields.managementFee ?? "NULL"}, proRata: ${leaseFields.proRataShare ?? "NULL"}`);
-  console.log(`[validator] Regex lease fields — excludedTerms: [${leaseFields.excludedTerms.join(", ")}], lineItems: ${leaseFields.lineItems.length}`);
-  console.log(`[validator] Regex recon fields — totalCam: ${reconFields.totalCamCharges ?? "NULL"}, reconTotal: ${reconFields.reconciliationTotal ?? "NULL"}, lineItems: ${reconFields.lineItems.length}, year: ${reconFields.reconciliationYear ?? "NULL"}, expenseCats: ${reconFields.expenseCategories.length}`);
+  console.log(`[validator] Regex lease fields — camCap: ${leaseFields.camCapPercentage ? "found" : "NULL"}, adminFee: ${leaseFields.adminFeePercentage ? "found" : "NULL"}, mgmtFee: ${leaseFields.managementFee ? "found" : "NULL"}, proRata: ${leaseFields.proRataShare ? "found" : "NULL"}`);
+  console.log(`[validator] Regex lease fields — excludedTerms: ${leaseFields.excludedTerms.length} found, lineItems: ${leaseFields.lineItems.length}`);
+  console.log(`[validator] Regex recon fields — totalCam: ${reconFields.totalCamCharges ? "found" : "NULL"}, reconTotal: ${reconFields.reconciliationTotal ? "found" : "NULL"}, lineItems: ${reconFields.lineItems.length}, year: ${reconFields.reconciliationYear ? "found" : "NULL"}, expenseCats: ${reconFields.expenseCategories.length}`);
 
   // 5b. AI-powered extraction: supplement regex results with Claude analysis.
   // Runs in parallel for both documents. Falls back gracefully if no API key.
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const hasApiKey = !!apiKey && apiKey.length > 20 && !apiKey.endsWith("...");
   console.log(`[validator] ANTHROPIC_API_KEY configured: ${hasApiKey}`);
+
+  // The AI step reads only the first AI_TEXT_CHAR_LIMIT characters of each document; pattern matching reads all of it.
+  // Record which documents are longer, so no surface presents the review as covering the whole text.
+  const coverage = buildCoverage({ aiRan: hasApiKey, leaseChars: leaseText.length, statementChars: reconText.length });
 
   try {
     console.log("[validator] Attempting AI-powered field extraction...");
@@ -2265,26 +2332,26 @@ export async function validateDocuments(
     ]);
 
     if (aiLease) {
-      console.log("[validator] AI lease extraction successful:", JSON.stringify(aiLease));
+      console.log("[validator] AI lease extraction successful (values not logged)");
       leaseFields = mergeLeaseFields(leaseFields, aiLease);
     } else {
       console.log("[validator] AI lease extraction returned null (no API key or failed)");
     }
 
     if (aiRecon) {
-      console.log("[validator] AI recon extraction successful:", JSON.stringify(aiRecon));
+      console.log("[validator] AI recon extraction successful (values not logged)");
       reconFields = mergeReconFields(reconFields, aiRecon);
     } else {
       console.log("[validator] AI recon extraction returned null (no API key or failed)");
     }
 
     // Log merged field results after AI supplementation
-    console.log(`[validator] Post-AI lease fields — camCap: ${leaseFields.camCapPercentage ?? "NULL"}, adminFee: ${leaseFields.adminFeePercentage ?? "NULL"}, mgmtFee: ${leaseFields.managementFee ?? "NULL"}, proRata: ${leaseFields.proRataShare ?? "NULL"}, excludedTerms: ${leaseFields.excludedTerms.length}`);
-    console.log(`[validator] Post-AI recon fields — totalCam: ${reconFields.totalCamCharges ?? "NULL"}, reconTotal: ${reconFields.reconciliationTotal ?? "NULL"}, year: ${reconFields.reconciliationYear ?? "NULL"}, lineItems: ${reconFields.lineItems.length}`);
+    console.log(`[validator] Post-AI lease fields — camCap: ${leaseFields.camCapPercentage ? "found" : "NULL"}, adminFee: ${leaseFields.adminFeePercentage ? "found" : "NULL"}, mgmtFee: ${leaseFields.managementFee ? "found" : "NULL"}, proRata: ${leaseFields.proRataShare ? "found" : "NULL"}, excludedTerms: ${leaseFields.excludedTerms.length}`);
+    console.log(`[validator] Post-AI recon fields — totalCam: ${reconFields.totalCamCharges ? "found" : "NULL"}, reconTotal: ${reconFields.reconciliationTotal ? "found" : "NULL"}, year: ${reconFields.reconciliationYear ? "found" : "NULL"}, lineItems: ${reconFields.lineItems.length}`);
   } catch (err) {
     console.warn(
       "[validator] AI extraction failed (falling back to regex only):",
-      err instanceof Error ? err.message : err,
+      errorInfo(err),
     );
   }
 
@@ -2376,6 +2443,7 @@ export async function validateDocuments(
     canProceed: true,
     auditMode,
     userMessage,
+    coverage,
   };
 }
 

@@ -23,7 +23,8 @@ export default function CamCapCommercialLease() {
   return (
     <ArticleLayout
       title="CAM Caps in Commercial Leases Explained"
-      publishedDate="March 2026"
+      publishedDate="March 13, 2026"
+      modifiedDate="October 29, 2026"
       readTime="8 min read"
       description="Learn what CAM caps are, how cumulative and non-cumulative caps work, and how to verify your landlord is applying your cap correctly."
     >
@@ -37,6 +38,9 @@ export default function CamCapCommercialLease() {
         office tenants, medical practices, and franchise operators, this means
         CAM costs can increase unpredictably year after year, creating real
         budget risk for your business.
+      </p>
+      <p>
+        Whether a management fee counts toward your cap is a separate question; see <Link href="/resources/management-fees-and-cam-caps" className="text-blue-600 hover:underline">management fees and CAM caps</Link>.
       </p>
       <p>
         A CAM cap is one of the most valuable protections a commercial tenant
@@ -165,7 +169,7 @@ export default function CamCapCommercialLease() {
         </li>
       </ul>
       <p>
-        Cap violations tend to compound over time. A miscalculated base in Year
+        A cap that is applied incorrectly tends to compound over time. A miscalculated base in Year
         1 affects every subsequent year, and the cumulative impact can amount to{" "}
         <Link href="/resources/common-cam-overcharges" className="text-blue-600 hover:underline">
           thousands of dollars in overcharges
@@ -191,7 +195,7 @@ export default function CamCapCommercialLease() {
         which base year to use, and whether the cap is cumulative or
         non-cumulative. LeaseGuard analyzes your lease&apos;s cap language
         alongside your CAM statement to check whether the cap was applied
-        correctly, flagging any potential violations automatically.
+        correctly, flagging potential cap discrepancies automatically.
       </p>
 
       <h2>Key Takeaways</h2>

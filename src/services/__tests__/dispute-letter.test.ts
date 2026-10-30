@@ -11,6 +11,7 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service";
 
 import assert from "node:assert";
+import { formatMoney } from "../../lib/format";
 import fs from "node:fs";
 import path from "node:path";
 import { NextRequest } from "next/server";
@@ -88,8 +89,8 @@ async function main() {
     const descriptions = all.map((f) => f.description).join(" ");
     const money = (n: number, cents = false) =>
       "$" + n.toLocaleString("en-US", cents ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 });
-    const allowed = new Set<string>([money(result.savings_estimate)]);
-    for (const f of all) allowed.add(money(f.potential_savings));
+    const allowed = new Set<string>([money(result.savings_estimate), formatMoney(result.savings_estimate)]);
+    for (const f of all) { allowed.add(money(f.potential_savings)); allowed.add(formatMoney(f.potential_savings)); }
     for (const r of result.overcharge_breakdown) { allowed.add(money(r.total_expense, true)); allowed.add(money(r.tenant_charge, true)); }
     const lettersWithoutQuotes = letter.text.replace(QUOTED, ": ");
     for (const m of lettersWithoutQuotes.matchAll(/\$[\d,]+(?:\.\d{2})?/g)) {

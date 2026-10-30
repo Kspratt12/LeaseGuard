@@ -169,11 +169,9 @@ export default function TripleNetLeaseAudit() {
 
           <h2>How LeaseGuard Helps Audit NNN Charges</h2>
           <p>
-            LeaseGuard is designed to help commercial tenants review their lease
-            charges quickly and identify potential discrepancies. While the
+            LeaseGuard is designed to help commercial tenants organize an initial review of their lease charges and identify potential discrepancies. While the
             platform focuses on CAM clause analysis and reconciliation statement
-            review, these are typically the largest and most error-prone
-            components of NNN lease expenses.
+            review, these are often significant components of NNN lease expenses.
           </p>
           <p>The audit process works as follows:</p>
           <ol>
@@ -258,13 +256,13 @@ export default function TripleNetLeaseAudit() {
           </h2>
           <p className="text-gray-600 mb-8 max-w-xl mx-auto leading-relaxed">
             Upload your lease and CAM reconciliation statement. LeaseGuard
-            identifies potential billing discrepancies in about 60 seconds.
+            identifies potential billing discrepancies for your review.
           </p>
           <Link
             href="/upload"
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-7 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-500 hover:shadow-md transition-all"
           >
-            Run 60-Second Audit
+            Run Audit
             <ArrowRight className="h-4 w-4" />
           </Link>
           <div className="mt-6 flex items-center justify-center gap-6 text-sm text-gray-500">

@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/cam-audit" },
   title: "Check Your CAM Charges Against Your Lease | CAM Audit Tool | LeaseGuard",
   description:
-    "Run a commercial CAM audit in seconds. Upload your lease and CAM reconciliation statement to identify overcharges, caps, and billing discrepancies.",
+    "Run a commercial CAM audit online. Upload your lease and CAM reconciliation statement to flag potential overcharges, cap differences, and billing discrepancies.",
   keywords: [
     "commercial lease audit",
     "CAM audit",
@@ -37,8 +37,7 @@ export default function CamAuditPage() {
               common area maintenance charges
             </Link>{" "}
             to verify that your landlord is billing you accurately under the
-            terms of your lease. Commercial tenants use CAM audits to catch
-            overcharges, confirm that excluded expenses aren&apos;t being passed
+            terms of your lease. Commercial tenants use CAM audits to look for potential overcharges, confirm that excluded expenses aren&apos;t being passed
             through, and ensure their{" "}
             <Link
               href="/resources/cam-reconciliation-guide"
@@ -49,17 +48,14 @@ export default function CamAuditPage() {
             are calculated correctly.
           </p>
           <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Most tenants overpay because reconciliation statements are dense,
-            technical documents, and manually comparing them against a complex
-            lease agreement takes hours. LeaseGuard automates that comparison in
-            about 60 seconds.
+            Reconciliation statements are dense, technical documents, and tenants can have difficulty identifying billing discrepancies when comparing them against a complex lease. LeaseGuard helps organize an initial review of your statement against your lease provisions. It does not replace professional review.
           </p>
           <div className="mt-10">
             <Link
               href="/upload"
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-3.5 text-base font-semibold text-white shadow-sm hover:bg-blue-500 hover:shadow-md transition-all"
             >
-              Run 60-Second Audit <ArrowRight className="h-4 w-4" />
+              Run Audit <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
@@ -71,8 +67,8 @@ export default function CamAuditPage() {
           Common CAM Overcharges Tenants Miss
         </h2>
         <p className="text-gray-600 text-center max-w-2xl mx-auto mb-12 leading-relaxed">
-          CAM billing errors are rarely intentional, but they are surprisingly
-          common. These are the issues that a{" "}
+          CAM billing errors are not always intentional, but they can happen and
+          are easy to miss. These are the issues that a{" "}
           <Link
             href="/resources/how-to-audit-cam-charges"
             className="text-blue-600 hover:underline"
@@ -90,7 +86,7 @@ export default function CamAuditPage() {
             <p className="text-gray-600 leading-relaxed">
               Property management fees are calculated as a percentage of total
               operating expenses. If other charges are inflated, the management
-              fee compounds the overcharge. Some landlords also add separate
+              fee can compound the difference. Some landlords also add separate
               administrative fees for functions the management fee should
               already cover.
             </p>
@@ -163,7 +159,7 @@ export default function CamAuditPage() {
           <p className="text-gray-600 text-center max-w-2xl mx-auto mb-14 leading-relaxed">
             LeaseGuard replaces the manual, hours-long process of cross-referencing
             your lease against your reconciliation statement with an automated
-            analysis that delivers results in about 60 seconds.
+            analysis that delivers a prioritized list of items to review.
           </p>
 
           <div className="grid sm:grid-cols-3 gap-8">
@@ -213,9 +209,7 @@ export default function CamAuditPage() {
                 Identify Potential Discrepancies
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                You receive a clear report highlighting potential overcharges,
-                excluded expenses being passed through, CAM cap violations, and
-                proportionate share errors, with references to the relevant
+                You receive a clear report highlighting potential overcharges, excluded expenses that may have been passed through, potential CAM cap discrepancies, and proportionate share differences, with references to the relevant
                 lease provisions.
               </p>
             </div>
@@ -286,15 +280,13 @@ export default function CamAuditPage() {
           </h2>
           <p className="text-gray-600 mb-8 max-w-xl mx-auto leading-relaxed">
             Upload your lease agreement and CAM reconciliation statement to
-            quickly identify potential billing discrepancies, excluded cost
-            pass-throughs, and CAM cap violations. Results are delivered in
-            about 60 seconds.
+            identify potential billing discrepancies, excluded cost pass-throughs, and potential CAM cap discrepancies. Results appear on your results page when the analysis finishes.
           </p>
           <Link
             href="/upload"
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-3.5 text-base font-semibold text-white shadow-sm hover:bg-blue-500 hover:shadow-md transition-all"
           >
-            Run 60-Second Audit <ArrowRight className="h-4 w-4" />
+            Run Audit <ArrowRight className="h-4 w-4" />
           </Link>
           <div className="mt-6 flex items-center justify-center gap-6 text-sm text-gray-500">
             <Link

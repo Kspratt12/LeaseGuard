@@ -23,7 +23,8 @@ export default function CamChargesExplained() {
   return (
     <ArticleLayout
       title="What Are CAM Charges in Commercial Leases?"
-      publishedDate="March 2026"
+      publishedDate="March 13, 2026"
+      modifiedDate="October 29, 2026"
       readTime="8 min read"
       description="Learn how CAM charges work in commercial leases, how reconciliation statements are calculated, and how tenants can detect potential overcharges."
     >
@@ -34,6 +35,9 @@ export default function CamChargesExplained() {
         add thousands of dollars per year to occupancy costs. When they&apos;re
         calculated incorrectly or include expenses your lease doesn&apos;t
         permit, the financial impact compounds year after year.
+      </p>
+      <p>
+        To see how the pieces combine into a single bill, read <Link href="/resources/how-to-calculate-cam-charges" className="text-blue-600 hover:underline">how to calculate CAM charges, step by step</Link>. For which costs a lease can pass through, see <Link href="/resources/what-landlords-can-include-in-cam" className="text-blue-600 hover:underline">what landlords can include in CAM charges</Link>.
       </p>
       <p>
         Understanding what CAM charges are, how they&apos;re calculated, and
@@ -82,8 +86,7 @@ export default function CamChargesExplained() {
         Landlords frequently charge a property management fee as a percentage of
         total operating costs. This fee compensates for the administrative work
         of managing the property, coordinating vendors, and handling tenant
-        relations. Management fees typically range from 3% to 8% of total
-        operating costs. If the underlying expenses are inflated, the management
+        relations. Management fees are usually a percentage of total operating costs. The percentage your lease allows is stated in the lease, so check it. If the underlying expenses are inflated, the management
         fee, calculated as a percentage, is automatically inflated too.
       </p>
       <h3>Capital Expenditures</h3>
@@ -201,7 +204,7 @@ export default function CamChargesExplained() {
         and CAM reconciliation statements, then cross-references the two
         documents to flag potential discrepancies. The platform checks for
         excluded cost pass-throughs, pro rata share errors, management fee
-        issues, and CAM cap compliance, delivering results in about 60 seconds.
+        issues, and CAM cap compliance.
       </p>
 
       <h2>Key Takeaways</h2>

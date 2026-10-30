@@ -143,8 +143,7 @@ export default function AboutPage() {
               </h3>
               <p className="text-gray-600 leading-relaxed">
                 The platform identifies potential discrepancies and generates a
-                detailed audit report highlighting overcharges, excluded expense
-                violations, and CAM cap issues, in about 60 seconds.
+                detailed audit report highlighting potential overcharges, excluded-expense discrepancies, and potential CAM cap discrepancies.
               </p>
             </div>
           </div>
@@ -164,10 +163,7 @@ export default function AboutPage() {
           We believe that every tenant, whether they operate a single retail
           location or manage a portfolio of franchise spaces, should have
           access to the tools needed to verify that their CAM charges are
-          accurate. Traditionally, CAM audits have been expensive, slow, and
-          accessible only to tenants with large enough portfolios to justify the
-          cost. LeaseGuard changes that by making audit analysis fast,
-          affordable, and available to businesses of any size.
+          accurate. Professional CAM audits can be expensive and are often practical mainly for tenants with larger portfolios. LeaseGuard offers a lower-cost way to organize an initial review of your charges against your lease. It does not replace professional review or advice.
         </p>
         <p className="text-gray-600 leading-relaxed">
           We are not a law firm and we do not provide legal or accounting
@@ -185,14 +181,13 @@ export default function AboutPage() {
           </h2>
           <p className="text-gray-600 mb-8 max-w-xl mx-auto leading-relaxed">
             Upload your lease and CAM reconciliation statement to identify
-            potential billing discrepancies. Results are delivered in about 60
-            seconds.
+            potential billing discrepancies. Results appear on your results page when the analysis finishes.
           </p>
           <Link
             href="/upload"
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-7 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-500 hover:shadow-md transition-all"
           >
-            Run 60-Second Audit <ArrowRight className="h-4 w-4" />
+            Run Audit <ArrowRight className="h-4 w-4" />
           </Link>
           <div className="mt-6 flex items-center justify-center gap-6 text-sm text-gray-500">
             <Link

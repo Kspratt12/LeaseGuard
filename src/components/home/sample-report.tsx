@@ -2,14 +2,18 @@
 
 import { useRef, useState, type KeyboardEvent } from "react";
 import { StatusBadge } from "@/components/ui";
-import { SAMPLE_LETTER, SAMPLE_REVIEW_COUNT, SAMPLE_ROWS, SAMPLE_TOTAL_LABEL } from "./sample-data";
+import { ReviewPlanPanel } from "@/components/review-plan";
+import { buildReviewPlan } from "@/services/review-plan";
+import { SAMPLE_LETTER, SAMPLE_PLAN_BREAKDOWN, SAMPLE_PLAN_CLAUSES, SAMPLE_PLAN_FINDINGS, SAMPLE_REVIEW_COUNT, SAMPLE_ROWS, SAMPLE_TOTAL_LABEL } from "./sample-data";
 
 /**
  * Interactive preview of a LeaseGuard report. EVERYTHING here is fictional and labelled as such.
  * Rows, totals and the letter come from sample-data.ts so every figure reconciles.
  */
 
-const TABS = ["Findings", "Evidence", "Calculations", "Dispute letter"] as const;
+const TABS = ["Findings", "Evidence", "Calculations", "Review plan", "Dispute letter"] as const;
+
+const SAMPLE_PLAN = buildReviewPlan({ findings: SAMPLE_PLAN_FINDINGS, overchargeBreakdown: SAMPLE_PLAN_BREAKDOWN, leaseClausesSummary: SAMPLE_PLAN_CLAUSES, confidence: "high" });
 type Tab = (typeof TABS)[number];
 
 export function SampleReport() {
@@ -119,7 +123,7 @@ export function SampleReport() {
               ))}
             </ul>
             <p className="mt-4 text-xs text-ink-muted">
-              Variance is your share (8.08%) of the difference. “Needs your judgment” items depend on how the lease is worded; the software cannot decide them.
+              Variance is your share (8.08%) of the difference. “Needs your judgment” items depend on how the lease is worded; the software cannot decide them. All figures are invented, and are shown to the cent here for illustration: a real report rounds each finding to the nearest dollar and explains how its total adds up.
             </p>
           </>
         )}
@@ -156,6 +160,8 @@ export function SampleReport() {
             ))}
           </ul>
         )}
+
+        {tab === "Review plan" && <ReviewPlanPanel plan={SAMPLE_PLAN} sample />}
 
         {tab === "Dispute letter" && (
           <div className="space-y-3">

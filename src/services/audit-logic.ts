@@ -10,6 +10,8 @@
  * Missing data results in explanatory findings — never fabricated numbers.
  */
 
+import { formatMoney } from "@/lib/format";
+import { isAiTruncated, type AnalysisCoverage } from "@/lib/analysis-coverage";
 import {
   normalizeNumber,
   type DocumentValidationResult,
@@ -69,6 +71,11 @@ export interface LeaseClauseSummary {
   buildingSquareFootage: string | null;
   excludedCategories: string[];
   additionalClauses: string[];
+  /**
+   * Present only when the AI step read just the start of a long document. Stored here (an existing JSON column) so
+   * the preview, report, plan and letter can all state the limitation. See src/lib/analysis-coverage.ts.
+   */
+  coverage?: AnalysisCoverage;
 }
 
 export interface AuditResult {
@@ -312,12 +319,12 @@ export async function runAudit(
 
   // --- Diagnostic logging: trace extracted fields ---
   console.log(`[audit-engine] === Extracted Fields ===`);
-  console.log(`[audit-engine] Lease — camCap: ${leaseFields.camCapPercentage ?? "NULL"}, adminFee: ${leaseFields.adminFeePercentage ?? "NULL"}, mgmtFee: ${leaseFields.managementFee ?? "NULL"}, proRata: ${leaseFields.proRataShare ?? "NULL"}`);
-  console.log(`[audit-engine] Lease — tenantSqFt: ${leaseFields.tenantPremisesSqFt ?? "NULL"}, buildingSqFt: ${leaseFields.buildingTotalSqFt ?? "NULL"}, excludedTerms: [${leaseFields.excludedTerms.join(", ")}]`);
-  console.log(`[audit-engine] Recon — totalCam: ${reconFields.totalCamCharges ?? "NULL"}, reconTotal: ${reconFields.reconciliationTotal ?? "NULL"}, derivedTotal: ${reconFields.derivedTotal}`);
-  console.log(`[audit-engine] Recon — proRata: ${reconFields.proRataShare ?? "NULL"}, adminFee: ${reconFields.adminFeePercentage ?? "NULL"}, mgmtFee: ${reconFields.managementFee ?? "NULL"}`);
+  console.log(`[audit-engine] Lease — camCap: ${leaseFields.camCapPercentage ? "found" : "NULL"}, adminFee: ${leaseFields.adminFeePercentage ? "found" : "NULL"}, mgmtFee: ${leaseFields.managementFee ? "found" : "NULL"}, proRata: ${leaseFields.proRataShare ? "found" : "NULL"}`);
+  console.log(`[audit-engine] Lease — tenantSqFt: ${leaseFields.tenantPremisesSqFt ? "found" : "NULL"}, buildingSqFt: ${leaseFields.buildingTotalSqFt ? "found" : "NULL"}, excludedTerms: ${leaseFields.excludedTerms.length} found`);
+  console.log(`[audit-engine] Recon — totalCam: ${reconFields.totalCamCharges ? "found" : "NULL"}, reconTotal: ${reconFields.reconciliationTotal ? "found" : "NULL"}, derivedTotal: ${reconFields.derivedTotal}`);
+  console.log(`[audit-engine] Recon — proRata: ${reconFields.proRataShare ? "found" : "NULL"}, adminFee: ${reconFields.adminFeePercentage ? "found" : "NULL"}, mgmtFee: ${reconFields.managementFee ? "found" : "NULL"}`);
   console.log(`[audit-engine] Recon — lineItems: ${reconFields.lineItems.length}, expenseCategories: ${reconFields.expenseCategories.length}`);
-  console.log(`[audit-engine] Recon — priorYearTotal: ${reconFields.priorYearTotal ?? "NULL"}, reconYear: ${reconFields.reconciliationYear ?? "NULL"}`);
+  console.log(`[audit-engine] Recon — priorYearTotal: ${reconFields.priorYearTotal ? "found" : "NULL"}, reconYear: ${reconFields.reconciliationYear ? "found" : "NULL"}`);
   console.log(`[audit-engine] Mode: ${auditMode}, Confidence: ${confidence} (${confidenceScore}/100)`);
 
   // Parse dollar amounts for savings calculations
@@ -376,7 +383,7 @@ export async function runAudit(
     const totalDisplay = reconFields.totalCamCharges ?? reconFields.reconciliationTotal;
     let camCapDesc =
       `The lease limits annual CAM or controllable expense increases to ${leaseFields.camCapPercentage}%. ` +
-      `Total CAM charges of $${totalDisplay ? normalizeNumber(totalDisplay).toLocaleString() : totalDisplay} were detected in the reconciliation statement.`;
+      `Total CAM charges of ${totalDisplay ? formatMoney(normalizeNumber(totalDisplay)) : totalDisplay} were detected in the reconciliation statement.`;
 
     if (priorYearTotal != null && priorYearTotal > 0) {
       const yoyIncrease = ((reconTotal! - priorYearTotal) / priorYearTotal) * 100;
@@ -385,13 +392,13 @@ export async function runAudit(
         const allowedMax = priorYearTotal * (1 + capPctVal / 100);
         const excess = reconTotal! - allowedMax;
         camCapDesc +=
-          ` Year-over-year charges increased ${yoyIncrease.toFixed(1)}% (from $${priorYearTotal.toLocaleString()} to $${reconTotal!.toLocaleString()}), ` +
+          ` Year-over-year charges increased ${yoyIncrease.toFixed(1)}% (from ${formatMoney(priorYearTotal)} to ${formatMoney(reconTotal!)}), ` +
           `which is above the ${leaseFields.camCapPercentage}% cap. ` +
-          `The maximum allowable amount under that cap would be $${Math.round(allowedMax).toLocaleString()}, ` +
-          `a potential excess of $${Math.round(excess).toLocaleString()} to review.`;
+          `The maximum allowable amount under that cap would be ${formatMoney(Math.round(allowedMax))}, ` +
+          `a potential excess of ${formatMoney(Math.round(excess))} to review.`;
       } else {
         camCapDesc +=
-          ` Year-over-year charges increased ${yoyIncrease.toFixed(1)}% (from $${priorYearTotal.toLocaleString()}), ` +
+          ` Year-over-year charges increased ${yoyIncrease.toFixed(1)}% (from ${formatMoney(priorYearTotal)}), ` +
           `which is within the ${leaseFields.camCapPercentage}% cap. Verify prior-year baseline accuracy to confirm.`;
       }
       // The cap in many leases applies only to controllable expenses. This check compares the
@@ -540,7 +547,7 @@ export async function runAudit(
         category: "Year-over-Year CAM Increase Detected",
         description:
           `Year-over-year CAM expenses increased by ${increasePercent.toFixed(1)}%, ` +
-          `from $${priorYearTotal.toLocaleString()} to $${reconTotal.toLocaleString()}. ` +
+          `from ${formatMoney(priorYearTotal)} to ${formatMoney(reconTotal)}. ` +
           `No CAM cap was detected in the lease to compare against. ` +
           `Review your lease to determine if this increase is within contractual limits.`,
         potential_savings: 0,
@@ -611,7 +618,7 @@ export async function runAudit(
             `while the lease caps this fee at ${leaseVal}%. ` +
             `The ${(reconVal - leaseVal).toFixed(1)}-point difference should be reviewed with the landlord.` +
             (feeSavings > 0
-              ? ` Applying the cap to the fee line on the statement ($${feeAmountBuilding.toLocaleString("en-US", { maximumFractionDigits: 0 })}) and your ${shareRaw}% share, the difference is approximately $${feeSavings.toLocaleString()}. This is a calculation from the documents, not a confirmed overcharge.`
+              ? ` Applying the cap to the fee line on the statement ($${feeAmountBuilding.toLocaleString("en-US", { maximumFractionDigits: 0 })}) and your ${shareRaw}% share, the difference is approximately ${formatMoney(feeSavings)}. This is a calculation from the documents, not a confirmed overcharge.`
               : " The documents did not provide enough detail to calculate a dollar amount."),
           potential_savings: feeSavings,
           severity: "medium",
@@ -622,7 +629,7 @@ export async function runAudit(
         paidFindings.push({
           category: "Admin Fee Compliance",
           description:
-            `Management/admin fee of ${reconVal}% in the reconciliation is within the lease cap of ${leaseVal}%. No overcharge detected.`,
+            `Management/admin fee of ${reconVal}% in the reconciliation is within the lease cap of ${leaseVal}%. No discrepancy detected.`,
           potential_savings: 0,
           severity: "low",
           sourceEvidence: adminEvidence.length > 0 ? adminEvidence : undefined,
@@ -698,7 +705,7 @@ export async function runAudit(
         `but the lease specifies ${leaseShare}%${derivedNote}. ` +
         `This ${Math.abs(reconShare - leaseShare).toFixed(2)}% difference means the tenant is being ${shareDirection}.`;
       if (shareSavings > 0) {
-        shareDesc += ` Estimated annual impact: $${shareSavings.toLocaleString()}. Request a correction in the next billing cycle.`;
+        shareDesc += ` Estimated annual impact: ${formatMoney(shareSavings)}. Request a correction in the next billing cycle.`;
       }
 
       paidFindings.push({
@@ -798,7 +805,7 @@ export async function runAudit(
           `(${tenantSqFt!.toLocaleString()} sq ft premises / ${buildingSqFt!.toLocaleString()} sq ft building). ` +
           `The ${absDifference.toFixed(2)}% difference suggests the tenant may be ${direction}.` +
           (estimatedImpact > 0
-            ? ` Estimated impact: $${estimatedImpact.toLocaleString()}.`
+            ? ` Estimated impact: ${formatMoney(estimatedImpact)}.`
             : ""),
         potential_savings: shareDifference > 0 ? estimatedImpact : 0,
         severity: "high",
@@ -922,7 +929,7 @@ export async function runAudit(
           `The ${tavAbsDiff.toFixed(2)}% difference indicates the tenant appears to be ${direction}.`;
 
         if (estimatedOverallocation > 0) {
-          desc += ` Potential difference to review: $${estimatedOverallocation.toLocaleString()}.`;
+          desc += ` Potential difference to review: ${formatMoney(estimatedOverallocation)}.`;
         }
 
         desc += statedVsCalcNote;
@@ -1035,7 +1042,7 @@ export async function runAudit(
 
           if (tavPremiumDiff > 0 && tavPremiumOvercharge > 0) {
             tavPremiumDesc +=
-              ` Estimated overcharge: $${tavPremiumOvercharge.toLocaleString()}.`;
+              ` Potential discrepancy: ${formatMoney(tavPremiumOvercharge)}. This is a calculation from the documents, not a confirmed overcharge.`;
           }
 
           paidFindings.push({
@@ -1144,12 +1151,11 @@ export async function runAudit(
           }
 
           const adminValDesc =
-            `The admin/management fee in the reconciliation is $${adminFeeAmount.toLocaleString()}, ` +
-            `representing ${adminPercent.toFixed(2)}% of building operating expenses ($${feeBaseTotal!.toLocaleString()}). ` +
+            `The admin/management fee in the reconciliation is ${formatMoney(adminFeeAmount)}, ` +
+            `representing ${adminPercent.toFixed(2)}% of building operating expenses (${formatMoney(feeBaseTotal!)}). ` +
             `The lease limits this fee to ${adminFeeCap}%, creating a ${excessPercent.toFixed(2)}% excess. ` +
-            `Estimated overcharge: $${adminOvercharge.toLocaleString()}. ` +
-            `This fee should be renegotiated or credited in the next reconciliation cycle. ` +
-            `Consider requesting an itemized breakdown of the management fee from the landlord.`;
+            `Potential discrepancy: ${formatMoney(adminOvercharge)}. This is a calculation from the documents, not a confirmed overcharge. ` +
+            `Ask the landlord to explain how the fee was calculated, and consider requesting an itemized breakdown of the management fee.`;
 
           paidFindings.push({
             category: "Administrative Fee Cap Exceeded",
@@ -1218,17 +1224,17 @@ export async function runAudit(
         const excludedList = highConf.map((m) => m.reconCat).join(", ");
         parts.push(
           `The reconciliation includes charges for ${excludedList}, ` +
-          `which should be excluded from tenant pass-through expenses. `,
+          `which may fall within categories excluded from tenant pass-through expenses. `,
         );
         if (leaseFields.excludedTerms.length > 0) {
           parts.push(
-            `The lease explicitly excludes: ${leaseFields.excludedTerms.slice(0, 8).join(", ")}. ` +
-            `Request removal of these charges from the next reconciliation.`,
+            `The lease lists these exclusions: ${leaseFields.excludedTerms.slice(0, 8).join(", ")}. ` +
+            `Ask the landlord to explain these charges and which lease provision allows them.`,
           );
         } else {
           parts.push(
-            `These appear to be capital or non-pass-through items that are typically the landlord's responsibility. ` +
-            `Confirm with the lease exclusion provisions.`,
+            `These may be capital or non-pass-through items. ` +
+            `Check them against the exclusion provisions in your lease.`,
           );
         }
       }
@@ -1413,7 +1419,7 @@ export async function runAudit(
   if (multiYearRecons && multiYearRecons.length >= 2) {
     // Sort chronologically
     const sorted = [...multiYearRecons].sort((a, b) => a.year - b.year);
-    console.log(`[audit-engine] Multi-year comparison: ${sorted.map(s => `${s.year}=$${s.total.toLocaleString()}`).join(", ")}`);
+    console.log(`[audit-engine] Multi-year comparison across ${sorted.length} years`);
 
     const camCapPct = leaseFields.camCapPercentage
       ? parseFloat(leaseFields.camCapPercentage)
@@ -1428,7 +1434,7 @@ export async function runAudit(
       const increasePercent =
         ((curr.total - prev.total) / prev.total) * 100;
 
-      console.log(`[audit-engine] Multi-year ${prev.year}→${curr.year}: increase=${increasePercent.toFixed(1)}%, cap=${camCapPct ?? "none"}`);
+      console.log(`[audit-engine] Multi-year step evaluated`);
 
       if (camCapPct != null && increasePercent > camCapPct) {
         const allowedIncrease = prev.total * (camCapPct / 100);
@@ -1439,13 +1445,13 @@ export async function runAudit(
           {
             document: prev.docName ?? `Reconciliation ${prev.year}`,
             page: null,
-            extractedText: `${prev.year} Total: $${prev.total.toLocaleString()}`,
+            extractedText: `${prev.year} Total: ${formatMoney(prev.total)}`,
             findingCategory: "Year-over-Year CAM Escalation Exceeds Lease Cap",
           },
           {
             document: curr.docName ?? `Reconciliation ${curr.year}`,
             page: null,
-            extractedText: `${curr.year} Total: $${curr.total.toLocaleString()}`,
+            extractedText: `${curr.year} Total: ${formatMoney(curr.total)}`,
             findingCategory: "Year-over-Year CAM Escalation Exceeds Lease Cap",
           },
         ];
@@ -1466,24 +1472,24 @@ export async function runAudit(
         const finding: Finding = {
           category: "Year-over-Year CAM Escalation Exceeds Lease Cap",
           description:
-            `CAM charges increased ${increasePercent.toFixed(1)}% from ${prev.year} ($${prev.total.toLocaleString()}) ` +
-            `to ${curr.year} ($${curr.total.toLocaleString()}), exceeding the lease CAM cap of ${camCapPct}%. ` +
-            `The maximum allowable total for ${curr.year} was $${Math.round(allowedTotal).toLocaleString()}. ` +
-            `Estimated overcharge: $${Math.round(overcharge).toLocaleString()}.`,
+            `CAM charges increased ${increasePercent.toFixed(1)}% from ${prev.year} (${formatMoney(prev.total)}) ` +
+            `to ${curr.year} (${formatMoney(curr.total)}), which is above the lease CAM cap of ${camCapPct}%. ` +
+            `Applying the cap, the total for ${curr.year} would be ${formatMoney(Math.round(allowedTotal))}. ` +
+            `Potential discrepancy: ${formatMoney(Math.round(overcharge))}. This is a calculation from the documents, not a confirmed overcharge.`,
           potential_savings: overcharge > 0 ? Math.round(overcharge) : 0,
           severity: "high",
           sourceEvidence: evidence,
         };
 
         paidFindings.push(finding);
-        console.log(`[audit-engine] Multi-year finding: overcharge=$${Math.round(overcharge).toLocaleString()} (${prev.year}→${curr.year})`);
+        console.log(`[audit-engine] Multi-year finding recorded`);
       } else if (increasePercent > 0) {
         // Even if within cap or no cap, generate an informational finding for multi-year
         freeFindings.push({
           category: "Year-over-Year CAM Change (Multi-Year)",
           description:
-            `CAM charges changed ${increasePercent.toFixed(1)}% from ${prev.year} ($${prev.total.toLocaleString()}) ` +
-            `to ${curr.year} ($${curr.total.toLocaleString()}).` +
+            `CAM charges changed ${increasePercent.toFixed(1)}% from ${prev.year} (${formatMoney(prev.total)}) ` +
+            `to ${curr.year} (${formatMoney(curr.total)}).` +
             (camCapPct != null
               ? ` This is within the lease CAM cap of ${camCapPct}%.`
               : ` No CAM cap was detected in the lease to compare against.`),
@@ -1493,12 +1499,12 @@ export async function runAudit(
             {
               document: prev.docName ?? `Reconciliation ${prev.year}`,
               page: null,
-              extractedText: `${prev.year} Total: $${prev.total.toLocaleString()}`,
+              extractedText: `${prev.year} Total: ${formatMoney(prev.total)}`,
             },
             {
               document: curr.docName ?? `Reconciliation ${curr.year}`,
               page: null,
-              extractedText: `${curr.year} Total: $${curr.total.toLocaleString()}`,
+              extractedText: `${curr.year} Total: ${formatMoney(curr.total)}`,
             },
           ],
         });
@@ -1655,8 +1661,8 @@ export async function runAudit(
       // Suspicious jump evidence
       for (const jump of suspiciousJumps.slice(0, 3)) {
         const jumpText = jump.priorYear > 0
-          ? `${jump.category}: $${jump.priorAmount.toLocaleString()} (${jump.priorYear}) → $${jump.currentAmount.toLocaleString()} (${jump.currentYear}), +${jump.increasePercent.toFixed(1)}%`
-          : `${jump.category}: $${jump.currentAmount.toLocaleString()} (controllable category with elevated overall increase)`;
+          ? `${jump.category}: ${formatMoney(jump.priorAmount)} (${jump.priorYear}) → ${formatMoney(jump.currentAmount)} (${jump.currentYear}), +${jump.increasePercent.toFixed(1)}%`
+          : `${jump.category}: ${formatMoney(jump.currentAmount)} (controllable category with elevated overall increase)`;
         grossUpEvidence.push({
           document: reconDocName,
           page: null,
@@ -1691,7 +1697,7 @@ export async function runAudit(
         "Review recommended to confirm whether expenses were adjusted beyond what the lease permits.";
 
       if (potentialReviewAmount > 0) {
-        description += ` Potential review amount: $${potentialReviewAmount.toLocaleString()}.`;
+        description += ` Potential review amount: ${formatMoney(potentialReviewAmount)}.`;
       }
 
       paidFindings.push({
@@ -1738,8 +1744,8 @@ export async function runAudit(
   // Pre-filter diagnostic: log raw findings before filtering
   // ------------------------------------------------------------------
   console.log(`[audit-engine] === Pre-filter findings ===`);
-  console.log(`[audit-engine] Raw free (${freeFindings.length}): ${freeFindings.map(f => `${f.category}[$${f.potential_savings}]`).join(", ") || "none"}`);
-  console.log(`[audit-engine] Raw paid (${paidFindings.length}): ${paidFindings.map(f => `${f.category}[$${f.potential_savings}]`).join(", ") || "none"}`);
+  console.log(`[audit-engine] Raw findings: free=${freeFindings.length}, paid=${paidFindings.length}`);
+
 
   // ------------------------------------------------------------------
   // Findings integrity and noise reduction
@@ -1809,7 +1815,7 @@ export async function runAudit(
         "The system was unable to extract specific lease terms or reconciliation data from the uploaded documents. " +
         "This may occur when documents use non-standard formatting, are image-heavy, or contain limited text. " +
         "For best results, upload clearly formatted PDF lease agreements and CAM reconciliation statements. " +
-        "A professional review of your documents is recommended to identify potential overcharges.",
+        "A professional review of your documents is recommended to identify potential billing discrepancies.",
       potential_savings: 0,
       severity: "medium",
       insufficientData: true,
@@ -1962,12 +1968,24 @@ export async function runAudit(
     }
   }
 
+  // A long document the AI step read only in part must say so, even if no clause at all was detected: the record is
+  // kept in a summary with every field empty, which the screen and the PDF already treat as "nothing detected".
+  if (isAiTruncated(validation.coverage)) {
+    leaseClausesSummary = {
+      ...(leaseClausesSummary ?? {
+        camCap: null, adminFeeCap: null, managementFeeCap: null, tenantProRataShare: null,
+        tenantSquareFootage: null, buildingSquareFootage: null, excludedCategories: [], additionalClauses: [],
+      }),
+      coverage: validation.coverage,
+    };
+  }
+
   // --- Diagnostic logging: trace final results ---
   console.log(`[audit-engine] === Final Results ===`);
-  console.log(`[audit-engine] findingSavings: $${findingSavings}, estimatedOvercharge: $${estimatedOvercharge}, total savings: $${savings}`);
-  console.log(`[audit-engine] Free findings (${verifiedFree.length}): ${verifiedFree.map(f => `${f.category}[$${f.potential_savings}]${f.insufficientData ? "(insufficient)" : ""}`).join(", ") || "none"}`);
-  console.log(`[audit-engine] Paid findings (${verifiedPaid.length}): ${verifiedPaid.map(f => `${f.category}[$${f.potential_savings}]${f.insufficientData ? "(insufficient)" : ""}`).join(", ") || "none"}`);
-  console.log(`[audit-engine] Overcharge breakdown (${overchargeBreakdown.length}): ${overchargeBreakdown.map(r => `${r.category}=$${r.tenant_charge}`).join(", ") || "none"}`);
+  console.log(`[audit-engine] Totals computed (amounts not logged)`);
+  console.log(`[audit-engine] Final findings: free=${verifiedFree.length}, paid=${verifiedPaid.length}`);
+
+  console.log(`[audit-engine] Breakdown rows: ${overchargeBreakdown.length}`);
 
   return {
     savings_estimate: savings,

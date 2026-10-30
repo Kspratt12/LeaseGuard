@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/commercial-tenant-cam-audit-guide" },
-  title: "Commercial Tenant CAM Audit Guide | How to Detect CAM Overcharges",
+  title: "Commercial Tenant CAM Audit Guide | How to Check for CAM Overcharges",
   description:
     "Learn how commercial tenants audit CAM charges, review reconciliation statements, and detect common lease overcharges.",
   keywords: [
@@ -176,7 +176,7 @@ export default function CommercialTenantCamAuditGuide() {
           <h3>Inflated Management Fees</h3>
           <p>
             Property management fees are typically calculated as a percentage of
-            total operating expenses, usually between 3% and 8%. Overcharges
+            total operating expenses, with the percentage set by the lease. Overcharges
             occur when the wrong percentage is applied, when the fee is
             calculated on expenses that should be excluded, or when separate
             administrative charges duplicate functions covered by the management
@@ -270,8 +270,7 @@ export default function CommercialTenantCamAuditGuide() {
           <p>
             The reconciliation statement is the document you audit. It contains
             the expense totals, your proportionate share calculation, and the
-            net amount due or credited. Most leases require landlords to deliver
-            reconciliation statements within 90 to 180 days after year-end.
+            net amount due or credited. Many leases set a deadline for landlords to deliver reconciliation statements. Check your lease for yours.
           </p>
 
           <h2>How to Perform a CAM Audit</h2>
@@ -336,8 +335,7 @@ export default function CommercialTenantCamAuditGuide() {
             For any charges that appear unusual, request the underlying invoices
             and vendor contracts. Your lease&apos;s audit rights clause
             typically entitles you to inspect these records, but be aware of
-            any deadline for exercising this right (usually 90 to 180 days
-            after receiving the reconciliation).
+            any deadline for exercising this right (set by your lease, so check it).
           </p>
 
           <h2>How LeaseGuard Helps</h2>
@@ -361,7 +359,7 @@ export default function CommercialTenantCamAuditGuide() {
               className="text-blue-600 hover:underline"
             >
               CAM cap compliance
-            </Link>. The analysis is delivered in about 60 seconds, giving you a
+            </Link>. The analysis gives you a
             prioritized list of issues to investigate rather than starting from
             scratch.
           </p>
@@ -382,15 +380,13 @@ export default function CommercialTenantCamAuditGuide() {
           </h2>
           <p className="text-gray-600 mb-8 max-w-xl mx-auto leading-relaxed">
             Upload your lease agreement and CAM reconciliation statement to
-            quickly identify potential billing discrepancies, excluded cost
-            pass-throughs, and CAM cap violations. Results are delivered in
-            about 60 seconds.
+            identify potential billing discrepancies, excluded cost pass-throughs, and potential CAM cap discrepancies. Results appear on your results page when the analysis finishes.
           </p>
           <Link
             href="/upload"
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-7 py-3 text-base font-semibold text-white shadow-sm hover:bg-blue-500 hover:shadow-md transition-all"
           >
-            Run 60-Second Audit <ArrowRight className="h-4 w-4" />
+            Run Audit <ArrowRight className="h-4 w-4" />
           </Link>
           <div className="mt-6 flex items-center justify-center gap-6 text-sm text-gray-500">
             <Link

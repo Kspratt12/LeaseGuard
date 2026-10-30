@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "LeaseGuard | CAM Audit Tool for Commercial Tenants",
   description:
-    "Upload your commercial lease and CAM reconciliation statements. LeaseGuard analyzes clauses and billed expenses to detect potential CAM overcharges in about 60 seconds.",
+    "Upload your commercial lease and CAM reconciliation statements. LeaseGuard analyzes clauses and billed expenses to identify potential CAM billing discrepancies.",
   keywords: [
     "CAM audit",
     "CAM reconciliation",
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "LeaseGuard | AI CAM Audit for Commercial Tenants",
     description:
-      "Detect CAM overcharges by comparing your lease clauses with reconciliation statements. Get results in about 60 seconds.",
+      "Detect CAM overcharges by comparing your lease clauses with reconciliation statements. See the findings in a free preview.",
     type: "website",
     siteName: "LeaseGuard",
     locale: "en_US",
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "LeaseGuard | AI CAM Audit for Commercial Tenants",
     description:
-      "Detect CAM overcharges by comparing your lease clauses with reconciliation statements. Get results in about 60 seconds.",
+      "Detect CAM overcharges by comparing your lease clauses with reconciliation statements. See the findings in a free preview.",
   },
   robots: {
     index: true,
@@ -86,7 +86,7 @@ const organizationJsonLd = {
   "@type": "Organization",
   name: "LeaseGuard",
   url: SITE_URL,
-  logo: `${SITE_URL}/leaseguard-logo.png`,
+  logo: `${SITE_URL}/leaseguard-mark.png`,
 };
 
 export default function RootLayout({

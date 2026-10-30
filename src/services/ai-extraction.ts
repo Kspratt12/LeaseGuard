@@ -9,6 +9,8 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { AI_TEXT_CHAR_LIMIT } from "@/lib/analysis-coverage";
+import { errorInfo } from "@/lib/safe-log";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,7 +48,7 @@ export interface AIReconFields {
 // ---------------------------------------------------------------------------
 
 /** Check if the Anthropic API key is configured (not a placeholder). */
-function hasApiKey(): boolean {
+export function hasApiKey(): boolean {
   const key = process.env.ANTHROPIC_API_KEY;
   return !!key && key.length > 20 && !key.endsWith("...");
 }
@@ -106,7 +108,7 @@ export async function extractLeaseFieldsWithAI(
   if (!hasApiKey()) return null;
 
   try {
-    const truncated = text.substring(0, 20000);
+    const truncated = text.substring(0, AI_TEXT_CHAR_LIMIT);
     const client = getClient();
 
     const response = await client.messages.create({
@@ -145,7 +147,7 @@ export async function extractLeaseFieldsWithAI(
   } catch (err) {
     console.warn(
       "[ai-extraction] Lease AI extraction failed:",
-      err instanceof Error ? err.message : err,
+      errorInfo(err),
     );
     return null;
   }
@@ -194,7 +196,7 @@ export async function extractReconFieldsWithAI(
   if (!hasApiKey()) return null;
 
   try {
-    const truncated = text.substring(0, 20000);
+    const truncated = text.substring(0, AI_TEXT_CHAR_LIMIT);
     const client = getClient();
 
     const response = await client.messages.create({
@@ -242,7 +244,7 @@ export async function extractReconFieldsWithAI(
   } catch (err) {
     console.warn(
       "[ai-extraction] Recon AI extraction failed:",
-      err instanceof Error ? err.message : err,
+      errorInfo(err),
     );
     return null;
   }

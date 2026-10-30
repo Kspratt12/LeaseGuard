@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/resources/cam-reconciliation-statement-example" },
   title: "CAM Reconciliation Statement Example | LeaseGuard",
   description:
-    "See a practical example of a CAM reconciliation statement with line-by-line explanations. Learn how to read and verify each section of your annual reconciliation.",
+    "A fictional CAM reconciliation statement with line-by-line explanations of how to read and verify each section of your annual reconciliation.",
   keywords: [
     "CAM reconciliation statement example",
     "CAM reconciliation sample",
@@ -23,9 +23,10 @@ export default function CamReconciliationStatementExample() {
   return (
     <ArticleLayout
       title="CAM Reconciliation Statement Example"
-      publishedDate="March 2026"
+      publishedDate="March 14, 2026"
+      modifiedDate="October 29, 2026"
       readTime="11 min read"
-      description="See a practical example of a CAM reconciliation statement with line-by-line explanations. Learn how to read and verify each section of your annual reconciliation."
+      description="A fictional CAM reconciliation statement with line-by-line explanations of how to read and verify each section of your annual reconciliation."
     >
       <p>
         A{" "}
@@ -144,8 +145,7 @@ export default function CamReconciliationStatementExample() {
 
       <h3>Large Year-Over-Year Increases</h3>
       <p>
-        Compare this year&apos;s statement to last year&apos;s. If any single
-        expense category has increased by more than 10-15%, ask the landlord for
+        Compare this year&apos;s statement to last year&apos;s. A large jump in a single expense category (10% or more is a common rule of thumb, not a lease or legal standard) is a reasonable prompt to ask the landlord for
         an explanation and supporting invoices. Sudden jumps in &quot;repairs and
         maintenance&quot; may indicate that{" "}
         <Link
@@ -172,13 +172,11 @@ export default function CamReconciliationStatementExample() {
         lease language.
       </p>
 
-      <h3>Missing Gross-Up Adjustment</h3>
+      <h3>Gross-Up Adjustment Not Matching the Lease</h3>
       <p>
-        If the building was not fully occupied during the year, variable
-        expenses should be &quot;grossed up&quot; to reflect what they would
-        cost at full occupancy. Without this adjustment, tenants in partially
-        occupied buildings effectively subsidize the landlord&apos;s vacant
-        space.
+        Some leases let the landlord adjust certain variable expenses, such as janitorial or utilities, to a stated occupancy
+        level when the building is partly vacant. Where your lease authorizes a gross-up, check that the specified occupancy level and eligible variable expenses were used. A missing or different adjustment is not automatically an overcharge. The lease decides whether a gross-up applies, which expenses
+        qualify and what occupancy level is used.
       </p>
 
       <h3>CAM Cap Not Applied</h3>
@@ -190,8 +188,7 @@ export default function CamReconciliationStatementExample() {
         >
           CAM cap
         </Link>, verify that the total controllable expenses on your statement do
-        not exceed the capped amount. Cap violations are one of the most
-        frequently missed overcharges.
+        not exceed the capped amount. A cap that is applied incorrectly is easy to miss.
       </p>
 
       <h2>How to Request Supporting Documentation</h2>
@@ -212,9 +209,7 @@ export default function CamReconciliationStatementExample() {
           documents you need (invoices, contracts, vendor agreements).
         </li>
         <li>
-          <strong>Note your deadline.</strong> Many leases require audit
-          requests within 90 to 180 days of receiving the reconciliation.
-          Missing this window can waive your rights for that year.
+          <strong>Note your deadline.</strong> Many leases set a time limit for requesting an audit after you receive the reconciliation. Check the limit in your lease, because missing it may limit your ability to dispute that year.
         </li>
       </ol>
       <p>
@@ -233,9 +228,7 @@ export default function CamReconciliationStatementExample() {
         LeaseGuard automates the comparison. Upload your lease agreement and
         reconciliation statement, and the platform identifies potential
         discrepancies, including excluded expenses, proportionate share errors,
-        management fee miscalculations, capital expense misclassification, and
-        CAM cap violations. The analysis is delivered in about 60 seconds,
-        giving you a clear starting point for any follow-up with your landlord.
+        management fee miscalculations, capital expense misclassification, and potential CAM cap discrepancies. The analysis gives you a clear starting point for any follow-up with your landlord.
       </p>
 
       <h2>Key Takeaways</h2>

@@ -7,6 +7,7 @@
  * comes from the audit's own verified reconciliation-year count.
  */
 import type Stripe from "stripe";
+import { decidePurchase, type NotEligibleReason, type PurchaseInput } from "@/lib/purchase-eligibility";
 
 export type Tier = "single" | "multi";
 
@@ -47,6 +48,8 @@ export interface PaymentStore {
   hasPaid(auditId: string, ownerId: string): Promise<boolean>;
   /** Server-side facts about the audit used to decide the tier. */
   getAuditFacts(auditId: string): Promise<{ owner_id: string | null; status: string; recon_year_count: number | null } | null>;
+  /** The audit's own stored findings, so checkout can refuse to sell an audit with nothing to unlock. */
+  getPurchaseFacts(auditId: string): Promise<PurchaseInput | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,7 +58,7 @@ export interface PaymentStore {
 
 export type CheckoutResult =
   | { ok: true; url: string; tier: Tier }
-  | { ok: false; reason: "not_found" | "not_ready" | "not_purchasable" | "already_paid" | "not_configured" | "price_mismatch" | "stripe_error" };
+  | { ok: false; reason: "not_found" | "not_ready" | "not_purchasable" | "already_paid" | "not_configured" | "price_mismatch" | "stripe_error" | NotEligibleReason };
 
 export async function createCheckoutForAudit(args: {
   auditId: string;
@@ -82,6 +85,13 @@ export async function createCheckoutForAudit(args: {
   const tier = tierForYearCount(facts.recon_year_count);
   if (!tier) return { ok: false, reason: "not_purchasable" };
   if (await store.hasPaid(auditId, userId)) return { ok: false, reason: "already_paid" };
+
+  // Eligibility is enforced HERE, on the server, from the audit's own stored findings. The screen hides the button
+  // for the same audits, but nothing the browser does can make an audit with nothing to unlock purchasable.
+  const purchaseFacts = await store.getPurchaseFacts(auditId);
+  if (!purchaseFacts) return { ok: false, reason: "not_found" };
+  const decision = decidePurchase(purchaseFacts);
+  if (!decision.eligible) return { ok: false, reason: decision.reason };
 
   const priceId = priceIdFor(tier, env);
   if (!priceId) return { ok: false, reason: "not_configured" };
@@ -119,6 +129,12 @@ export async function createCheckoutForAudit(args: {
 // ---------------------------------------------------------------------------
 // Webhook handling
 // ---------------------------------------------------------------------------
+
+/**
+ * Why a payment can end up "rejected" AFTER the customer was charged, so the money needs a human decision
+ * (normally a refund in Stripe). The admin dashboard counts rows with these reasons.
+ */
+export const REFUND_REVIEW_REASONS = ["duplicate_payment_refund_needed", "not_eligible_at_payment"] as const;
 
 export type WebhookOutcome =
   | "paid" | "duplicate" | "ignored" | "awaiting_payment"
@@ -204,6 +220,15 @@ async function fulfil(
   if (!expectedPrice || items.data.length !== 1 || items.data[0].price?.id !== expectedPrice || items.data[0].quantity !== 1) {
     return reject("wrong_price");
   }
+
+  // The audit must STILL be sellable now. A session created earlier (before this rule existed, or before the audit
+  // changed) may be paid late; the rule is re-run here on the audit's own stored findings, read fresh from the
+  // database. Nothing from the event, the Stripe metadata or the browser is used. A read failure THROWS (Stripe
+  // retries); only a definite "not eligible" answer rejects, and it records no entitlement. The customer has been
+  // charged at this point, so the reason is one the admin dashboard flags for a refund decision.
+  const purchaseFacts = await store.getPurchaseFacts(payment.audit_id);
+  if (!purchaseFacts) throw new Error("audit findings unavailable"); // cannot decide: retry, never reject
+  if (!decidePurchase(purchaseFacts).eligible) return reject("not_eligible_at_payment");
 
   const recorded = await store.markPaid(session.id, {
     paymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null,

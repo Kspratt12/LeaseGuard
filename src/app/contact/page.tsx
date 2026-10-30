@@ -103,6 +103,10 @@ export default function ContactPage() {
             <Send className="h-4 w-4" />
             Send Message
           </button>
+          <p className="text-center text-xs text-gray-500">
+            This form does not send anything from this website. It opens a draft in your own email application, addressed to support@leaseguard.ai, and
+            nothing is sent until you press send there. If it does not open, email us directly.
+          </p>
         </form>
 
         {/* Direct email fallback */}

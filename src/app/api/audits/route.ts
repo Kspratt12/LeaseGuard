@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { authenticate } from "@/lib/audit-access";
 import { TIERS, tierForYearCount } from "@/lib/payments";
+import { decidePurchase, purchaseInputFromRow } from "@/lib/purchase-eligibility";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
   const db = createServiceClient();
   const { data: audits, error } = await db
     .from("audits")
-    .select("id,created_at,status,savings_estimate,recon_year_count")
+    .select("id,created_at,status,savings_estimate,recon_year_count,free_findings,paid_findings,overcharge_breakdown,lease_clauses_summary,audit_mode,confidence,validation_warning")
     .eq("owner_id", user.id)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -40,6 +41,8 @@ export async function GET(req: NextRequest) {
       years: a.recon_year_count ?? null,
       price_cents: ((t) => (t ? TIERS[t].amount : null))(tierForYearCount(a.recon_year_count)),
       unlocked: unlocked.has(a.id),
+      // Only a yes/no: the account list never carries findings.
+      purchasable: a.status === "completed" && decidePurchase(purchaseInputFromRow(a as unknown as Record<string, unknown>)).eligible,
     })),
     { headers: NO_STORE },
   );

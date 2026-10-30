@@ -58,7 +58,7 @@ export function computeAdminFeeTenantOvercharge(input: {
  * Total shown to the customer = sum of the savings of the findings that are
  * actually listed + the excluded-category overcharge (itemised separately in
  * the breakdown; excluded-category findings carry $0 so nothing is counted
- * twice). Findings flagged insufficientData never contribute.
+ * twice). Summed exactly, rounded once to cents. Findings flagged insufficientData never contribute.
  */
 export function totalSavings(
   findings: { potential_savings: number; insufficientData?: boolean }[],
@@ -67,5 +67,6 @@ export function totalSavings(
   const fromFindings = findings
     .filter((f) => !f.insufficientData)
     .reduce((sum, f) => sum + f.potential_savings, 0);
-  return fromFindings + Math.round(excludedCategoryOvercharge);
+  // Exact to the cent: the headline must equal the sum of the amounts shown beneath it, never a rounded variant.
+  return round2(fromFindings + excludedCategoryOvercharge);
 }

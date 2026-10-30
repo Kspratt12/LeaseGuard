@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { errorInfo, stackFrames } from "@/lib/safe-log";
 import { authenticate } from "@/lib/audit-access";
 import { evaluateUploadQuota } from "@/lib/upload-quota";
 import {
   MAX_EXTRA_RECONS,
+  MAX_STATEMENTS,
   hasPdfSignature,
   validateUploadMeta,
 } from "@/lib/upload-validation";
+import { addExtraStatementCoverage, type AnalysisCoverage } from "@/lib/analysis-coverage";
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -99,13 +102,13 @@ async function processAudit(
       `[process:${auditId}] Extracted — lease: ${validation.leaseText.length} chars, recon: ${validation.reconText.length} chars`,
     );
     console.log(
-      `[process:${auditId}] Lease fields — camCap: ${validation.leaseFields.camCapPercentage ?? "NULL"}, proRata: ${validation.leaseFields.proRataShare ?? "NULL"}, adminFee: ${validation.leaseFields.adminFeePercentage ?? "NULL"}, mgmtFee: ${validation.leaseFields.managementFee ?? "NULL"}`,
+      `[process:${auditId}] Lease fields — camCap: ${validation.leaseFields.camCapPercentage ? "found" : "NULL"}, proRata: ${validation.leaseFields.proRataShare ? "found" : "NULL"}, adminFee: ${validation.leaseFields.adminFeePercentage ? "found" : "NULL"}, mgmtFee: ${validation.leaseFields.managementFee ? "found" : "NULL"}`,
     );
     console.log(
-      `[process:${auditId}] Lease fields — excludedTerms: [${validation.leaseFields.excludedTerms.join(", ")}], lineItems: ${validation.leaseFields.lineItems.length}`,
+      `[process:${auditId}] Lease fields — excludedTerms: ${validation.leaseFields.excludedTerms.length} found, lineItems: ${validation.leaseFields.lineItems.length}`,
     );
     console.log(
-      `[process:${auditId}] Recon fields — totalCam: ${validation.reconFields.totalCamCharges ?? "NULL"}, reconTotal: ${validation.reconFields.reconciliationTotal ?? "NULL"}, lineItems: ${validation.reconFields.lineItems.length}, year: ${validation.reconFields.reconciliationYear ?? "NULL"}`,
+      `[process:${auditId}] Recon fields — totalCam: ${validation.reconFields.totalCamCharges ? "found" : "NULL"}, reconTotal: ${validation.reconFields.reconciliationTotal ? "found" : "NULL"}, lineItems: ${validation.reconFields.lineItems.length}, year: ${validation.reconFields.reconciliationYear ? "found" : "NULL"}`,
     );
 
     // Never reject — always proceed to audit.
@@ -121,7 +124,7 @@ async function processAudit(
     const { extractTextFromPdf, extractFields, normalizeNumber } = await import(
       "@/services/document-validator"
     );
-    const { extractReconFieldsWithAI } = await import(
+    const { extractReconFieldsWithAI, hasApiKey } = await import(
       "@/services/ai-extraction"
     );
 
@@ -164,12 +167,17 @@ async function processAudit(
         });
       }
 
+      // Extra statements longer than the AI step reads are recorded, like the primary documents, so the review is
+      // never presented as covering text the AI step did not receive.
+      const extraTextLengths: number[] = [];
+      const aiConfigured = hasApiKey();
+
       // Process each extra recon
       for (const extra of extraRecons) {
         try {
           const extraction = await extractTextFromPdf(extra.buffer);
-          console.log(`[process:${auditId}] Extra recon "${extra.name}": extracted ${extraction.text.length} chars via ${extraction.method}`);
-          console.log(`[process:${auditId}] Extra recon "${extra.name}" text preview: ${extraction.text.substring(0, 200).replace(/[\n\r]+/g, " | ")}`);
+          if (aiConfigured) extraTextLengths.push(extraction.text.length);
+          console.log(`[process:${auditId}] Extra recon: extracted ${extraction.text.length} chars via ${extraction.method}`);
 
           let fields = extractFields(extraction.text);
 
@@ -177,7 +185,7 @@ async function processAudit(
           try {
             const aiFields = await extractReconFieldsWithAI(extraction.text);
             if (aiFields) {
-              console.log(`[process:${auditId}] Extra recon "${extra.name}" AI extraction successful`);
+              console.log(`[process:${auditId}] Extra recon AI extraction successful`);
               // Merge AI fields: AI takes priority for missing regex fields
               fields = {
                 ...fields,
@@ -187,7 +195,7 @@ async function processAudit(
               };
             }
           } catch (aiErr) {
-            console.warn(`[process:${auditId}] Extra recon "${extra.name}" AI extraction failed:`, aiErr);
+            console.warn(`[process:${auditId}] Extra recon AI extraction failed: ${errorInfo(aiErr)}`);
           }
 
           const yr = fields.reconciliationYear;
@@ -197,7 +205,7 @@ async function processAudit(
               ? normalizeNumber(fields.reconciliationTotal)
               : null;
 
-          console.log(`[process:${auditId}] Extra recon "${extra.name}" fields: year=${yr}, totalCam=${fields.totalCamCharges ?? "NULL"}, reconTotal=${fields.reconciliationTotal ?? "NULL"}, lineItems=${fields.lineItems.length}`);
+          console.log(`[process:${auditId}] Extra recon fields: year=${yr != null ? "found" : "NULL"}, totalCam=${fields.totalCamCharges ? "found" : "NULL"}, reconTotal=${fields.reconciliationTotal ? "found" : "NULL"}, lineItems=${fields.lineItems.length}`);
 
           if (yr != null && tot != null && tot > 0) {
             yearEntries.push({
@@ -206,29 +214,16 @@ async function processAudit(
               lineItems: fields.lineItems,
               docName: extra.name,
             });
-            console.log(
-              `[process:${auditId}] Extra recon "${extra.name}": year=${yr}, total=$${tot.toLocaleString()}, lineItems=${fields.lineItems.length}`,
-            );
+            console.log(`[process:${auditId}] Extra recon: year and total found, lineItems=${fields.lineItems.length}`);
           } else {
-            console.log(
-              `[process:${auditId}] Extra recon "${extra.name}": FAILED to extract — year=${yr}, total=${tot}`,
-            );
-            // Log lines containing "total" or year patterns for diagnosis
-            const totalLines = extraction.text
-              .split(/[\n\r]+/)
-              .filter((line: string) => /total|20\d{2}|reconciliation/i.test(line))
-              .map((line: string) => line.trim().substring(0, 120));
-            if (totalLines.length > 0) {
-              console.log(`[process:${auditId}] Extra recon diagnostic lines: ${JSON.stringify(totalLines.slice(0, 10))}`);
-            }
+            console.log(`[process:${auditId}] Extra recon: could not find a year and total`);
           }
         } catch (err) {
-          console.warn(
-            `[process:${auditId}] Failed to process extra recon "${extra.name}":`,
-            err,
-          );
+          console.warn(`[process:${auditId}] Failed to process an extra reconciliation: ${errorInfo(err)}`);
         }
       }
+
+      validation.coverage = addExtraStatementCoverage((validation.coverage ?? null) as AnalysisCoverage | null, extraTextLengths);
 
       if (yearEntries.length >= 2) {
         multiYearReconciliations = yearEntries;
@@ -260,7 +255,7 @@ async function processAudit(
       "audit analysis",
     );
     console.log(
-      `[process:${auditId}] Audit complete — savings: $${result.savings_estimate}, free: ${result.free_findings.length}, paid: ${result.paid_findings.length}, confidence: ${result.confidence}`,
+      `[process:${auditId}] Audit complete — free: ${result.free_findings.length}, paid: ${result.paid_findings.length}, confidence: ${result.confidence}`,
     );
 
     // Step 4: Generate PDF report
@@ -319,6 +314,9 @@ async function processAudit(
       error_message: null,
       estimated_overcharge: result.estimated_overcharge,
       overcharge_breakdown: result.overcharge_breakdown,
+      // Holds the analysis-coverage record (when a long document was read only in part), so it is saved with the
+      // results that must succeed rather than with the best-effort metadata below.
+      lease_clauses_summary: result.leaseClausesSummary,
     };
 
     const { error: coreErr } = await supabase
@@ -327,8 +325,8 @@ async function processAudit(
       .eq("id", auditId);
 
     if (coreErr) {
-      console.error(`[process:${auditId}] Core update failed:`, coreErr.message);
-      throw new Error(`Core DB update failed: ${coreErr.message}`);
+      console.error(`[process:${auditId}] Core update failed: ${errorInfo(coreErr)}`);
+      throw new Error(`Could not save the results (${errorInfo(coreErr)}).`);
     }
     console.log(`[process:${auditId}] Core fields written OK`);
 
@@ -341,7 +339,6 @@ async function processAudit(
       audit_mode: result.auditMode,
       lease_extraction_method: result.leaseExtractionMethod,
       recon_extraction_method: result.reconExtractionMethod,
-      lease_clauses_summary: result.leaseClausesSummary,
     };
 
     const { error: analyticsErr } = await supabase
@@ -351,20 +348,19 @@ async function processAudit(
 
     if (analyticsErr) {
       console.warn(
-        `[process:${auditId}] Analytics update failed (non-fatal):`,
-        analyticsErr.message,
+        `[process:${auditId}] Analytics update failed (non-fatal): ${errorInfo(analyticsErr)}`,
       );
     } else {
       console.log(`[process:${auditId}] Analytics fields written OK`);
     }
 
-    console.log(`[process:${auditId}] ✓ LIFECYCLE COMPLETE — status: completed, savings: $${result.savings_estimate}, free: ${result.free_findings.length}, paid: ${result.paid_findings.length}`);
+    console.log(`[process:${auditId}] ✓ LIFECYCLE COMPLETE — status: completed, free: ${result.free_findings.length}, paid: ${result.paid_findings.length}`);
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Unknown processing error";
     const stack = err instanceof Error ? err.stack : undefined;
-    console.error(`[process:${auditId}] Processing error:`, message);
-    if (stack) console.error(`[process:${auditId}] Stack trace:`, stack);
+    console.error(`[process:${auditId}] Processing error: ${errorInfo(err)}`);
+    if (stack) console.error(`[process:${auditId}] Stack frames: ${stackFrames(err)}`);
 
     try {
       await supabase
@@ -376,7 +372,7 @@ async function processAudit(
         .eq("id", auditId);
       console.log(`[process:${auditId}] Audit record updated — status: error`);
     } catch (dbErr) {
-      console.error(`[process:${auditId}] CRITICAL: Failed to set error status:`, dbErr);
+      console.error(`[process:${auditId}] CRITICAL: Failed to set error status: ${errorInfo(dbErr)}`);
     }
   }
 }
@@ -418,7 +414,7 @@ export async function POST(req: NextRequest) {
         }
       } catch (quotaErr) {
         // Fail open on an infrastructure error (do not take uploads down), but log it.
-        console.error("[upload] quota check failed:", quotaErr instanceof Error ? quotaErr.message : "unknown");
+        console.error(`[upload] quota check failed: ${errorInfo(quotaErr)}`);
       }
     }
 
@@ -428,7 +424,7 @@ export async function POST(req: NextRequest) {
     try {
       form = await req.formData();
     } catch (formErr) {
-      console.error("[upload] Failed to parse form data:", formErr);
+      console.error(`[upload] Failed to parse form data: ${errorInfo(formErr)}`);
       return NextResponse.json(
         { success: false, error: "Invalid form data. Please upload valid PDF files." },
         { status: 400 },
@@ -459,7 +455,7 @@ export async function POST(req: NextRequest) {
       .filter((e): e is File => e instanceof File && e.type === "application/pdf");
     if (extraReconEntries.length > MAX_EXTRA_RECONS) {
       return NextResponse.json(
-        { success: false, error: `You can add at most ${MAX_EXTRA_RECONS} additional reconciliation statements.` },
+        { success: false, error: `You can include up to ${MAX_STATEMENTS} reconciliation statements in one audit.` },
         { status: 400 },
       );
     }
@@ -515,7 +511,7 @@ export async function POST(req: NextRequest) {
       });
 
     if (leaseErr) {
-      console.error(`[upload:${auditId}] Lease storage upload failed:`, leaseErr.message);
+      console.error(`[upload:${auditId}] Lease storage upload failed: ${errorInfo(leaseErr)}`);
       return NextResponse.json(
         { success: false, error: "Lease file upload failed. Please try again." },
         { status: 500 },
@@ -534,7 +530,7 @@ export async function POST(req: NextRequest) {
       });
 
     if (reconErr) {
-      console.error(`[upload:${auditId}] Recon storage upload failed:`, reconErr.message);
+      console.error(`[upload:${auditId}] Recon storage upload failed: ${errorInfo(reconErr)}`);
       return NextResponse.json(
         { success: false, error: "Reconciliation file upload failed. Please try again." },
         { status: 500 },
@@ -562,7 +558,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (dbErr) {
-      console.error(`[upload:${auditId}] Database insert failed:`, dbErr.message);
+      console.error(`[upload:${auditId}] Database insert failed: ${errorInfo(dbErr)}`);
       return NextResponse.json(
         { success: false, error: "Failed to create audit record. Please try again." },
         { status: 500 },
@@ -575,9 +571,9 @@ export async function POST(req: NextRequest) {
     // Log comprehensive per-file metadata for mobile/desktop parity debugging
     console.log(`[upload:${auditId}] LIFECYCLE: Returning response to client`);
     console.log(`[upload:${auditId}] File metadata:`, JSON.stringify({
-      lease: { name: lease.name, size: lease.size, type: lease.type, bufferSize: leaseBuffer.length },
-      recon: { name: recon.name, size: recon.size, type: recon.type, bufferSize: reconBuffer.length },
-      extraRecons: extraReconFiles.map((f, i) => ({ index: i, name: f.name, bufferSize: f.buffer.length })),
+      lease: { size: lease.size, type: lease.type, bufferSize: leaseBuffer.length },
+      recon: { size: recon.size, type: recon.type, bufferSize: reconBuffer.length },
+      extraRecons: extraReconFiles.map((f, i) => ({ index: i, bufferSize: f.buffer.length })),
       totalFiles: 2 + extraReconFiles.length,
     }));
 
@@ -606,7 +602,7 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         // Safety net: if the overall timeout fires and processAudit's own
         // catch didn't run, force the row to error.
-        console.error(`[process:${capturedAuditId}] Overall timeout/error:`, err);
+        console.error(`[process:${capturedAuditId}] Overall timeout/error: ${errorInfo(err)}`);
         try {
           await supabase
             .from("audits")
@@ -626,8 +622,8 @@ export async function POST(req: NextRequest) {
       err instanceof Error ? err.message : String(err);
     const stack =
       err instanceof Error ? err.stack : undefined;
-    console.error("[upload] Unhandled route error:", message);
-    if (stack) console.error("[upload] Stack trace:", stack);
+    console.error(`[upload] Unhandled route error: ${errorInfo(err)}`);
+    if (stack) console.error(`[upload] Stack frames: ${stackFrames(err)}`);
 
     return NextResponse.json(
       { success: false, error: "Something went wrong processing your documents. Please try again." },

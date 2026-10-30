@@ -117,13 +117,25 @@ const articles = [
     slug: "commercial-lease-audit-services",
     title: "Commercial Lease Audit Services",
     description:
-      "Learn what commercial lease audit services do, why tenants need them, and how automated CAM audits identify billing discrepancies in minutes.",
+      "Learn what commercial lease audit services do, why tenants need them, and how automated CAM audits help identify potential billing discrepancies.",
   },
   {
     slug: "cam-audit-rights",
     title: "CAM Audit Rights in Commercial Leases",
     description:
       "Understand your audit rights as a commercial tenant, including review periods, access to records, and how to exercise your right to audit CAM charges.",
+  },
+  {
+    slug: "check-your-pro-rata-share",
+    title: "How to Check Your Pro-Rata Share on a CAM Statement",
+    description:
+      "How a commercial tenant can check the pro-rata share on a CAM statement: the formula, which square footage to use, and what to ask the landlord if it differs.",
+  },
+  {
+    slug: "commercial-lease-dispute-letter-template",
+    title: "CAM Dispute Letter Template for Commercial Tenants",
+    description:
+      "A plain fill-in letter a commercial tenant can adapt to ask a landlord to explain CAM charges and send supporting records, with notes on what to attach.",
   },
   {
     slug: "dispute-cam-charges",

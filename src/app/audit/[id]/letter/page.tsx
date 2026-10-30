@@ -1,5 +1,7 @@
 "use client";
 
+
+import { formatMoney } from "@/lib/format";
 import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,6 +14,8 @@ interface Draft {
   total: number;
   headlineTotal: number | null;
   placeholders: string[];
+  /** Set when the AI step read only part of a long lease. */
+  coverageNote?: string | null;
   items: {
     kind: "adjustment" | "clarify";
     title: string;
@@ -106,11 +110,11 @@ export default function DisputeLetterPage({ params }: { params: Promise<{ id: st
 
           <p className="mt-4 text-sm text-gray-700">
             Total of the calculation-backed items:{" "}
-            <span className="font-semibold">${draft.total.toLocaleString()}</span>
+            <span className="font-semibold">{formatMoney(draft.total)}</span>
             {draft.headlineTotal != null && draft.headlineTotal !== draft.total && (
               <span className="text-red-700">
                 {" "}
-                (differs from your audit total of ${draft.headlineTotal.toLocaleString()}: please double-check)
+                (differs from your audit total of {formatMoney(draft.headlineTotal)}: please double-check)
               </span>
             )}
           </p>
@@ -125,6 +129,13 @@ export default function DisputeLetterPage({ params }: { params: Promise<{ id: st
             spellCheck
             className="mt-1 block min-h-[60vh] w-full rounded-lg border border-gray-300 bg-white p-4 font-serif text-[17px] leading-relaxed text-ink"
           />
+
+          {draft?.coverageNote && (
+            <p role="note" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <span className="font-semibold">Before you send this letter: </span>
+              {draft.coverageNote} Check every provision in the letter against your full lease, add any provision this review did not detect, and delete the bracketed note at the top.
+            </p>
+          )}
 
           <p role="status" className="mt-2 text-sm text-gray-600">
             {remaining.length
@@ -169,7 +180,7 @@ export default function DisputeLetterPage({ params }: { params: Promise<{ id: st
                 <li key={i}>
                   <p className="font-semibold">
                     {it.title}
-                    {it.amount != null ? ` - $${it.amount.toLocaleString()}` : " (to clarify)"}
+                    {it.amount != null ? ` - ${formatMoney(it.amount)}` : " (to clarify)"}
                   </p>
                   {it.evidence.length === 0 && <p className="text-gray-500">No quotation was extracted for this item.</p>}
                   {it.evidence.slice(0, 3).map((e, j) => (

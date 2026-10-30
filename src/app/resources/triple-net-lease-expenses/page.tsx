@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/resources/triple-net-lease-expenses" },
   title: "Triple Net Lease Expenses Explained | LeaseGuard",
   description:
-    "Understand the three expense categories in a triple net (NNN) lease: property taxes, insurance, and common area maintenance. Learn what tenants actually pay and how to verify charges.",
+    "The three expense categories in a triple net (NNN) lease: property taxes, insurance and common area maintenance, and how to verify what you are charged.",
   keywords: [
     "triple net lease expenses",
     "NNN lease costs",
@@ -23,9 +23,10 @@ export default function TripleNetLeaseExpenses() {
   return (
     <ArticleLayout
       title="Triple Net Lease Expenses Explained"
-      publishedDate="March 2026"
+      publishedDate="March 14, 2026"
+      modifiedDate="October 29, 2026"
       readTime="9 min read"
-      description="Understand the three expense categories in a triple net (NNN) lease: property taxes, insurance, and common area maintenance. Learn what tenants actually pay and how to verify charges."
+      description="The three expense categories in a triple net (NNN) lease: property taxes, insurance and common area maintenance, and how to verify what you are charged."
     >
       <p>
         A triple net lease, commonly abbreviated as NNN, is one of the most
@@ -42,6 +43,9 @@ export default function TripleNetLeaseExpenses() {
         for any commercial tenant, retail operator, medical practice, franchise
         owner, or office tenant, who wants to verify their charges are
         accurate.
+      </p>
+      <p>
+        For the charges tenants most often overlook, see <Link href="/resources/hidden-costs-in-nnn-leases" className="text-blue-600 hover:underline">hidden costs in NNN (triple net) leases</Link>.
       </p>
 
       <h2>The Three &quot;Nets&quot; in a Triple Net Lease</h2>
@@ -254,9 +258,8 @@ export default function TripleNetLeaseExpenses() {
         cross-referencing lease terms against reconciliation statements. The
         platform identifies potential issues including excluded expenses being
         passed through, incorrect proportionate share calculations, capital
-        expenses improperly classified as operating costs, and CAM cap
-        violations. Upload your lease and reconciliation statement to get a
-        detailed analysis in about 60 seconds.
+        expenses improperly classified as operating costs, and potential CAM cap discrepancies. Upload your lease and reconciliation statement to get a
+        detailed analysis.
       </p>
 
       <h2>Key Takeaways</h2>

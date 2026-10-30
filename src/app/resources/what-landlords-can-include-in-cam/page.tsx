@@ -23,7 +23,8 @@ export default function WhatLandlordsCanIncludeInCam() {
   return (
     <ArticleLayout
       title="What Landlords Can Include in CAM Charges"
-      publishedDate="March 2026"
+      publishedDate="March 14, 2026"
+      modifiedDate="October 29, 2026"
       readTime="10 min read"
       description="Learn what expenses landlords are allowed to include in CAM charges, what is typically excluded, and how to verify your charges against your lease agreement."
     >
@@ -41,6 +42,9 @@ export default function WhatLandlordsCanIncludeInCam() {
         under your lease. The answer depends almost entirely on the specific
         language in your lease agreement, but there are general categories
         that most commercial leases follow.
+      </p>
+      <p>
+        Some charges are easy to miss even when the lease allows them; see <Link href="/resources/hidden-costs-in-nnn-leases" className="text-blue-600 hover:underline">hidden costs in NNN leases</Link>. For the wider lease structure, see <Link href="/resources/triple-net-lease-expenses" className="text-blue-600 hover:underline">triple net lease expenses explained</Link>.
       </p>
 
       <h2>Expenses Typically Included in CAM</h2>
@@ -241,8 +245,7 @@ export default function WhatLandlordsCanIncludeInCam() {
         reconciliation statement. The platform reads both documents and flags
         charges that may not be authorized, including expenses that appear on
         your lease&apos;s exclusion list, capital expenditures classified as
-        operating costs, management fee miscalculations, and CAM cap
-        violations. This analysis is delivered in about 60 seconds, giving you a
+        operating costs, management fee miscalculations, and potential CAM cap discrepancies. This analysis gives you a
         clear picture of which charges warrant further investigation.
       </p>
 

@@ -5,6 +5,8 @@ import { SITE_URL } from "@/lib/constants";
 interface ArticleLayoutProps {
   title: string;
   publishedDate: string;
+  /** When the article was last changed. Same formats as publishedDate. */
+  modifiedDate?: string;
   readTime: string;
   description?: string;
   children: React.ReactNode;
@@ -32,6 +34,7 @@ const TOOLS = [
 export function ArticleLayout({
   title,
   publishedDate,
+  modifiedDate,
   readTime,
   description,
   children,
@@ -52,13 +55,14 @@ export function ArticleLayout({
       url: SITE_URL,
       logo: {
         "@type": "ImageObject",
-        url: `${SITE_URL}/leaseguard-logo.png`,
+        url: `${SITE_URL}/leaseguard-mark.png`,
       },
     },
     mainEntityOfPage: {
       "@type": "WebPage",
     },
     ...(toIsoDate(publishedDate) ? { datePublished: toIsoDate(publishedDate) } : {}),
+    ...(modifiedDate && toIsoDate(modifiedDate) ? { dateModified: toIsoDate(modifiedDate) } : {}),
   };
 
   return (
@@ -81,7 +85,15 @@ export function ArticleLayout({
             {title}
           </h1>
           <div className="mt-4 flex items-center gap-3 text-sm text-gray-500">
-            <time>{publishedDate}</time>
+            <time dateTime={toIsoDate(publishedDate)}>{publishedDate}</time>
+            {modifiedDate && (
+              <>
+                <span className="text-gray-300">·</span>
+                <span>
+                  Updated <time dateTime={toIsoDate(modifiedDate)}>{modifiedDate}</time>
+                </span>
+              </>
+            )}
             <span className="text-gray-300">·</span>
             <span>{readTime}</span>
           </div>

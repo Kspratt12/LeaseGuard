@@ -13,7 +13,7 @@ export default function PrivacyPage() {
           Privacy Policy
         </h1>
         <p className="text-sm text-gray-400 mb-10">
-          Last updated: March 2026
+          Last updated: October 2026
         </p>
 
         <section className="space-y-8 text-sm text-gray-600 leading-relaxed">
@@ -22,11 +22,7 @@ export default function PrivacyPage() {
               1. Information We Collect
             </h2>
             <p>
-              When you use LeaseGuard, we collect the documents you upload
-              (commercial lease and CAM reconciliation PDFs) for the purpose of
-              performing your audit analysis. We may also collect basic usage
-              data such as browser type, device information, and pages visited
-              to improve our service.
+              When you use LeaseGuard, we collect your account email address, the documents you upload (a commercial lease and CAM reconciliation statements, as PDFs or photos) so that we can perform your audit, the text we extract from those documents, the results of the analysis (which include short excerpts quoted from your documents), and payment records (the amount, the date and the audit purchased). Card details are entered on Stripe and never reach us. Our hosting provider also keeps standard server logs, such as IP address, browser type and the pages requested.
             </p>
           </div>
 
@@ -35,11 +31,7 @@ export default function PrivacyPage() {
               2. How We Use Your Information
             </h2>
             <p>
-              Uploaded documents are used solely to generate your CAM audit
-              report. We do not sell, share, or distribute your documents to
-              third parties. Documents are temporarily stored to complete
-              processing and are handled in accordance with industry-standard
-              security practices.
+              Uploaded documents are used to generate your CAM audit report. We do not sell your documents. They are kept in private storage tied to your account, and other LeaseGuard customers cannot open them in the app. To produce your audit, text extracted from your documents is sent to our AI analysis provider, and your files and results are stored and processed by the service providers listed in Section 4, only so that LeaseGuard can operate. The person who operates LeaseGuard can also technically reach stored files and records through the hosting and database tools, and may do so when needed to provide support or fix a problem.
             </p>
           </div>
 
@@ -48,9 +40,7 @@ export default function PrivacyPage() {
               3. Data Retention
             </h2>
             <p>
-              Uploaded documents and audit results are retained for a limited
-              period to allow you to access your reports. You may request
-              deletion of your data at any time by contacting us at{" "}
+              Uploaded documents and audit results stay in your account until they are deleted. We do not currently delete them automatically, and there is no fixed retention period. You may ask us to delete your documents and audit results at any time by contacting us at{" "}
               <a
                 href="mailto:support@leaseguard.ai"
                 className="text-blue-700 hover:underline"
@@ -58,6 +48,9 @@ export default function PrivacyPage() {
                 support@leaseguard.ai
               </a>
               .
+            
+              There is no delete button in your account yet, so a deletion request is handled by us by hand. Deleting removes your documents and results from LeaseGuard&apos;s own storage and database. Copies and backups held by the providers in Section 4 follow their own retention practices, which we do not control.
+              We may need to keep basic payment records (amount, date and the audit purchased) for accounting and tax purposes.
             </p>
           </div>
 
@@ -66,10 +59,7 @@ export default function PrivacyPage() {
               4. Third-Party Services
             </h2>
             <p>
-              LeaseGuard uses third-party services for document storage,
-              payment processing, and AI analysis. These providers are
-              contractually bound to handle your data securely and only for the
-              purposes we specify.
+              LeaseGuard uses these services to operate, and each handles data under its own terms and privacy policy. Supabase stores your account, your results and your uploaded files. Anthropic&apos;s AI service receives text extracted from your documents (up to the first 20,000 characters of each document, not the files or images) and returns the key figures used in your audit. Vercel hosts the website, runs the processing and keeps server logs. Stripe processes payments and receives your email address, your payment details and identifiers that link the payment to your audit. Resend sends sign-in, password and purchase confirmation emails, which contain your email address and your purchase details but not your documents.
             </p>
           </div>
 
@@ -78,9 +68,7 @@ export default function PrivacyPage() {
               5. Cookies and Analytics
             </h2>
             <p>
-              We may use cookies and similar technologies to improve your
-              experience and understand how LeaseGuard is used. You can manage
-              cookie preferences through your browser settings.
+              LeaseGuard does not use advertising or analytics cookies. Your sign-in session is kept in your browser local storage. Stripe may set its own cookies on its payment pages. You can manage cookies and site data through your browser settings.
             </p>
           </div>
 

@@ -29,7 +29,7 @@ const softwareAppJsonLd = {
 const faqItems = [
   {
     q: "What files do I upload?",
-    a: "Upload your commercial lease (the CAM or operating expense section is enough) and one or more annual CAM reconciliation statements from your landlord. PDFs and clear photos both work.",
+    a: "Upload your commercial lease and one or more annual CAM reconciliation statements from your landlord. For the lease, include the CAM or operating-expense provisions, the definitions that affect the calculation, relevant schedules and exhibits, and any amendments that change them. An excerpt may support only a limited review. PDFs and clear photos both work.",
   },
   {
     q: "Can I upload multiple CAM reconciliation PDFs?",
@@ -45,7 +45,7 @@ const faqItems = [
   },
   {
     q: "What does the full report include, and what does it cost?",
-    a: "The full report is a one-time purchase: $49 for a one-year audit, or $149 for an audit covering two to five years of statements. It adds the remaining findings, source references with page numbers, a downloadable multi-page PDF report, and an editable dispute-letter draft built from your findings.",
+    a: "The full report is a one-time purchase: $49 for a one-year audit, or $149 for an audit covering two to five years of statements. It adds the remaining findings, source references with page numbers where available, a downloadable multi-page PDF report, and an editable dispute-letter draft built from your findings.",
   },
   {
     q: "How accurate are the results?",
@@ -69,7 +69,7 @@ const faqItems = [
   },
   {
     q: "How long does a CAM audit take with LeaseGuard?",
-    a: "LeaseGuard analyzes lease clauses and CAM reconciliation statements automatically and generates a report highlighting potential issues in about a minute.",
+    a: "The analysis is automatic. How long it takes depends on the size and quality of your documents, and scanned or photographed pages take longer. The results page updates by itself when your audit is ready, so you can keep it open.",
   },
 ];
 
@@ -84,9 +84,9 @@ const faqJsonLd = {
 };
 
 const STEPS = [
-  { icon: Upload, title: "Upload your lease and CAM statement", text: "Add your lease (the CAM or operating-expense section is enough) and one to five years of reconciliation statements. PDFs or phone photos." },
+  { icon: Upload, title: "Upload your lease and CAM statement", text: "Add your lease (the CAM provisions, definitions, exhibits and amendments; an excerpt may support only a limited review) and one to five years of reconciliation statements. PDFs or phone photos." },
   { icon: FileSearch, title: "Compare charges with lease requirements", text: "Fees, shares, caps and exclusions on the statement are checked against the terms found in your lease." },
-  { icon: ClipboardCheck, title: "Review discrepancies, evidence and your report", text: "See the free preview first. Unlock the full report for every finding with its source, a PDF, and an editable dispute letter." },
+  { icon: ClipboardCheck, title: "Review discrepancies, evidence and your report", text: "See the free preview first. Unlock the full report for every finding, with its source text and page where available, a PDF, and an editable dispute letter." },
 ];
 
 const CALCULATED = [
@@ -104,8 +104,8 @@ const JUDGMENT = [
 ];
 
 const TRUST = [
-  { icon: Lock, title: "Private to your account", text: "Your documents and results are visible only to you." },
-  { icon: ScrollText, title: "Every finding shows its source", text: "The lease and statement text, and the page, behind each item." },
+  { icon: Lock, title: "Private to your account", text: "Other customers cannot open your documents or results. Our privacy policy explains which services process them." },
+  { icon: ScrollText, title: "Findings show their source", text: "The lease and statement text, and the page, behind each item where it can be located." },
   { icon: Tag, title: "One-time pricing", text: "$49 for one year or $149 for two to five years. No subscription." },
 ];
 
@@ -126,8 +126,8 @@ export default function Home() {
               Check your CAM charges against your lease.
             </h1>
             <p className="mt-4 max-w-xl text-base leading-relaxed text-white/80 sm:mt-5 sm:text-lg">
-              Upload your commercial lease and operating expense statement. LeaseGuard compares the charges against your lease terms, calculates
-              potential discrepancies, and organizes the supporting evidence for your review.
+              Upload your commercial lease and CAM reconciliation statement. LeaseGuard compares billed expenses with your lease terms, calculates
+              potential discrepancies, and organizes the supporting evidence so you can review the results before deciding what to do next.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link
@@ -254,7 +254,7 @@ export default function Home() {
             <h2 className="text-2xl font-semibold leading-tight tracking-tight sm:text-4xl">Every audit in one place</h2>
             <p className="mt-3 text-base text-ink-muted">
               Your account keeps each audit with its documents, its progress, the findings to review, and clear next steps. Documents and results
-              are visible only to you.
+              can be opened only by your account.
             </p>
           </div>
           <AppPreview />

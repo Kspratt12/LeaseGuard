@@ -10,7 +10,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[global-error-boundary]", error);
+    console.error("[global-error-boundary]", error.name, error.digest);
   }, [error]);
 
   return (

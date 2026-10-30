@@ -4,7 +4,7 @@ import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/resources/hidden-costs-in-nnn-leases" },
-  title: "Hidden Costs in NNN Leases | LeaseGuard",
+  title: "Hidden Costs in NNN (Triple Net) Leases | LeaseGuard",
   description:
     "Uncover the hidden costs that commercial tenants often miss in triple net (NNN) leases. Learn how to identify unexpected charges and protect your bottom line.",
   keywords: [
@@ -22,8 +22,9 @@ export const metadata: Metadata = {
 export default function HiddenCostsInNnnLeases() {
   return (
     <ArticleLayout
-      title="Hidden Costs in NNN Leases"
-      publishedDate="March 2026"
+      title="Hidden Costs in NNN (Triple Net) Leases"
+      publishedDate="March 14, 2026"
+      modifiedDate="October 29, 2026"
       readTime="10 min read"
       description="Uncover the hidden costs that commercial tenants often miss in triple net (NNN) leases. Learn how to identify unexpected charges and protect your bottom line."
     >
@@ -43,6 +44,9 @@ export default function HiddenCostsInNnnLeases() {
         between landlord and tenant interests.
       </p>
       <p>
+        How fees and caps interact is covered in <Link href="/resources/management-fees-and-cam-caps" className="text-blue-600 hover:underline">management fees and CAM caps</Link>. For what each of the three nets covers, see <Link href="/resources/triple-net-lease-expenses" className="text-blue-600 hover:underline">triple net lease expenses explained</Link>.
+      </p>
+      <p>
         This article identifies the most common hidden costs that commercial
         tenants, retail operators, franchise owners, medical practices, and
         small businesses, encounter in NNN leases.
@@ -51,7 +55,7 @@ export default function HiddenCostsInNnnLeases() {
       <h2>1. Administrative and Management Fee Markups</h2>
       <p>
         Most NNN leases allow the landlord to charge a property management fee,
-        typically 3% to 8% of total operating expenses. What many tenants
+        usually calculated as a percentage of total operating expenses, with the percentage set by the lease. What many tenants
         don&apos;t realize is that this fee compounds other costs: if operating
         expenses are inflated for any reason, the management fee is inflated
         proportionally.
@@ -94,20 +98,13 @@ export default function HiddenCostsInNnnLeases() {
 
       <h2>3. Vacant Space Subsidies</h2>
       <p>
-        In a partially occupied building, the landlord&apos;s expenses
-        don&apos;t decrease proportionally with vacancy. Variable costs like
-        utilities and janitorial may be lower, but fixed costs like property
-        taxes, insurance, and landscaping remain the same. Without a proper
-        &quot;gross-up&quot; provision, the landlord&apos;s total costs are
-        divided only among existing tenants, effectively making you subsidize
-        the landlord&apos;s vacant space.
+        In a partially occupied building, some expenses move with occupancy (janitorial or utilities, for example) and others
+        do not (property taxes or insurance). Some leases include a &quot;gross-up&quot; clause that lets the landlord adjust
+        variable expenses to a stated occupancy level.
       </p>
       <p>
-        A gross-up clause adjusts variable expenses to what they would be at
-        full (or near-full) occupancy. If your lease doesn&apos;t include this
-        provision, your proportionate share of expenses increases when other
-        tenants leave, even though your own space and usage haven&apos;t
-        changed.
+        Where your lease authorizes a gross-up, check that the specified occupancy level and eligible variable expenses were used. A missing or different adjustment is not automatically an overcharge. Whether a gross-up applies, and how your share is measured when space is vacant, depends on the wording of
+        your lease.
       </p>
 
       <h2>4. Property Tax Reassessment After Sale</h2>
@@ -197,9 +194,7 @@ export default function HiddenCostsInNnnLeases() {
       <p>
         Even when individual year-over-year increases are modest, the
         cumulative effect of annual increases in controllable expenses can be
-        substantial over a multi-year lease term. A 5% annual increase on a
-        $20,000 CAM charge adds up to nearly $6,000 in additional costs over
-        five years compared to flat expenses.
+        substantial over a multi-year lease term. For example, if a $20,000 CAM charge rises 5% a year, the five annual charges are $20,000, $21,000, $22,050, $23,152.50 and $24,310.13. That is $110,512.63 in total, about $10,500 more than five years of flat $20,000 charges, and the fifth-year charge alone is about $4,300 higher.
       </p>
       <p>
         This is precisely why{" "}
@@ -261,9 +256,8 @@ export default function HiddenCostsInNnnLeases() {
         LeaseGuard helps NNN tenants uncover hidden costs by cross-referencing
         lease terms against reconciliation statements. The platform flags
         potential issues including unauthorized pass-throughs, capital expenses
-        misclassified as operating costs, management fee overcharges, CAM cap
-        violations, and proportionate share errors. Upload your lease and
-        reconciliation statement to get a detailed analysis in about 60 seconds.
+        misclassified as operating costs, potential management fee overcharges, potential CAM cap discrepancies, and proportionate share differences. Upload your lease and
+        reconciliation statement to get a detailed analysis.
       </p>
 
       <h2>Key Takeaways</h2>

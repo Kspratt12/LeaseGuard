@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { handleStripeEvent } from "@/lib/payments";
-import { supabasePaymentStore } from "@/lib/payment-store";
+import { supabasePaymentStore, supabaseEmailStore } from "@/lib/payment-store";
+import { configuredSender, sendPurchaseConfirmation } from "@/lib/purchase-email";
 import { getStripe, stripeModeFromKey } from "@/lib/stripe";
+import { errorInfo } from "@/lib/safe-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,8 +37,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const db = createServiceClient();
     const result = await handleStripeEvent(event, {
-      store: supabasePaymentStore(createServiceClient()),
+      store: supabasePaymentStore(db),
       stripe,
       expectLivemode: stripeModeFromKey(process.env.STRIPE_SECRET_KEY) === "live",
     });
@@ -44,10 +47,17 @@ export async function POST(req: NextRequest) {
     // A rejected payment may mean a customer was charged without being unlocked: needs a human.
     if (result.outcome === "rejected") console.error(`ACTION REQUIRED ${line}`);
     else console.log(line);
+
+    // Only a freshly verified payment triggers the confirmation email. It is best effort and never changes the
+    // response: a mail problem must not make Stripe retry (and cannot undo access, which is already recorded).
+    if (result.outcome === "paid") {
+      const session = event.data.object as { id: string };
+      await sendPurchaseConfirmation({ sessionId: session.id, store: supabaseEmailStore(db), send: configuredSender(), baseUrl: process.env.APP_BASE_URL });
+    }
     return NextResponse.json({ received: true, outcome: result.outcome });
   } catch (err) {
     // 500 makes Stripe retry; the event is only marked processed on success.
-    console.error(`[stripe-webhook] ${event.type} ${event.id} failed:`, err instanceof Error ? err.message : "unknown");
+    console.error(`[stripe-webhook] ${event.type} ${event.id} failed:`, errorInfo(err));
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 }

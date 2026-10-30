@@ -22,6 +22,10 @@ const feeExcess = feeBilled - feeAtCap; // $16,816.20
 const feeReview = share(feeExcess); // $1,358.75
 const roofReview = share(ROOF_CENTS); // $1,979.60
 
+/** Exported so the sample review plan uses the very same figures as the table. */
+export const SAMPLE_FEE_REVIEW = feeReview / 100;
+export const SAMPLE_ROOF_REVIEW = roofReview / 100;
+
 export const money = (cents: number) =>
   (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -59,7 +63,7 @@ export const SAMPLE_ROWS: SampleRow[] = [
     statusLabel: "Needs review",
     basis: "Calculated",
     explanation: "The statement bills an 18% fee; the lease allows up to 15%. This is arithmetic from the two documents.",
-    calc: `${money(feeBilled)} billed − ${money(feeAtCap)} at the 15% cap = ${money(feeExcess)}; × 8.08% share = ${money(feeReview)}`,
+    calc: `${money(OPEX_CENTS)} operating expenses × 18% = ${money(feeBilled)} billed; × 15% cap = ${money(feeAtCap)} allowed; ${money(feeBilled)} − ${money(feeAtCap)} = ${money(feeExcess)}; × 8.08% share = ${money(feeReview)} (rounded to the cent)`,
   },
   {
     id: "roof",
@@ -118,4 +122,64 @@ export const SAMPLE_LETTER = {
   ],
   source: "Source: Lease, page 2, §3.3: “…not to exceed 15%…”",
   close: "Please send the supporting documents for each item by [response date].",
+};
+
+// ───────────── the same fictional example, in the shape the audit engine produces, for the sample review plan ─────────────
+import type { Finding, LeaseClauseSummary, OverchargeLineItem } from "@/services/audit-logic";
+
+export const SAMPLE_PLAN_FINDINGS: Finding[] = [
+  {
+    category: "Admin Fee Above Lease Cap",
+    description: "The statement bills an 18% management fee; the lease allows up to 15%. This is arithmetic from the two documents.",
+    potential_savings: SAMPLE_FEE_REVIEW,
+    severity: "medium",
+    sourceEvidence: [
+      { document: "lease.pdf", page: 2, extractedText: "Landlord may charge an administrative fee not to exceed 15% of total operating expenses.", findingCategory: "Admin Fee Above Lease Cap" },
+      { document: "cam-statement-2025.pdf", page: 1, extractedText: "Management Fee (18%) $100,897.20", findingCategory: "Admin Fee Above Lease Cap" },
+    ],
+  },
+  {
+    category: "Excluded Category Billed",
+    description: "The lease excludes capital and structural repairs. The statement bills roof repair, which may fall in that category.",
+    potential_savings: 0,
+    severity: "high",
+    sourceEvidence: [{ document: "lease.pdf", page: 3, extractedText: "Capital and structural repairs are excluded from operating expenses.", findingCategory: "Excluded Category Billed" }],
+  },
+  {
+    category: "CAM Cap Review: Prior-Year Data Needed",
+    description: "The lease limits annual increases to 5%, but no prior-year total was found to compare against.",
+    potential_savings: 0,
+    severity: "medium",
+    insufficientData: true,
+    sourceEvidence: [{ document: "lease.pdf", page: 2, extractedText: "Annual increases in controllable expenses are limited to 5%.", findingCategory: "CAM Cap Review: Prior-Year Data Needed" }],
+  },
+  {
+    category: "Tenant share (matches lease)",
+    description: "The share on the statement (8.08%) agrees with 4,200 of 52,000 square feet in the lease.",
+    potential_savings: 0,
+    severity: "low",
+    sourceEvidence: [{ document: "lease.pdf", page: 1, extractedText: "Tenant's share: 4,200 of 52,000 rentable square feet.", findingCategory: "Tenant share (matches lease)" }],
+  },
+];
+
+export const SAMPLE_PLAN_BREAKDOWN: OverchargeLineItem[] = [
+  {
+    category: "roof repair",
+    total_expense: 24500,
+    tenant_share_percent: 8.08,
+    tenant_charge: SAMPLE_ROOF_REVIEW,
+    reason: "Excluded Expense",
+    sourceEvidence: { document: "cam-statement-2025.pdf", page: 1, extractedText: "Roof Repair $24,500.00", findingCategory: "Excluded Category Billed" },
+  },
+];
+
+export const SAMPLE_PLAN_CLAUSES: LeaseClauseSummary = {
+  camCap: "5%",
+  adminFeeCap: "15%",
+  managementFeeCap: null,
+  tenantProRataShare: "8.08%",
+  tenantSquareFootage: "4,200 sq ft",
+  buildingSquareFootage: "52,000 sq ft",
+  excludedCategories: ["capital improvements", "structural repairs"],
+  additionalClauses: [],
 };

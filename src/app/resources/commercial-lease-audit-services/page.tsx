@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/resources/commercial-lease-audit-services" },
   title: "Commercial Lease Audit Services | LeaseGuard",
   description:
-    "Learn what commercial lease audit services do, why tenants need them, and how automated CAM audits identify billing discrepancies in minutes.",
+    "Learn what commercial lease audit services do, why tenants need them, and how automated CAM audits help identify potential billing discrepancies.",
   keywords: [
     "commercial lease audit services",
     "commercial lease audit",
@@ -21,9 +21,10 @@ export default function CommercialLeaseAuditServices() {
   return (
     <ArticleLayout
       title="Commercial Lease Audit Services"
-      publishedDate="March 2026"
+      publishedDate="March 14, 2026"
+      modifiedDate="October 29, 2026"
       readTime="7 min read"
-      description="Learn what commercial lease audit services do, why tenants need them, and how automated CAM audits identify billing discrepancies in minutes."
+      description="Learn what commercial lease audit services do, why tenants need them, and how automated CAM audits help identify potential billing discrepancies."
     >
       <p>
         Commercial lease audit services help tenants verify that the charges
@@ -125,7 +126,7 @@ export default function CommercialLeaseAuditServices() {
           charged as operating expenses when the lease prohibits it
         </li>
         <li>
-          <strong>CAM cap violations:</strong> Annual charges exceeding the{" "}
+          <strong>Potential CAM cap discrepancies:</strong> Annual charges exceeding the{" "}
           <Link
             href="/resources/cam-cap-commercial-lease"
             className="text-blue-600 hover:underline"
@@ -160,7 +161,7 @@ export default function CommercialLeaseAuditServices() {
         each billed charge against those provisions.
       </p>
       <p>
-        The result is a findings report delivered in about 60 seconds, identifying
+        The result is a findings report identifying
         potential discrepancies with estimated savings. For tenants who want to
         understand the full process, our{" "}
         <Link

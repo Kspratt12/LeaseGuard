@@ -13,7 +13,7 @@ export default function TermsPage() {
           Terms of Service
         </h1>
         <p className="text-sm text-gray-400 mb-10">
-          Last updated: March 2026
+          Last updated: October 2026
         </p>
 
         <section className="space-y-8 text-sm text-gray-600 leading-relaxed">
@@ -25,8 +25,8 @@ export default function TermsPage() {
               LeaseGuard provides AI-powered CAM (Common Area Maintenance)
               audit analysis for commercial lease tenants. The service analyzes
               uploaded lease and reconciliation documents to identify potential
-              billing discrepancies, including overcharges, excluded expense
-              violations, and cap exceedances.
+              billing discrepancies, including potential overcharges, excluded
+              expense differences, and potential cap exceedances.
             </p>
           </div>
 
@@ -62,12 +62,12 @@ export default function TermsPage() {
               4. Payments and Refunds
             </h2>
             <p>
-              The Free Audit Preview is available at no cost. The Full Evidence
-              The full report is available as a one-time purchase: $49 for a one-year audit or $149 for an audit covering two to five years of statements.
+              The Free Audit Preview is available at no cost. The full report is available as a one-time purchase: $49 for a one-year audit or $149 for an audit covering two to five years of statements.
               There are no subscriptions, recurring charges, or hidden fees.
               Payments are processed securely through our payment provider.
-              Refund requests are handled on a case-by-case basis. Contact us
-              at support@leaseguard.ai.
+              A full report is offered only when the free analysis found items to review. If it found nothing to raise, or the documents could not be analyzed well enough, no purchase is offered.
+              If you were charged twice for the same audit, were charged but cannot open your report, or received a report that is materially incomplete because of a processing failure, contact us at support@leaseguard.ai and tell us the email address you use for LeaseGuard.
+              Refund requests are reviewed on a case-by-case basis.
             </p>
           </div>
 

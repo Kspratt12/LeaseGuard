@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PaymentStore } from "@/lib/payments";
+import type { EmailStore } from "@/lib/purchase-email";
+import { purchaseInputFromRow } from "@/lib/purchase-eligibility";
 
 /**
  * Supabase-backed PaymentStore. Uses the service-role client because payments
@@ -21,11 +23,13 @@ export function supabasePaymentStore(db: SupabaseClient): PaymentStore {
     },
 
     async getPaymentBySession(sessionId) {
-      const { data } = await db
+      // A failed read must not look like "no such payment": the webhook would ignore a real payment for good.
+      const { data, error } = await db
         .from("payments")
         .select("stripe_session_id,audit_id,owner_id,tier,status")
         .eq("stripe_session_id", sessionId)
         .maybeSingle();
+      if (error) throw new Error("payment read failed");
       return data
         ? { session_id: data.stripe_session_id, audit_id: data.audit_id, owner_id: data.owner_id, tier: data.tier, status: data.status }
         : null;
@@ -52,8 +56,11 @@ export function supabasePaymentStore(db: SupabaseClient): PaymentStore {
 
     async markStatus(sessionId, status, reason) {
       // Never downgrade a payment that was already verified as paid.
-      await db.from("payments").update({ status, status_reason: reason ?? null })
+      const { error } = await db.from("payments").update({ status, status_reason: reason ?? null })
         .eq("stripe_session_id", sessionId).neq("status", "paid");
+      // If this write is lost, a charged-but-not-unlocked payment would leave no record and the webhook would still
+      // answer 200 (so Stripe would not redeliver). Throw instead: the webhook returns 500 and Stripe retries.
+      if (error) throw new Error("payment status write failed");
     },
 
     async hasPaid(auditId, ownerId) {
@@ -63,8 +70,62 @@ export function supabasePaymentStore(db: SupabaseClient): PaymentStore {
     },
 
     async getAuditFacts(auditId) {
-      const { data } = await db.from("audits").select("owner_id,status,recon_year_count").eq("id", auditId).maybeSingle();
+      const { data, error } = await db.from("audits").select("owner_id,status,recon_year_count").eq("id", auditId).maybeSingle();
+      if (error) throw new Error("audit read failed"); // never read as "audit not found"
       return data ?? null;
+    },
+
+    async getPurchaseFacts(auditId) {
+      const { data, error } = await db
+        .from("audits")
+        .select("free_findings,paid_findings,overcharge_breakdown,lease_clauses_summary,audit_mode,confidence,validation_warning")
+        .eq("id", auditId)
+        .maybeSingle();
+      if (error) throw new Error("audit findings read failed"); // never read as "no findings" (which would look ineligible)
+      return data ? purchaseInputFromRow(data as Record<string, unknown>) : null;
+    },
+  };
+}
+
+/**
+ * Confirmation-email bookkeeping on the payments row (columns from 20261101_payment_confirmation_email.sql).
+ * If that migration has not been applied, claim() fails and no email is sent: never a duplicate, never a guess.
+ */
+export function supabaseEmailStore(db: SupabaseClient): EmailStore {
+  return {
+    async loadPaidPayment(sessionId) {
+      const { data } = await db.from("payments")
+        .select("stripe_session_id,audit_id,owner_id,tier,amount_paid,currency,paid_at,status")
+        .eq("stripe_session_id", sessionId).maybeSingle();
+      if (!data || data.status !== "paid" || data.amount_paid == null) return null;
+      return {
+        sessionId: data.stripe_session_id, auditId: data.audit_id, ownerId: data.owner_id, tier: data.tier,
+        amountCents: data.amount_paid, currency: data.currency, paidAt: data.paid_at,
+      };
+    },
+
+    async claim(sessionId) {
+      const { data, error } = await db.from("payments")
+        .update({ confirmation_email_claimed_at: new Date().toISOString(), confirmation_email_error: null })
+        .eq("stripe_session_id", sessionId).eq("status", "paid")
+        .is("confirmation_email_sent_at", null).is("confirmation_email_claimed_at", null)
+        .select("id");
+      if (error) throw new Error("claim failed");
+      return (data?.length ?? 0) === 1;
+    },
+
+    async markSent(sessionId) {
+      await db.from("payments").update({ confirmation_email_sent_at: new Date().toISOString() }).eq("stripe_session_id", sessionId);
+    },
+
+    async release(sessionId, errorCode) {
+      await db.from("payments").update({ confirmation_email_claimed_at: null, confirmation_email_error: errorCode.slice(0, 40) })
+        .eq("stripe_session_id", sessionId).is("confirmation_email_sent_at", null);
+    },
+
+    async getOwnerEmail(ownerId) {
+      const { data } = await db.auth.admin.getUserById(ownerId);
+      return data?.user?.email ?? null;
     },
   };
 }

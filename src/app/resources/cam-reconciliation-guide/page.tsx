@@ -23,7 +23,8 @@ export default function CamReconciliationGuide() {
   return (
     <ArticleLayout
       title="CAM Reconciliation: What Tenants Need to Know"
-      publishedDate="March 2026"
+      publishedDate="March 13, 2026"
+      modifiedDate="October 29, 2026"
       readTime="9 min read"
       description="Understand the annual CAM reconciliation process, how year-end adjustments work, and where discrepancies commonly arise for commercial tenants."
     >
@@ -34,6 +35,12 @@ export default function CamReconciliationGuide() {
         landlord additional money or are owed a credit, and errors in the
         reconciliation can cost retail tenants, office tenants, medical
         practices, and franchise operators thousands of dollars per year.
+      </p>
+      <p>
+        One quick check on any statement is the percentage applied to your lease: <Link href="/resources/check-your-pro-rata-share" className="text-blue-600 hover:underline">how to check your pro-rata share</Link>.
+      </p>
+      <p>
+        A <Link href="/resources/cam-reconciliation-statement-example" className="text-blue-600 hover:underline">fictional CAM reconciliation statement example</Link> shows each section in practice, and <Link href="/resources/how-to-calculate-cam-charges" className="text-blue-600 hover:underline">how CAM charges are calculated</Link> explains the arithmetic behind the totals.
       </p>
       <p>
         Understanding how reconciliation works, and knowing where mistakes
@@ -69,9 +76,7 @@ export default function CamReconciliationGuide() {
           reconciliation.
         </li>
         <li>
-          <strong>Statement delivered:</strong> Most leases require the
-          landlord to deliver the reconciliation within 90-120 days after
-          year-end.
+          <strong>Statement delivered:</strong> Many leases set a deadline for the landlord to deliver the reconciliation. Check your lease for yours.
         </li>
         <li>
           <strong>Tenant review period:</strong> The tenant has a window
@@ -121,13 +126,10 @@ export default function CamReconciliationGuide() {
 
       <h3>Gross-Up Adjustments</h3>
       <p>
-        In buildings that aren&apos;t fully occupied, variable expenses (like
-        cleaning or utilities) may be lower than they would be at full
-        occupancy. A gross-up provision adjusts these expenses to simulate full
-        occupancy, preventing current tenants from subsidizing vacant space. The
-        issue arises when landlords apply gross-up incorrectly, either
-        applying it to fixed costs, applying it to the wrong expense
-        categories, or using the wrong occupancy percentage.
+        In buildings that aren&apos;t fully occupied, variable expenses (like cleaning or utilities) may be lower than they
+        would be at full occupancy. Some leases include a gross-up provision that adjusts eligible variable expenses to a
+        stated occupancy level. Where your lease authorizes a gross-up, check that the specified occupancy level and eligible variable expenses were used. A missing or different adjustment is not automatically an overcharge. Applying it to fixed costs, to expense categories the lease does not list, or at a
+        different occupancy percentage than the lease states are the kinds of differences worth asking the landlord about.
       </p>
 
       <h3>Incorrect Proportionate Share</h3>
@@ -189,8 +191,7 @@ export default function CamReconciliationGuide() {
         reconciliation statement, then analyzes them together to identify areas
         where the charges may not align with your lease terms, including pro
         rata share errors, excluded cost pass-throughs, management fee
-        calculations, and CAM cap compliance. Results are delivered in about 60
-        seconds, giving you a clear starting point for any follow-up review.
+        calculations, and CAM cap compliance. The results give you a clear starting point for any follow-up review.
       </p>
 
       <h2>Key Takeaways</h2>
@@ -199,7 +200,7 @@ export default function CamReconciliationGuide() {
         <li>Review the statement promptly: you may have a limited window to object</li>
         <li>Always compare year over year to spot unusual changes</li>
         <li>Verify your proportionate share and the building&apos;s total square footage</li>
-        <li>Gross-up provisions are commonly misapplied: understand how yours works</li>
+        <li>Where your lease has a gross-up provision, understand how it works and check how it was applied</li>
         <li>A summary-only statement without line-item detail is a red flag</li>
       </ul>
     </ArticleLayout>

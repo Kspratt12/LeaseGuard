@@ -18,14 +18,18 @@ process.env.STRIPE_PRICE_ID_MULTI = "price_multi_test";
 delete process.env.VERCEL_ENV;
 
 import assert from "node:assert";
+import fs from "node:fs";
+import path from "node:path";
 import Stripe from "stripe";
 import { NextRequest } from "next/server";
 import {
-  TIERS, authorizeReportAccess, createCheckoutForAudit, handleStripeEvent,
+  REFUND_REVIEW_REASONS, TIERS, authorizeReportAccess, createCheckoutForAudit, handleStripeEvent,
   tierForYearCount, type PaymentRow, type PaymentStore, type Tier,
 } from "../payments";
 import { toPublicAudit } from "../audit-access";
+import { supabasePaymentStore } from "../payment-store";
 import { checkStripeConfig } from "../stripe-config";
+import type { PurchaseInput } from "../purchase-eligibility";
 
 const ENV = { STRIPE_PRICE_ID_SINGLE: "price_single_test", STRIPE_PRICE_ID_MULTI: "price_multi_test" };
 const OWNER = "11111111-1111-1111-1111-111111111111";
@@ -33,7 +37,14 @@ const OTHER = "22222222-2222-2222-2222-222222222222";
 const AUDIT = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 
 // ---------------------------------------------------------------- fakes
-function makeStore(opts: { years?: number | null; status?: string; owner?: string | null } = {}) {
+// An audit with one real, calculated item to raise: the ordinary sellable case.
+const SELLABLE: PurchaseInput = {
+  freeFindings: [],
+  paidFindings: [{ category: "Admin Fee Above Lease Cap", description: "x", potential_savings: 1359, severity: "medium" }],
+  overchargeBreakdown: [], leaseClausesSummary: null, auditMode: "full", confidence: "high", validationWarning: null,
+};
+
+function makeStore(opts: { years?: number | null; status?: string; owner?: string | null; purchase?: PurchaseInput | null } = {}) {
   const facts = {
     owner_id: opts.owner === undefined ? OWNER : opts.owner,
     status: opts.status ?? "completed",
@@ -41,8 +52,10 @@ function makeStore(opts: { years?: number | null; status?: string; owner?: strin
   };
   const payments = new Map<string, PaymentRow & { amountPaid?: number }>();
   const events = new Map<string, boolean>();
-  const store: PaymentStore & { payments: typeof payments; paidWrites: number } = {
+  const store: PaymentStore & { payments: typeof payments; paidWrites: number; purchaseNow: PurchaseInput | null; purchaseReadFails: boolean; purchaseReads: string[]; statusWriteFails: boolean } = {
     payments, paidWrites: 0,
+    // what the audit's stored findings are RIGHT NOW (tests change it after checkout), whether reading them fails, and which audit ids were asked for
+    purchaseNow: opts.purchase === undefined ? SELLABLE : opts.purchase, purchaseReadFails: false, purchaseReads: [], statusWriteFails: false,
     async recordEvent(id) {
       if (!events.has(id)) { events.set(id, false); return "new"; }
       return events.get(id) ? "duplicate_done" : "retry";
@@ -59,11 +72,19 @@ function makeStore(opts: { years?: number | null; status?: string; owner?: strin
       p.status = "paid"; p.amountPaid = info.amountTotal; store.paidWrites++;
       return true;
     },
-    async markStatus(s, status) { const p = payments.get(s); if (p && p.status !== "paid") p.status = status; },
+    async markStatus(s, status) {
+      if (store.statusWriteFails) throw new Error("payment status write failed");
+      const p = payments.get(s); if (p && p.status !== "paid") p.status = status;
+    },
     async hasPaid(auditId, ownerId) {
       return [...payments.values()].some((p) => p.audit_id === auditId && p.owner_id === ownerId && p.status === "paid");
     },
     async getAuditFacts() { return facts; },
+    async getPurchaseFacts(auditId) {
+      store.purchaseReads.push(auditId);
+      if (store.purchaseReadFails) throw new Error("database unavailable");
+      return store.purchaseNow;
+    },
   };
   return store;
 }
@@ -453,6 +474,181 @@ async function main() {
     const out = JSON.stringify(toPublicAudit(row, paidFull, { unlocked: true, tier: "single", amountCents: 4900, reportAvailable: true }));
     assert.ok(out.includes("SECRET-PAID-DETAIL") && out.includes("SECRET-QUOTE"));
     assert.ok(!out.includes("audit/report.pdf"), "storage path is never returned");
+  });
+
+
+  // -------------------- the webhook re-checks that the audit is STILL sellable when payment arrives
+  const FINDING = { description: "x", severity: "medium" as const, potential_savings: 0 };
+  const EMPTY: PurchaseInput = { freeFindings: [], paidFindings: [], overchargeBreakdown: [], leaseClausesSummary: null, auditMode: "full", confidence: "high", validationWarning: null };
+  const CLEAN: PurchaseInput = { ...EMPTY, freeFindings: [{ ...FINDING, category: "Pro Rata Share Consistent", severity: "low" }] };
+  const INSUFFICIENT: PurchaseInput = { ...EMPTY, auditMode: "limited", freeFindings: [{ ...FINDING, category: "Document Review Summary", insufficientData: true }] };
+  const PARTIAL: PurchaseInput = { ...SELLABLE, auditMode: "limited", freeFindings: [{ ...FINDING, category: "CAM Cap Review: Prior-Year Data Needed", insufficientData: true }] };
+  const pendingSession = (store: ReturnType<typeof makeStore>, id = "cs_test_1", tier: Tier = "single") =>
+    store.payments.set(id, { session_id: id, audit_id: AUDIT, owner_id: OWNER, tier, status: "pending" });
+  const pay = (store: ReturnType<typeof makeStore>, sess = session(), type = "checkout.session.completed", evId?: string) =>
+    handleStripeEvent(event(type, sess, { id: evId }), webhookDeps(store));
+
+  await test("eligible audit: payment unlocks it, and the findings were read for OUR payment row's audit", async () => {
+    const store = makeStore(); pendingSession(store);
+    const r = await pay(store);
+    assert.strictEqual(r.outcome, "paid");
+    assert.strictEqual(await store.hasPaid(AUDIT, OWNER), true);
+    assert.deepStrictEqual(store.purchaseReads, [AUDIT]);
+  });
+
+  await test("PARTIAL audit (real findings, some checks incomplete) is still unlocked: it was sold as partial and stays sellable", async () => {
+    const store = makeStore({ purchase: PARTIAL }); pendingSession(store);
+    assert.strictEqual((await pay(store)).outcome, "paid");
+    assert.strictEqual(await store.hasPaid(AUDIT, OWNER), true);
+  });
+
+  for (const [label, facts] of [["empty findings", EMPTY], ["a clean audit with nothing to raise", CLEAN], ["an insufficient-data audit", INSUFFICIENT]] as const) {
+    await test("INELIGIBLE (" + label + "): a valid, fully paid session is NOT unlocked and is flagged for a refund decision", async () => {
+      const store = makeStore({ purchase: facts }); pendingSession(store);
+      const r = await pay(store);
+      assert.deepStrictEqual([r.outcome, r.reason], ["rejected", "not_eligible_at_payment"]);
+      assert.strictEqual(await store.hasPaid(AUDIT, OWNER), false, "no entitlement");
+      assert.strictEqual(store.paidWrites, 0, "no payment was recorded as paid");
+      assert.strictEqual(store.payments.get("cs_test_1")?.status, "rejected", "the row records the rejection, not a paid state");
+      assert.ok((REFUND_REVIEW_REASONS as readonly string[]).includes("not_eligible_at_payment"), "the admin refund alert counts this reason");
+    });
+  }
+
+  await test("the audit changes after checkout creation but before payment: the webhook sees the CURRENT findings and rejects", async () => {
+    const store = makeStore();
+    const made = await checkout(store);
+    assert.ok(made.result.ok, "sellable when the session was created");
+    store.purchaseNow = EMPTY; // findings cleared before the customer pays
+    const r = await pay(store, session({}, "single", "cs_test_1"));
+    assert.deepStrictEqual([r.outcome, r.reason], ["rejected", "not_eligible_at_payment"]);
+    assert.strictEqual(await store.hasPaid(AUDIT, OWNER), false);
+  });
+
+  await test("a DELAYED payment event for a session created long ago is checked against today's findings", async () => {
+    const store = makeStore({ purchase: CLEAN }); pendingSession(store, "cs_old");
+    const r = await pay(store, session({}, "single", "cs_old"), "checkout.session.async_payment_succeeded");
+    assert.deepStrictEqual([r.outcome, r.reason], ["rejected", "not_eligible_at_payment"]);
+    assert.strictEqual(await store.hasPaid(AUDIT, OWNER), false);
+  });
+
+  await test("DUPLICATE events: the same event id twice, and the completed + async-succeeded pair, never unlock a rejected session", async () => {
+    const store = makeStore({ purchase: CLEAN }); pendingSession(store);
+    const first = await pay(store, session(), "checkout.session.completed", "evt_dup");
+    const again = await pay(store, session(), "checkout.session.completed", "evt_dup");
+    const other = await pay(store, session(), "checkout.session.async_payment_succeeded", "evt_other");
+    assert.strictEqual(first.outcome, "rejected");
+    assert.strictEqual(again.outcome, "duplicate", "a repeated event id is not processed again");
+    assert.strictEqual(other.outcome, "rejected", "a different event for the same session is judged the same way");
+    assert.strictEqual(store.paidWrites, 0);
+    assert.strictEqual(await store.hasPaid(AUDIT, OWNER), false);
+  });
+
+  await test("DATABASE READ FAILURE: the webhook throws so Stripe retries; nothing is rejected, nothing is paid, and the retry then succeeds", async () => {
+    const store = makeStore(); pendingSession(store);
+    store.purchaseReadFails = true;
+    await assert.rejects(() => pay(store, session(), "checkout.session.completed", "evt_retry"), /database unavailable/);
+    assert.strictEqual(store.payments.get("cs_test_1")?.status, "pending", "a failed read is not evidence of ineligibility");
+    assert.strictEqual(store.paidWrites, 0);
+    assert.strictEqual(await store.hasPaid(AUDIT, OWNER), false);
+    store.purchaseReadFails = false; // the database is back; Stripe redelivers the SAME event id
+    const r = await pay(store, session(), "checkout.session.completed", "evt_retry");
+    assert.strictEqual(r.outcome, "paid", "the unprocessed event is retried and the legitimate customer is unlocked");
+  });
+
+  await test("a LOST status write for a charged-but-not-unlocked payment makes the webhook fail (Stripe retries); the redelivery then records it", async () => {
+    const store = makeStore({ purchase: CLEAN }); pendingSession(store);
+    store.statusWriteFails = true;
+    await assert.rejects(() => pay(store, session(), "checkout.session.completed", "evt_lostwrite"), /write failed/);
+    assert.strictEqual(await store.hasPaid(AUDIT, OWNER), false, "still no access");
+    store.statusWriteFails = false; // the database is back; the SAME event id is redelivered and was never marked processed
+    const r = await pay(store, session(), "checkout.session.completed", "evt_lostwrite");
+    assert.deepStrictEqual([r.outcome, r.reason], ["rejected", "not_eligible_at_payment"]);
+    assert.strictEqual(store.payments.get("cs_test_1")?.status, "rejected", "the case is now on record");
+  });
+
+  await test("a missing findings row cannot be decided either: it throws (retry), it does not reject", async () => {
+    const store = makeStore({ purchase: null }); pendingSession(store);
+    await assert.rejects(() => pay(store), /unavailable/);
+    assert.strictEqual(store.payments.get("cs_test_1")?.status, "pending");
+  });
+
+  await test("TAMPERED metadata or event fields cannot make an ineligible audit eligible", async () => {
+    const store = makeStore({ purchase: CLEAN }); pendingSession(store);
+    const forged = session({ metadata: { audit_id: AUDIT, owner_id: OWNER, tier: "single", eligible: "true", purchase: "complete", unlocked: "true" } });
+    (forged as unknown as Record<string, unknown>).purchase = { eligible: true };
+    const r = await pay(store, forged);
+    assert.deepStrictEqual([r.outcome, r.reason], ["rejected", "not_eligible_at_payment"]);
+    assert.deepStrictEqual(store.purchaseReads, [AUDIT], "findings are read for the audit on OUR row only");
+  });
+
+  await test("tampered metadata naming a different (sellable) audit is rejected before eligibility is even consulted", async () => {
+    const store = makeStore({ purchase: CLEAN }); pendingSession(store);
+    const r = await pay(store, session({ metadata: { audit_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", owner_id: OWNER, tier: "single" } }));
+    assert.deepStrictEqual([r.outcome, r.reason], ["rejected", "audit_mismatch"]);
+    assert.deepStrictEqual(store.purchaseReads, []);
+  });
+
+  await test("EXISTING PAID CUSTOMER: a late or repeated event never revokes access and never re-checks eligibility", async () => {
+    const store = makeStore({ purchase: EMPTY }); // the audit would be ineligible today
+    store.payments.set("cs_test_1", { session_id: "cs_test_1", audit_id: AUDIT, owner_id: OWNER, tier: "single", status: "paid" });
+    const r = await pay(store, session(), "checkout.session.async_payment_succeeded");
+    assert.strictEqual(r.outcome, "duplicate");
+    assert.strictEqual(await store.hasPaid(AUDIT, OWNER), true, "they keep what they paid for");
+    assert.deepStrictEqual(store.purchaseReads, []);
+  });
+
+  await test("eligibility is not consulted for a payment that has not actually been paid yet (awaiting payment stays pending)", async () => {
+    const store = makeStore({ purchase: CLEAN }); pendingSession(store);
+    const r = await pay(store, session({ payment_status: "unpaid" }));
+    assert.strictEqual(r.outcome, "awaiting_payment");
+    assert.deepStrictEqual(store.purchaseReads, []);
+    assert.strictEqual(store.payments.get("cs_test_1")?.status, "pending");
+  });
+
+  await test("every earlier safeguard still comes first: a wrong amount on an ineligible audit is reported as a wrong amount", async () => {
+    const store = makeStore({ purchase: CLEAN }); pendingSession(store);
+    const r = await pay(store, session({ amount_total: 100 }));
+    assert.deepStrictEqual([r.outcome, r.reason], ["rejected", "wrong_amount"]);
+  });
+
+  await test("creation and the webhook use the SAME rule and the same stored-findings read (no second eligibility system)", () => {
+    const src = fs.readFileSync(path.join(__dirname, "../payments.ts"), "utf8");
+    assert.strictEqual((src.match(/decidePurchase\(/g) ?? []).length, 2);
+    assert.strictEqual((src.match(/store\.getPurchaseFacts\(/g) ?? []).length, 2);
+    assert.match(src, /reject\("not_eligible_at_payment"\)/);
+  });
+
+  // ------------------------------- the real store: a failed read must never look like "nothing there"
+  const dbReturning = (result: { data: unknown; error: unknown }) => {
+    const q: Record<string, unknown> = {};
+    for (const m of ["select", "eq"]) q[m] = () => q;
+    q.maybeSingle = async () => result;
+    return { from: () => q } as never;
+  };
+  await test("database read errors THROW from the payment, audit and findings reads (so Stripe retries)", async () => {
+    const bad = supabasePaymentStore(dbReturning({ data: null, error: { message: "connection reset" } }));
+    await assert.rejects(() => bad.getPaymentBySession("cs_x"));
+    await assert.rejects(() => bad.getAuditFacts(AUDIT));
+    await assert.rejects(() => bad.getPurchaseFacts(AUDIT));
+  });
+  await test("the real store: a failed status write THROWS, and a write that matches no row (an already-paid payment) does not", async () => {
+    const writeResult = (result: { error: unknown }) => {
+      const q: Record<string, unknown> = {};
+      for (const m of ["update", "eq", "neq"]) q[m] = () => q;
+      q.then = (res: (v: unknown) => void) => res(result);
+      return { from: () => q } as never;
+    };
+    await assert.rejects(() => supabasePaymentStore(writeResult({ error: { message: "connection reset" } })).markStatus("cs_x", "rejected", "not_eligible_at_payment"), /write failed/);
+    await supabasePaymentStore(writeResult({ error: null })).markStatus("cs_x", "rejected", "not_eligible_at_payment");
+  });
+  await test("a genuine 'no such row' is still null, and real rows still map correctly", async () => {
+    const none = supabasePaymentStore(dbReturning({ data: null, error: null }));
+    assert.strictEqual(await none.getPaymentBySession("cs_x"), null);
+    assert.strictEqual(await none.getAuditFacts(AUDIT), null);
+    assert.strictEqual(await none.getPurchaseFacts(AUDIT), null);
+    const found = supabasePaymentStore(dbReturning({ data: { free_findings: [{ category: "A", description: "x", potential_savings: 5, severity: "low" }], paid_findings: null, overcharge_breakdown: null, lease_clauses_summary: null, audit_mode: "full", confidence: "high", validation_warning: null }, error: null }));
+    const facts = await found.getPurchaseFacts(AUDIT);
+    assert.strictEqual(facts?.freeFindings.length, 1);
   });
 
   // ---------------------------------------------- upload quota

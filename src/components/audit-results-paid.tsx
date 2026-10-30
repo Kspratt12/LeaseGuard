@@ -1,31 +1,8 @@
+import { formatMoney } from "@/lib/format";
 import { Lock, ShieldCheck, FileSearch, ArrowRight, FileText, AlertTriangle, Scale } from "lucide-react";
 import type { Finding, OverchargeLineItem, LeaseClauseSummary } from "@/services/audit-logic";
 import { getLeaseClauseEvidence } from "@/lib/lease-clause-evidence";
 import { buttonClass } from "@/components/ui";
-
-const lockedPlaceholders: Finding[] = [
-  {
-    category: "Pro Rata Share Calculation Issue",
-    description:
-      "Tenant proportionate share calculation uses incorrect building square footage, resulting in a higher allocation across all expense categories.",
-    potential_savings: 1900,
-    severity: "medium",
-  },
-  {
-    category: "Capital Improvement Charge Passed Through",
-    description:
-      "Roof replacement costs classified as routine maintenance rather than amortized capital improvement per lease section 5.4.",
-    potential_savings: 3400,
-    severity: "high",
-  },
-  {
-    category: "Insurance Allocation Discrepancy",
-    description:
-      "Property insurance premium increase allocated to tenants at full amount rather than proportionate share defined in lease.",
-    potential_savings: 1200,
-    severity: "medium",
-  },
-];
 
 export function AuditResultsPaid({
   findings,
@@ -36,7 +13,13 @@ export function AuditResultsPaid({
   onUnlock,
   unlocking,
   unlockError,
+  confirmingPayment,
+  partialNotes,
 }: {
+  /** Set only when the audit is sellable but incomplete: shown before the price so it is never sold as a full analysis. */
+  partialNotes?: string[];
+  /** The customer just returned from checkout and the payment is not verified yet: never offer a second purchase. */
+  confirmingPayment?: boolean;
   /** e.g. "$49". Null/undefined: this audit cannot be purchased yet. */
   priceLabel?: string | null;
   onUnlock?: () => void;
@@ -48,19 +31,14 @@ export function AuditResultsPaid({
   leaseClausesSummary?: LeaseClauseSummary | null;
 }) {
   const count = findings.length;
-  // Use real findings if available, otherwise placeholders
-  const lockedFindings =
-    count > 0 ? findings.slice(0, 3) : lockedPlaceholders;
+  // Only this audit's own findings are ever shown here. With none, no cards are drawn at all.
+  const lockedFindings = findings.slice(0, 3);
   const evidenceItems =
     overchargeBreakdown?.filter((r) => r.sourceEvidence) ?? [];
 
-  // Only show real savings from actual findings — never from placeholders
+  // Only real savings from this audit's own findings
   const totalLockedSavings =
-    premiumSavings > 0
-      ? premiumSavings
-      : count > 0
-        ? lockedFindings.reduce((s, f) => s + f.potential_savings, 0)
-        : 0;
+    premiumSavings > 0 ? premiumSavings : lockedFindings.reduce((s, f) => s + f.potential_savings, 0);
 
   return (
     <div className="space-y-6">
@@ -76,12 +54,12 @@ export function AuditResultsPaid({
           <p className="text-sm text-gray-500 mt-0.5">
             {count > 0
               ? `${count} more finding${count !== 1 ? "s" : ""} identified — unlock to view details`
-              : "Additional analysis available in the full report"}
+              : "The full report is built from the findings above."}
           </p>
         </div>
       </div>
 
-      {/* Locked finding cards */}
+      {/* Locked finding cards: this audit's own findings only */}
       <div className="space-y-3">
         {lockedFindings.map((f, i) => (
           <div
@@ -121,11 +99,11 @@ export function AuditResultsPaid({
                 </p>
                 {f.potential_savings > 0 && (
                   <p className="text-sm font-semibold text-green-700">
-                    Potential discrepancy: ${f.potential_savings.toLocaleString()}
+                    Potential discrepancy: {formatMoney(f.potential_savings)}
                   </p>
                 )}
 
-                {/* Lease Clause Evidence */}
+                {/* Detected in your lease (summary, not a quotation) */}
                 {(() => {
                   const clause = getLeaseClauseEvidence(f, leaseClausesSummary);
                   if (!clause) return null;
@@ -134,14 +112,14 @@ export function AuditResultsPaid({
                       <div className="flex items-center gap-1.5 mb-1.5">
                         <Scale className="h-3.5 w-3.5 text-blue-600 shrink-0" />
                         <p className="text-xs font-semibold text-blue-800">
-                          Lease Clause Evidence
+                          Detected in your lease (summary, not a quotation)
                         </p>
                       </div>
                       <p className="text-xs font-medium text-blue-700 mb-1">
                         {clause.section}
                       </p>
                       <p className="text-xs text-gray-600 italic leading-relaxed pl-3 border-l-2 border-blue-200">
-                        &ldquo;{clause.text}&rdquo;
+                        {clause.text}
                       </p>
                     </div>
                   );
@@ -156,13 +134,13 @@ export function AuditResultsPaid({
       <section className="rounded-2xl bg-ink p-6 text-white sm:p-8" aria-labelledby="unlock-heading">
         <p className="font-figures text-[11px] font-medium uppercase tracking-widest text-white/60">Full report</p>
         <h3 id="unlock-heading" className="mt-2 text-xl font-semibold leading-tight sm:text-3xl">
-          Unlock every finding, with the evidence behind it.
+          {count > 0 ? "Unlock every finding, with the evidence behind it." : "Unlock the report, review plan and letter built from your findings."}
         </h3>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/75">
-          See all discrepancies with the lease and statement text they come from
+          {count > 0 ? "See all discrepancies with the lease and statement text they come from" : "Get your findings in a printable report, with a prioritized review plan and a letter draft you can edit"}
           {totalLockedSavings > 0 && (
             <>
-              . Up to <span className="font-semibold text-white">${totalLockedSavings.toLocaleString()}</span> in additional potential billing
+              . Up to <span className="font-semibold text-white">{formatMoney(totalLockedSavings)}</span> in additional potential billing
               discrepancies to review
             </>
           )}
@@ -172,7 +150,7 @@ export function AuditResultsPaid({
         <ul className="mt-5 grid gap-3 text-sm text-white/85 sm:grid-cols-3">
           <li className="flex gap-2.5">
             <FileText className="mt-0.5 h-4 w-4 shrink-0 text-white/60" aria-hidden />
-            <span>Source text and page numbers for each finding</span>
+            <span>Source text and page numbers where available</span>
           </li>
           <li className="flex gap-2.5">
             <FileSearch className="mt-0.5 h-4 w-4 shrink-0 text-white/60" aria-hidden />
@@ -180,18 +158,32 @@ export function AuditResultsPaid({
           </li>
           <li className="flex gap-2.5">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-white/60" aria-hidden />
-            <span>PDF report and an editable dispute letter draft</span>
+            <span>PDF report, CAM Review Plan and an editable dispute letter draft</span>
           </li>
         </ul>
+
+        {partialNotes && partialNotes.length > 0 && (
+          <div role="note" className="mt-5 rounded-lg border border-amber-300/40 bg-amber-100/10 p-3 text-sm leading-relaxed text-white/85">
+            <p className="font-semibold text-white">This is a partial analysis.</p>
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              {partialNotes.map((n) => (
+                <li key={n}>{n}</li>
+              ))}
+            </ul>
+            <p className="mt-1">The paid report covers only the checks that could be completed.</p>
+          </div>
+        )}
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
           <button
             type="button"
             onClick={onUnlock}
-            disabled={!onUnlock || !priceLabel || unlocking}
+            disabled={!onUnlock || !priceLabel || unlocking || confirmingPayment}
             className={buttonClass("inverse", "w-full !min-h-12 !px-7 !text-base sm:w-auto")}
           >
-            {unlocking
+            {confirmingPayment
+              ? "Confirming your payment\u2026"
+              : unlocking
               ? "Redirecting to secure checkout\u2026"
               : priceLabel
                 ? `Unlock Full Report \u2013 ${priceLabel}`

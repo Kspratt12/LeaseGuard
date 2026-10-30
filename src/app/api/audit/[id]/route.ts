@@ -9,6 +9,7 @@ import {
 } from "@/lib/audit-access";
 import { TIERS, tierForYearCount } from "@/lib/payments";
 import { supabasePaymentStore } from "@/lib/payment-store";
+import { decidePurchase, purchaseInputFromRow, publicPurchase } from "@/lib/purchase-eligibility";
 
 // Prevent Next.js from caching this route
 export const dynamic = "force-dynamic";
@@ -106,5 +107,20 @@ export async function GET(
       .eq("owner_id", user.id);
   }
 
-  return NextResponse.json(publicAudit, { headers: NO_STORE });
+  // Whether this audit may be sold, decided by the same rule checkout enforces. Counts and fixed sentences only.
+  const purchase = publicPurchase(
+    decidePurchase(
+      purchaseInputFromRow({
+        free_findings: audit.free_findings,
+        paid_findings: paidRow?.paid_findings,
+        overcharge_breakdown: audit.overcharge_breakdown,
+        lease_clauses_summary: audit.lease_clauses_summary,
+        audit_mode: audit.audit_mode,
+        confidence: audit.confidence,
+        validation_warning: audit.validation_warning,
+      }),
+    ),
+  );
+
+  return NextResponse.json({ ...publicAudit, purchase }, { headers: NO_STORE });
 }

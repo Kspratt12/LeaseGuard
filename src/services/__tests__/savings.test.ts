@@ -25,6 +25,7 @@ import {
 } from "../savings-math";
 
 const FIX = path.join(__dirname, "fixtures");
+const r2 = (x: number) => Math.round(x * 100) / 100;
 let passed = 0;
 async function test(name: string, fn: () => void | Promise<void>) {
   await fn();
@@ -71,7 +72,7 @@ async function main() {
   await test("total = listed findings + excluded-category overcharge; insufficient-data excluded", () => {
     assert.strictEqual(
       totalSavings([{ potential_savings: 100 }, { potential_savings: 50, insufficientData: true }, { potential_savings: 0 }], 10.4),
-      110,
+      110.4,
     );
   });
 
@@ -99,8 +100,8 @@ async function main() {
   await test("pipeline: savings_estimate is exactly the sum of its documented parts", () => {
     const parts =
       all.filter((f) => !f.insufficientData).reduce((s, f) => s + f.potential_savings, 0) +
-      Math.round(result.estimated_overcharge);
-    assert.strictEqual(result.savings_estimate, parts);
+      result.estimated_overcharge;
+    assert.strictEqual(result.savings_estimate, r2(parts));
   });
   await test("pipeline: no CAM-cap dollar figure without a prior-year baseline", () => {
     const cap = all.find((f) => /^CAM Cap/.test(f.category) || /CAM Cap Exceedance/.test(f.category));
@@ -144,8 +145,9 @@ async function main() {
   });
   const pdfText = async (isPaid: boolean) =>
     (await extractTextFromPdf(Buffer.from(await generateReportPdf(pdfInput(isPaid))))).text.replace(/\s+/g, " ");
-  const total = result.savings_estimate.toLocaleString();
-  const excludedOnly = Math.round(result.estimated_overcharge).toLocaleString();
+  const { formatMoney } = await import("../../lib/format");
+  const total = formatMoney(result.savings_estimate).replace(/^\$/, "");
+  const excludedOnly = formatMoney(result.estimated_overcharge).replace(/^\$/, "");
 
   await test("PDF headline equals savings_estimate (preview and paid report)", async () => {
     for (const isPaid of [false, true]) {
@@ -178,7 +180,7 @@ async function main() {
   await test("no double counting: each dollar in the total is traceable to exactly one source", () => {
     const findingsSum = all.filter((f) => !f.insufficientData).reduce((s2, f) => s2 + f.potential_savings, 0);
     const breakdownSum = result.overcharge_breakdown.reduce((s2, r) => s2 + r.tenant_charge, 0);
-    assert.strictEqual(result.savings_estimate, findingsSum + Math.round(breakdownSum));
+    assert.strictEqual(result.savings_estimate, r2(findingsSum + breakdownSum));
     // an excluded-category finding must carry $0 because its dollars live in the breakdown
     for (const f of all.filter((x) => /excluded category/i.test(x.category))) assert.strictEqual(f.potential_savings, 0);
     // a single fee issue yields one dollar-bearing finding
@@ -204,7 +206,7 @@ async function main() {
     assert.strictEqual(carrying[0].category, "Potential CAM Cap Exceedance");
     assert.strictEqual(carrying[0].potential_savings, Math.round(computeCamCapExcess({ currentTotal: 53444.13, priorYearTotal: 40000, capPercent: 5 })));
     assert.ok(carrying[0].sourceEvidence?.some((e) => /40,000/.test(e.extractedText)) || true);
-    assert.strictEqual(r.savings_estimate, total + Math.round(r.estimated_overcharge));
+    assert.strictEqual(r.savings_estimate, r2(total + r.estimated_overcharge));
   });
   await test("CAM cap within the cap: labelled 'Within Limit', no dollars, not a violation", async () => {
     const r = await withPrior("52,000.00");

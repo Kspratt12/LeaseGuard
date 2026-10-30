@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Upload, FileText, Loader2, X, Camera, Image as ImageIcon, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { imagesToPdf } from "@/lib/images-to-pdf";
+import { MAX_STATEMENTS, combinedUploadError, parseUploadResponse } from "@/lib/upload-validation";
 import { getAuthHeaders } from "@/lib/auth-client";
 import { useAuditDraft } from "@/components/audit-draft-context";
 
@@ -226,11 +227,18 @@ export function UploadZone() {
       }
       if (newFiles.length === 0) return;
 
-      // Group: PDFs individually, images together
-      const pdfFiles = newFiles.filter(
-        (f) => f.type === "application/pdf",
-      );
-      const imageFiles = newFiles.filter(isImageFile);
+      // Group: PDFs individually, images together. A batch of photos becomes ONE statement, so each group counts once.
+      // The server accepts MAX_STATEMENTS in all, so the screen stops there instead of failing after an upload.
+      const room = Math.max(0, MAX_STATEMENTS - reconItems.length);
+      const allPdfs = newFiles.filter((f) => f.type === "application/pdf");
+      const pdfFiles = allPdfs.slice(0, room);
+      const imageFiles = pdfFiles.length < room ? newFiles.filter(isImageFile) : [];
+      const wanted = allPdfs.length + (newFiles.some(isImageFile) ? 1 : 0);
+      if (wanted > pdfFiles.length + (imageFiles.length > 0 ? 1 : 0)) {
+        setDuplicateNotice(`You can add up to ${MAX_STATEMENTS} statements in one audit.`);
+        setTimeout(() => setDuplicateNotice(null), 5000);
+      }
+      if (pdfFiles.length === 0 && imageFiles.length === 0) return;
 
       const newItems: UploadItem[] = [];
 
@@ -312,6 +320,13 @@ export function UploadZone() {
       .filter((f): f is File => f !== null);
     if (reconPdfs.length === 0) return;
 
+    // The files travel in ONE request to a serverless function; check their combined size before sending anything.
+    const tooLarge = combinedUploadError(leaseItem.pdf.size + reconPdfs.reduce((sum, f) => sum + f.size, 0));
+    if (tooLarge) {
+      setError(tooLarge);
+      return;
+    }
+
     setUploading(true);
     setError(null);
 
@@ -360,21 +375,8 @@ export function UploadZone() {
 
       const res = await fetch("/api/upload", { method: "POST", body: form, headers: authHeaders });
 
-      let json: Record<string, unknown>;
-      const contentType = res.headers.get("content-type") ?? "";
-      if (contentType.includes("application/json")) {
-        json = await res.json();
-      } else {
-        const text = await res.text();
-        console.error("Upload API returned non-JSON response:", text.slice(0, 500));
-        throw new Error("The server returned an unexpected response. Please try again.");
-      }
-
-      if (!res.ok) {
-        throw new Error(
-          typeof json.error === "string" ? json.error : "Upload failed",
-        );
-      }
+      // A 413 (request too large) is recognised by status before the body is read; other failures keep their message.
+      const json = await parseUploadResponse(res);
 
       if (typeof json.id !== "string") {
         throw new Error("Upload succeeded but no audit ID was returned.");
@@ -393,11 +395,15 @@ export function UploadZone() {
 
   const anyConverting =
     leaseItem?.converting || reconItems.some((r) => r.converting);
+  const sizeError = combinedUploadError(
+    (leaseItem?.pdf?.size ?? 0) + reconItems.reduce((sum, r) => sum + (r.pdf?.size ?? 0), 0),
+  );
   const isValid =
     !!leaseItem?.pdf &&
     !leaseItem.converting &&
     reconItems.length > 0 &&
-    reconItems.every((r) => r.pdf && !r.converting);
+    reconItems.every((r) => r.pdf && !r.converting) &&
+    !sizeError;
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
@@ -405,7 +411,7 @@ export function UploadZone() {
         <DocumentDropBox
           label="Upload Lease PDF"
           cameraLabel="Or Take Photo"
-          hint="CAM / operating expense section"
+          hint="CAM provisions, definitions, exhibits, amendments"
           item={leaseItem}
           onFiles={handleSetLease}
           onClear={handleClearLease}
@@ -413,7 +419,7 @@ export function UploadZone() {
         <MultiDocumentDropBox
           label="Upload CAM Reconciliation"
           cameraLabel="Or Take Photo"
-          hint="Upload one or more annual CAM reconciliations"
+          hint={`Upload one or more annual CAM reconciliations (up to ${MAX_STATEMENTS})`}
           subHint="Used for year-over-year comparison when multiple years are provided"
           items={reconItems}
           onAddFiles={handleAddReconFiles}
@@ -422,7 +428,13 @@ export function UploadZone() {
         />
       </div>
 
-      {error && (
+      {sizeError && (
+        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-center text-sm text-red-800">
+          {sizeError}
+        </p>
+      )}
+
+      {error && !sizeError && (
         <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-center text-sm text-red-800">
           {error}
         </p>
@@ -450,10 +462,10 @@ export function UploadZone() {
               Preparing images…
             </>
           ) : (
-            "Run 60-Second Audit"
+            "Run Audit"
           )}
         </button>
-        {!isValid && !uploading && !anyConverting && (
+        {!isValid && !uploading && !anyConverting && !sizeError && (
           <p className="text-sm text-gray-500 text-center">
             Upload 1 lease and at least 1 reconciliation to continue
           </p>
@@ -462,8 +474,7 @@ export function UploadZone() {
 
       {/* Accepted formats hint */}
       <p className="text-xs text-gray-400 text-center">
-        Accepts PDF, JPG, PNG, and camera photos. Images are automatically
-        converted to PDF.
+        Accepts PDF, JPG, PNG, and camera photos. Images are automatically converted to PDF. For the lease, include the CAM provisions, the definitions that affect the calculation, relevant schedules and exhibits, and any amendments. An excerpt may support only a limited review. The combined size of all files must be under about 4 MB.
       </p>
     </div>
   );

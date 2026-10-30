@@ -30,15 +30,21 @@ export async function POST(
     return NextResponse.json({ error: "Payments are not available right now." }, { status: 503, headers: NO_STORE });
   }
 
-  const result = await createCheckoutForAudit({
-    auditId: id,
-    userId: user.id,
-    userOwnsAudit: (auditId, userId) => userOwnsAudit(user.token, userId, auditId),
-    store: supabasePaymentStore(createServiceClient()),
-    stripe,
-    baseUrl: process.env.APP_BASE_URL || SITE_URL,
-    expectLivemode: stripeModeFromKey(process.env.STRIPE_SECRET_KEY) === "live",
-  });
+  let result;
+  try {
+    result = await createCheckoutForAudit({
+      auditId: id,
+      userId: user.id,
+      userOwnsAudit: (auditId, userId) => userOwnsAudit(user.token, userId, auditId),
+      store: supabasePaymentStore(createServiceClient()),
+      stripe,
+      baseUrl: process.env.APP_BASE_URL || SITE_URL,
+      expectLivemode: stripeModeFromKey(process.env.STRIPE_SECRET_KEY) === "live",
+    });
+  } catch {
+    // A database read failed: say so, rather than treating it as "this audit cannot be purchased".
+    return NextResponse.json({ error: "Could not start checkout. Please try again." }, { status: 503, headers: NO_STORE });
+  }
 
   if (result.ok) return NextResponse.json({ url: result.url }, { headers: NO_STORE });
 
@@ -47,6 +53,8 @@ export async function POST(
     not_ready: [409, "This audit is not finished yet."],
     not_purchasable: [409, "This audit cannot be purchased."],
     already_paid: [409, "This audit is already unlocked."],
+    nothing_to_unlock: [409, "There are no additional findings to unlock for this audit, so there is nothing to purchase."],
+    insufficient_analysis: [409, "We could not complete enough checks on these documents to offer a paid report, so this audit cannot be purchased."],
     not_configured: [503, "Payments are not available right now."],
     price_mismatch: [503, "Payments are not available right now."],
     stripe_error: [502, "Could not start checkout. Please try again."],

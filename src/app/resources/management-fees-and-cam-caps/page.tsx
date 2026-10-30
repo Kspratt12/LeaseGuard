@@ -4,9 +4,9 @@ import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/resources/management-fees-and-cam-caps" },
-  title: "Commercial Lease Management Fees and CAM Caps: How They Interact | LeaseGuard",
+  title: "Management Fees and CAM Caps in Leases | LeaseGuard",
   description:
-    "How management and administrative fees are calculated in commercial leases, what base they apply to, whether they count toward a CAM cap, and how to check your statement. Fictional examples included.",
+    "How management and administrative fees are calculated in commercial leases, what base they apply to, and how they interact with a CAM cap. Fictional examples.",
 };
 
 const a = "text-blue-600 hover:underline";
@@ -15,7 +15,8 @@ export default function ManagementFeesAndCamCapsPage() {
   return (
     <ArticleLayout
       title="Commercial Lease Management Fees and CAM Caps"
-      publishedDate="October 2026"
+      publishedDate="October 29, 2026"
+      modifiedDate="October 29, 2026"
       readTime="7 min read"
       description="How management and administrative fees are calculated in commercial leases and how they relate to CAM caps."
     >

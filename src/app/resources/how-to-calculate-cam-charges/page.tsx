@@ -4,9 +4,9 @@ import { ArticleLayout } from "@/components/ArticleLayout";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/resources/how-to-calculate-cam-charges" },
-  title: "How to Calculate CAM Charges: Step-by-Step With an Example | LeaseGuard",
+  title: "How to Calculate CAM Charges (With Example) | LeaseGuard",
   description:
-    "How a commercial tenant's CAM charges are calculated: the expense pool, management fee, pro-rata share, and estimated payments, with a worked fictional example and the points where leases differ.",
+    "How a commercial tenant's CAM charges are calculated: the expense pool, management fee, pro-rata share and payments, with a worked fictional example.",
 };
 
 const a = "text-blue-600 hover:underline";
@@ -15,7 +15,8 @@ export default function HowToCalculateCamChargesPage() {
   return (
     <ArticleLayout
       title="How to Calculate CAM Charges: Step-by-Step With an Example"
-      publishedDate="October 2026"
+      publishedDate="October 29, 2026"
+      modifiedDate="October 29, 2026"
       readTime="7 min read"
       description="How a commercial tenant's CAM charges are calculated, with a worked fictional example."
     >
@@ -27,6 +28,12 @@ export default function HowToCalculateCamChargesPage() {
           CAM reconciliation calculator
         </Link>
         .
+      </p>
+      <p>
+        The percentage used in every step below is your pro-rata share; <Link href="/resources/check-your-pro-rata-share" className="text-blue-600 hover:underline">here is how to check it against your lease</Link>.
+      </p>
+      <p>
+        To see these figures laid out on a statement, read the <Link href="/resources/cam-reconciliation-statement-example" className="text-blue-600 hover:underline">CAM reconciliation statement example</Link>.
       </p>
 
       <h2>The four numbers behind every CAM charge</h2>
