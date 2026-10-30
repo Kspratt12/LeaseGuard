@@ -134,6 +134,7 @@ export default function AccountPage() {
   const [audits, setAudits] = useState<AuditSummary[] | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const load = useCallback(async () => {
     const headers = await getAuthHeaders();
@@ -149,6 +150,11 @@ export default function AccountPage() {
     let cancelled = false;
     supabase.auth.getSession().then(({ data }) => !cancelled && setEmail(data.session?.user.email ?? null));
     load();
+    // The server decides who is an administrator; the link is only shown when it says yes.
+    getAuthHeaders()
+      .then((headers) => (headers ? fetch("/api/admin/overview", { headers, cache: "no-store" }) : null))
+      .then((res) => !cancelled && setIsAdmin(res?.ok === true))
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -181,6 +187,11 @@ export default function AccountPage() {
           <Link href="/upload" className={buttonClass("primary")}>
             <FilePlus2 className="h-4 w-4" aria-hidden /> New audit
           </Link>
+          {isAdmin && (
+            <Link href="/admin" className={buttonClass("secondary")}>
+              Admin dashboard
+            </Link>
+          )}
           <button type="button" onClick={signOut} className={buttonClass("ghost")}>
             Sign out
           </button>
