@@ -42,10 +42,10 @@ export default function PrivacyPage() {
             <p>
               Uploaded documents and audit results stay in your account until they are deleted. We do not currently delete them automatically, and there is no fixed retention period. You may ask us to delete your documents and audit results at any time by contacting us at{" "}
               <a
-                href="mailto:support@leaseguard.ai"
+                href="mailto:support@leaseguard.io"
                 className="text-blue-700 hover:underline"
               >
-                support@leaseguard.ai
+                support@leaseguard.io
               </a>
               .
             
@@ -91,10 +91,10 @@ export default function PrivacyPage() {
               If you have questions about this privacy policy or your data,
               contact us at{" "}
               <a
-                href="mailto:support@leaseguard.ai"
+                href="mailto:support@leaseguard.io"
                 className="text-blue-700 hover:underline"
               >
-                support@leaseguard.ai
+                support@leaseguard.io
               </a>
               .
             </p>

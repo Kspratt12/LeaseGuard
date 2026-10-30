@@ -66,7 +66,7 @@ export default function TermsPage() {
               There are no subscriptions, recurring charges, or hidden fees.
               Payments are processed securely through our payment provider.
               A full report is offered only when the free analysis found items to review. If it found nothing to raise, or the documents could not be analyzed well enough, no purchase is offered.
-              If you were charged twice for the same audit, were charged but cannot open your report, or received a report that is materially incomplete because of a processing failure, contact us at support@leaseguard.ai and tell us the email address you use for LeaseGuard.
+              If you were charged twice for the same audit, were charged but cannot open your report, or received a report that is materially incomplete because of a processing failure, contact us at support@leaseguard.io and tell us the email address you use for LeaseGuard.
               Refund requests are reviewed on a case-by-case basis.
             </p>
           </div>
@@ -117,10 +117,10 @@ export default function TermsPage() {
             <p>
               Questions about these terms? Contact us at{" "}
               <a
-                href="mailto:support@leaseguard.ai"
+                href="mailto:support@leaseguard.io"
                 className="text-blue-700 hover:underline"
               >
-                support@leaseguard.ai
+                support@leaseguard.io
               </a>
               .
             </p>

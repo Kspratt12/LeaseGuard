@@ -24,7 +24,7 @@ export default function ContactPage() {
 
         {/* Contact form */}
         <form
-          action="mailto:support@leaseguard.ai"
+          action="mailto:support@leaseguard.io"
           method="POST"
           encType="text/plain"
           className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 space-y-5"
@@ -104,7 +104,7 @@ export default function ContactPage() {
             Send Message
           </button>
           <p className="text-center text-xs text-gray-500">
-            This form does not send anything from this website. It opens a draft in your own email application, addressed to support@leaseguard.ai, and
+            This form does not send anything from this website. It opens a draft in your own email application, addressed to support@leaseguard.io, and
             nothing is sent until you press send there. If it does not open, email us directly.
           </p>
         </form>
@@ -115,10 +115,10 @@ export default function ContactPage() {
             Prefer email?
           </p>
           <a
-            href="mailto:support@leaseguard.ai"
+            href="mailto:support@leaseguard.io"
             className="text-sm text-blue-700 hover:underline"
           >
-            support@leaseguard.ai
+            support@leaseguard.io
           </a>
           <p className="text-xs text-gray-400">
             We typically respond within 1&ndash;2 business days.

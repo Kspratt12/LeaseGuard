@@ -6,6 +6,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { SUPPORT_EMAIL } from "../constants";
 import { buildPurchaseEmail, configuredSender, resendSender, sendPurchaseConfirmation, type EmailStore, type PurchaseFacts } from "../purchase-email";
 
 let n = 0;
@@ -106,7 +107,7 @@ const logs = () => { const lines: string[] = []; return { lines, log: { info: (m
 
   await t("the Resend call carries the key, an idempotency key, no attachment, and maps errors to codes only", async () => {
     let seen: { headers: Record<string, string>; body: Record<string, unknown> } | null = null;
-    const ok = resendSender({ apiKey: "re_secret_value", from: "LeaseGuard <noreply@leaseguard.io>", replyTo: "support@leaseguard.ai", fetchImpl: (async (_u: unknown, init: RequestInit) => { seen = { headers: init.headers as Record<string, string>, body: JSON.parse(String(init.body)) }; return new Response("{}", { status: 200 }); }) as typeof fetch });
+    const ok = resendSender({ apiKey: "re_secret_value", from: "LeaseGuard <noreply@leaseguard.io>", replyTo: "support@leaseguard.io", fetchImpl: (async (_u: unknown, init: RequestInit) => { seen = { headers: init.headers as Record<string, string>, body: JSON.parse(String(init.body)) }; return new Response("{}", { status: 200 }); }) as typeof fetch });
     assert.deepEqual(await ok({ to: EMAIL, subject: "s", html: "<p>x</p>", text: "x", idempotencyKey: "k1" }), { ok: true });
     assert.equal(seen!.headers["Idempotency-Key"], "k1");
     assert.ok(!("attachments" in seen!.body));
@@ -131,7 +132,7 @@ const logs = () => { const lines: string[] = []; return { lines, log: { info: (m
     for (const part of [one.html, one.text]) {
       assert.match(part, /CAM Review Plan/);
       assert.match(part, /dispute letter/i);
-      assert.match(part, /support@leaseguard\.ai/);
+      assert.match(part, /support@leaseguard\.io/);
       assert.match(part, /not attached|not legal or accounting advice/);
     }
     assert.ok(!/confirmed overcharge|you will recover|guarantee(d)? (a )?refund|proven|violation/i.test(one.html.replace(/does not guarantee any refund/g, "")), "email makes a claim it cannot support");
@@ -162,6 +163,35 @@ const logs = () => { const lines: string[] = []; return { lines, log: { info: (m
     const sql = fs.readFileSync(path.join(__dirname, "../../../supabase/migrations/20261101_payment_confirmation_email.sql"), "utf8");
     assert.ok(!/drop |delete |truncate |not null/i.test(sql.replace(/--.*$/gm, "")));
     assert.equal((sql.match(/add column if not exists/g) ?? []).length, 3);
+  });
+
+  await t("support address: on our own domain, used as the confirmation email's Reply-To and shown in its text", () => {
+    assert.equal(SUPPORT_EMAIL, "support@leaseguard.io");
+    const src = fs.readFileSync(path.join(__dirname, "../purchase-email.ts"), "utf8");
+    assert.match(src, /replyTo: SUPPORT_EMAIL/, "the Reply-To must come from the constant");
+    assert.match(buildPurchaseEmail(facts()).text, /support@leaseguard\.io/);
+  });
+
+  await t("no shipped source points customers at a domain we do not own", () => {
+    // The old domain is assembled at run time, so this file never contains the string it searches for.
+    const OLD_DOMAIN = ["leaseguard", "ai"].join(".");
+    const containsOld = (s: string) => s.toLowerCase().includes(OLD_DOMAIN);
+    assert.ok(containsOld("mailto:support@" + OLD_DOMAIN) && containsOld("WWW." + OLD_DOMAIN.toUpperCase()), "the matcher must catch the address and other spellings of case");
+    assert.ok(!containsOld("support@leaseguard.io"), "and must not flag our own domain");
+    const root = path.join(__dirname, "../../..");
+    const TEXT = /\.(ts|tsx|js|jsx|mjs|cjs|json|md|mdx|txt|xml|html|css|svg)$/i;
+    const files: string[] = [path.join(root, "next.config.ts")];
+    const walk = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.name === "node_modules" || e.name === ".next" || e.name === ".git") continue;
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) walk(p); else if (TEXT.test(e.name)) files.push(p);
+      }
+    };
+    for (const d of ["src", "scripts", "public"]) if (fs.existsSync(path.join(root, d))) walk(path.join(root, d));
+    assert.ok(files.length > 150, "the scan must really walk the project (walked " + files.length + ")");
+    const hits = files.filter((p) => containsOld(fs.readFileSync(p, "utf8"))).map((p) => path.relative(root, p));
+    assert.deepEqual(hits, [], "files that still mention the old domain");
   });
 
   console.log(`purchase-email: ${n} passed, 0 failed`);
