@@ -7,6 +7,7 @@ import {
 } from "pdf-lib";
 import type { Finding, OverchargeLineItem, LeaseClauseSummary } from "@/services/audit-logic";
 import { getLeaseClauseEvidence } from "@/lib/lease-clause-evidence";
+import { lockedAmountNote } from "@/lib/locked-amount";
 import { buildReviewPlan } from "@/services/review-plan";
 import { drawReviewPlanPages } from "@/services/review-plan-pdf";
 import { toWinAnsi } from "@/services/dispute-letter";
@@ -653,7 +654,7 @@ export async function generateReportPdf(
       .filter((f) => !f.insufficientData)
       .reduce((sum, f) => sum + f.potential_savings, 0);
     const premiumSummary = premiumSavings > 0
-      ? `${count} additional premium finding${count !== 1 ? "s" : ""} identified with up to ${usd(premiumSavings)} in additional potential billing discrepancies.`
+      ? `${count} additional premium finding${count !== 1 ? "s" : ""} identified. ${lockedAmountNote(usd(premiumSavings))}`
       : `${count} additional premium finding${count !== 1 ? "s" : ""} identified. Full report includes source-level evidence and discrepancy analysis.`;
     ctx.y = drawText(
       ctx.page,

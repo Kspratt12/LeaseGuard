@@ -20,6 +20,7 @@ import {
 } from "@/services/ocr-extractor";
 import { extractTextFromRawBuffer } from "@/services/raw-pdf-extractor";
 import { errorInfo, stackFrames } from "@/lib/safe-log";
+import { supportedPriorYearTotal } from "@/services/line-ledger";
 import { buildCoverage, type AnalysisCoverage } from "@/lib/analysis-coverage";
 import {
   extractLeaseFieldsWithAI,
@@ -2093,11 +2094,13 @@ export function extractFields(text: string): ExtractedFields {
 // Confidence scoring
 // ---------------------------------------------------------------------------
 
-function computeConfidence(
+/** Exported so the confidence rules can be tested directly. */
+export function computeConfidence(
   leaseClass: DocumentClassification,
   reconClass: DocumentClassification,
   leaseFields: ExtractedFields,
   reconFields: ExtractedFields,
+  reconText: string,
 ): { level: ConfidenceLevel; score: number } {
   let score = 0;
 
@@ -2114,7 +2117,8 @@ function computeConfidence(
 
   // Explicit year totals boost confidence significantly (0–12)
   if (reconFields.totalCamCharges || reconFields.reconciliationTotal) score += 8;
-  if (reconFields.priorYearTotal) score += 4;
+  // Only a baseline the statement itself labels as prior-year counts; a rejected one adds no confidence.
+  if (supportedPriorYearTotal(reconFields.priorYearTotal, reconText, reconFields.reconciliationYear)) score += 4;
 
   // Excluded categories in lease (0–7)
   if (leaseFields.excludedTerms.length > 0) {
@@ -2409,6 +2413,7 @@ export async function validateDocuments(
     reconClassification,
     leaseFields,
     reconFields,
+    reconText,
   );
 
   // 9. Build user message

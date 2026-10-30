@@ -25,6 +25,7 @@ import {
   computeCamCapExcess,
   totalSavings,
 } from "@/services/savings-math";
+import { dedupeBySourceLine, supportedPriorYearTotal } from "@/services/line-ledger";
 
 /** Lines of the reconciliation that are management/admin fee charges (building level). */
 const ADMIN_FEE_LINE_KEYWORDS = [
@@ -193,6 +194,43 @@ function exclusionMatchScore(exclusionTerm: string, reconCategory: string): numb
 // Source evidence helpers
 // ---------------------------------------------------------------------------
 
+const CAPITAL_LINE_INDICATORS = [
+  "capital improvement", "capital expenditure", "capital expense",
+  "roof repair", "roof replacement", "structural repair",
+  "foundation", "depreciation", "amortization",
+];
+
+/** Rows that are totals, balances, payments or the tenant's own share, never an expense a lease could exclude. */
+const NOT_AN_EXPENSE_ROW = /^(tenant|total|subtotal|balance)\b|total operating|balance due|estimated payments|payments? received|pro[\s-]*rata/i;
+
+interface StatementLine { category: string; amount: string; rawLine: string }
+
+/**
+ * Statement lines that fall under a lease exclusion (or are capital in nature), one entry per LINE with its own amount.
+ * The score keeps the existing thresholds: 0.4 and above is worth reviewing, 0.7 and above is a firm match.
+ */
+function findExcludedLines(
+  lines: StatementLine[],
+  excludedTerms: string[],
+): Array<{ item: StatementLine; amount: number; score: number; matchedExclusion: string }> {
+  const out: Array<{ item: StatementLine; amount: number; score: number; matchedExclusion: string }> = [];
+  for (const item of lines) {
+    const cat = item.category.toLowerCase().trim();
+    const amount = normalizeNumber(item.amount);
+    if (!(amount > 0) || NOT_AN_EXPENSE_ROW.test(cat)) continue;
+    let score = 0;
+    let matchedExclusion = "";
+    const capital = CAPITAL_LINE_INDICATORS.find((ci) => cat.includes(ci));
+    if (capital) { score = 1; matchedExclusion = capital; }
+    for (const term of excludedTerms) {
+      const s = exclusionMatchScore(term, cat);
+      if (s > score) { score = s; matchedExclusion = term; }
+    }
+    if (score >= 0.4) out.push({ item, amount, score, matchedExclusion });
+  }
+  return out;
+}
+
 /**
  * Estimate which page a text snippet appears on by splitting on form-feed chars.
  */
@@ -341,8 +379,13 @@ export async function runAudit(
     : reconTotal;
 
   // Prior year total (used for year-over-year comparison)
-  const priorYearRaw = reconFields.priorYearTotal;
+  // Only a figure the statement itself labels as a prior/base-year total is a baseline. Extraction (pattern or AI) can
+  // pick up a nearby number, for example "estimated payments received during 2025"; that is never a cap baseline.
+  const priorYearRaw = supportedPriorYearTotal(reconFields.priorYearTotal, reconText, reconFields.reconciliationYear);
   const priorYearTotal = priorYearRaw ? normalizeNumber(priorYearRaw) : null;
+
+  // Each statement line backs at most one amount: the same charge read under several names counts once.
+  const ledgerItems = dedupeBySourceLine(reconFields.lineItems, reconText).kept;
 
   // ------------------------------------------------------------------
   // 1. CAM Cap Exceeded
@@ -595,7 +638,7 @@ export async function runAudit(
       if (reconVal > leaseVal) {
         // Tenant's share of the building-level fee charged above the cap.
         let feeAmountBuilding = 0;
-        for (const item of reconFields.lineItems) {
+        for (const item of ledgerItems) {
           const catLower = item.category.toLowerCase().trim();
           if (ADMIN_FEE_LINE_KEYWORDS.some((kw) => catLower.includes(kw))) {
             const amt = normalizeNumber(item.amount);
@@ -618,7 +661,7 @@ export async function runAudit(
             `while the lease caps this fee at ${leaseVal}%. ` +
             `The ${(reconVal - leaseVal).toFixed(1)}-point difference should be reviewed with the landlord.` +
             (feeSavings > 0
-              ? ` Applying the cap to the fee line on the statement ($${feeAmountBuilding.toLocaleString("en-US", { maximumFractionDigits: 0 })}) and your ${shareRaw}% share, the difference is approximately ${formatMoney(feeSavings)}. This is a calculation from the documents, not a confirmed overcharge.`
+              ? ` Calculation: the fee line on the statement is ${formatMoney(feeAmountBuilding)}, billed at ${reconVal}%. At the ${leaseVal}% cap the permitted fee is ${formatMoney((feeAmountBuilding * leaseVal) / reconVal)} (the same base, assuming the cap and the billed rate apply to the same expenses), so the building was billed ${formatMoney(feeAmountBuilding - (feeAmountBuilding * leaseVal) / reconVal)} above it. Your ${shareRaw}% share of that is approximately ${formatMoney(feeSavings)}. This is a calculation from the documents, not a confirmed overcharge.`
               : " The documents did not provide enough detail to calculate a dollar amount."),
           potential_savings: feeSavings,
           severity: "medium",
@@ -1090,7 +1133,7 @@ export async function runAudit(
       let adminFeeLabel = "";
       let adminFeeRawLine = "";
 
-      for (const item of reconFields.lineItems) {
+      for (const item of ledgerItems) {
         const catLower = item.category.toLowerCase().trim();
         const matched = adminKeywords.some(
           (kw) => catLower.includes(kw) || kw.includes(catLower),
@@ -1216,8 +1259,23 @@ export async function runAudit(
         }
       }
 
-      const highConf = [...bestByCategory.values()].filter((m) => m.score >= 0.7);
-      const medConf = [...bestByCategory.values()].filter((m) => m.score >= 0.4 && m.score < 0.7);
+      // Several labels can name one statement line: show each line once, under the label the statement itself uses.
+      const lineIndexOf = (cat: string) =>
+        ledgerItems.findIndex((li) => {
+          const k = li.category.toLowerCase().trim();
+          return k === cat || k.includes(cat) || cat.includes(k);
+        });
+      const byLine = new Map<string, typeof suspectMatches[0]>();
+      for (const m of bestByCategory.values()) {
+        const li = lineIndexOf(m.reconCat);
+        const key = li >= 0 ? `line:${li}` : `cat:${m.reconCat}`;
+        const label = li >= 0 ? ledgerItems[li].category.toLowerCase().trim() : m.reconCat;
+        const seen = byLine.get(key);
+        if (!seen || m.score > seen.score) byLine.set(key, { ...m, reconCat: label });
+      }
+      const collapsed = [...byLine.values()];
+      const highConf = collapsed.filter((m) => m.score >= 0.7);
+      const medConf = collapsed.filter((m) => m.score >= 0.4 && m.score < 0.7);
 
       const parts: string[] = [];
       if (highConf.length > 0) {
@@ -1302,85 +1360,24 @@ export async function runAudit(
       reconFields.proRataShare ?? leaseFields.proRataShare;
     const tenantSharePct = tenantShareRaw ? parseFloat(tenantShareRaw) : null;
 
-    // Build a lookup from line items: normalized category → { amount, rawLine }
-    const lineItemLookup = new Map<string, { amount: number; rawLine: string }>();
-    for (const item of reconFields.lineItems) {
-      const normalized = item.category.toLowerCase().trim();
-      const amount = normalizeNumber(item.amount);
-      if (!isNaN(amount) && amount > 0) {
-        lineItemLookup.set(normalized, { amount, rawLine: item.rawLine });
-      }
-    }
-
-    // Collect all excluded categories that were matched (reuse section 4 logic)
-    const excludedMatches: Array<{ reconCat: string; score: number }> = [];
-
-    // Capital-nature indicators (always suspect)
-    const capitalIndicators = [
-      "capital improvement", "capital expenditure", "capital expense",
-      "roof repair", "roof replacement", "structural repair",
-      "foundation", "depreciation", "amortization",
-    ];
-    for (const cat of reconFields.expenseCategories) {
-      if (capitalIndicators.includes(cat)) {
-        excludedMatches.push({ reconCat: cat, score: 1.0 });
-      }
-    }
-
-    // Cross-reference lease exclusion terms
-    if (leaseFields.excludedTerms.length > 0) {
-      for (const excluded of leaseFields.excludedTerms) {
-        for (const reconCat of reconFields.expenseCategories) {
-          const score = exclusionMatchScore(excluded, reconCat);
-          if (score >= 0.4) {
-            const alreadyMatched = excludedMatches.some(
-              (m) => m.reconCat === reconCat && m.score >= score,
-            );
-            if (!alreadyMatched) {
-              excludedMatches.push({ reconCat, score });
-            }
-          }
-        }
-      }
-    }
-
-    // De-duplicate by category, keep highest score
-    const bestExcluded = new Map<string, number>();
-    for (const m of excludedMatches) {
-      const existing = bestExcluded.get(m.reconCat);
-      if (!existing || m.score > existing) {
-        bestExcluded.set(m.reconCat, m.score);
-      }
-    }
-
-    // For each excluded category, try to find its dollar amount and calculate tenant charge
-    for (const [cat] of bestExcluded) {
-      // Try exact match in line items, then fuzzy substring match
-      let categoryTotal: number | null = null;
-      let matchedRawLine = "";
-      for (const [lineKey, lineData] of lineItemLookup) {
-        if (lineKey === cat || lineKey.includes(cat) || cat.includes(lineKey)) {
-          categoryTotal = lineData.amount;
-          matchedRawLine = lineData.rawLine;
-          break;
-        }
-      }
-
-      if (categoryTotal != null && categoryTotal > 0 && tenantSharePct != null && tenantSharePct > 0) {
-        const tenantCharge = Math.round(categoryTotal * (tenantSharePct / 100) * 100) / 100;
-        // Build source evidence from the matched line item
-        const evidenceText = matchedRawLine || extractSnippet(reconText, cat);
+    // One contribution per statement line, never per label. Several category labels (the pattern reader's and the AI
+    // step's) can name the same line; ledgerItems already holds each line once, so a line cannot be counted twice.
+    const excludedLines = findExcludedLines(ledgerItems, leaseFields.excludedTerms);
+    for (const line of excludedLines) {
+      if (tenantSharePct != null && tenantSharePct > 0) {
+        const tenantCharge = Math.round(line.amount * (tenantSharePct / 100) * 100) / 100;
+        const cat = line.item.category.toLowerCase().trim();
         overchargeBreakdown.push({
           category: cat,
-          total_expense: categoryTotal,
+          total_expense: line.amount,
           tenant_share_percent: tenantSharePct,
           tenant_charge: tenantCharge,
           reason: "Excluded Expense",
-          sourceEvidence: evidenceText ? {
+          sourceEvidence: {
             document: reconDocName,
             page: findPageForText(reconText, cat),
-            extractedText: evidenceText,
-          } : undefined,
+            extractedText: line.item.rawLine || extractSnippet(reconText, cat) || cat,
+          },
         });
         estimatedOvercharge += tenantCharge;
       }

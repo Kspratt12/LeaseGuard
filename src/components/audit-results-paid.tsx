@@ -1,4 +1,5 @@
 import { formatMoney } from "@/lib/format";
+import { lockedAmountNote } from "@/lib/locked-amount";
 import { Lock, ShieldCheck, FileSearch, ArrowRight, FileText, AlertTriangle, Scale } from "lucide-react";
 import type { Finding, OverchargeLineItem, LeaseClauseSummary } from "@/services/audit-logic";
 import { getLeaseClauseEvidence } from "@/lib/lease-clause-evidence";
@@ -137,14 +138,8 @@ export function AuditResultsPaid({
           {count > 0 ? "Unlock every finding, with the evidence behind it." : "Unlock the report, review plan and letter built from your findings."}
         </h3>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/75">
-          {count > 0 ? "See all discrepancies with the lease and statement text they come from" : "Get your findings in a printable report, with a prioritized review plan and a letter draft you can edit"}
-          {totalLockedSavings > 0 && (
-            <>
-              . Up to <span className="font-semibold text-white">{formatMoney(totalLockedSavings)}</span> in additional potential billing
-              discrepancies to review
-            </>
-          )}
-          .
+          {count > 0 ? "See all discrepancies with the lease and statement text they come from" : "Get your findings in a printable report, with a prioritized review plan and a letter draft you can edit"}.
+          {totalLockedSavings > 0 && <> {lockedAmountNote(formatMoney(totalLockedSavings))}</>}
         </p>
 
         <ul className="mt-5 grid gap-3 text-sm text-white/85 sm:grid-cols-3">

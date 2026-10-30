@@ -192,6 +192,8 @@ async function main() {
     const v = await validateDocuments(lease, recon);
     v.leaseFields.camCapPercentage = "5";
     v.reconFields.priorYearTotal = prior;
+    // A baseline counts only when the statement itself labels it as a prior-year total (see line-ledger.ts).
+    if (prior) v.reconText += `\nPrior Year Total: $${prior}`;
     return runAudit(v);
   };
   const capFindings = (r: Awaited<ReturnType<typeof runAudit>>) =>
