@@ -161,7 +161,7 @@ export default function CommercialLeaseAuditServices() {
       </p>
       <p>
         The result is a findings report identifying
-        potential discrepancies with estimated savings. For tenants who want to
+        potential discrepancies with estimated savings where supported calculations are available. For tenants who want to
         understand the full process, our{" "}
         <Link
           href="/resources/how-to-audit-cam-charges"
