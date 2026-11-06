@@ -22,6 +22,7 @@ import { extractTextFromRawBuffer } from "@/services/raw-pdf-extractor";
 import { errorInfo, stackFrames } from "@/lib/safe-log";
 import { supportedPriorYearTotal } from "@/services/line-ledger";
 import { buildCoverage, type AnalysisCoverage } from "@/lib/analysis-coverage";
+import { buildExtractionIncomplete, type ExtractionIncomplete } from "@/lib/extraction-status";
 import {
   extractLeaseFieldsWithAI,
   extractReconFieldsWithAI,
@@ -128,6 +129,8 @@ export interface DocumentValidationResult {
   userMessage: string | null;
   /** Set when the AI step received only the start of a document (see analysis-coverage.ts); null when nothing was cut. */
   coverage?: AnalysisCoverage | null;
+  /** Set when the AI step was attempted and returned nothing for a document; null otherwise. See src/lib/extraction-status.ts. */
+  extraction?: ExtractionIncomplete | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -2328,6 +2331,10 @@ export async function validateDocuments(
   // Record which documents are longer, so no surface presents the review as covering the whole text.
   const coverage = buildCoverage({ aiRan: hasApiKey, leaseChars: leaseText.length, statementChars: reconText.length });
 
+  // Did the AI step actually read each document? A null result with a key configured is a FAILURE (API error, timeout,
+  // malformed output), never "the term is absent".
+  let aiLeaseRead = false;
+  let aiReconRead = false;
   try {
     console.log("[validator] Attempting AI-powered field extraction...");
     const [aiLease, aiRecon] = await Promise.all([
@@ -2337,6 +2344,7 @@ export async function validateDocuments(
 
     if (aiLease) {
       console.log("[validator] AI lease extraction successful (values not logged)");
+      aiLeaseRead = true;
       leaseFields = mergeLeaseFields(leaseFields, aiLease);
     } else {
       console.log("[validator] AI lease extraction returned null (no API key or failed)");
@@ -2344,6 +2352,7 @@ export async function validateDocuments(
 
     if (aiRecon) {
       console.log("[validator] AI recon extraction successful (values not logged)");
+      aiReconRead = true;
       reconFields = mergeReconFields(reconFields, aiRecon);
     } else {
       console.log("[validator] AI recon extraction returned null (no API key or failed)");
@@ -2358,6 +2367,16 @@ export async function validateDocuments(
       errorInfo(err),
     );
   }
+
+  // In a deployed (production) build the AI reading is part of the product: with no usable key the documents were NOT read by
+  // it, which is the same as a failed reading (recorded, disclosed, and no paid report). Local runs and the offline tests,
+  // which do not set NODE_ENV=production, are unchanged.
+  const extraction = buildExtractionIncomplete({
+    attempted: hasApiKey || process.env.NODE_ENV === "production",
+    leaseRead: aiLeaseRead,
+    statementRead: aiReconRead,
+  });
+  if (extraction) console.warn("[validator] AI reading incomplete: the analysis is marked unreliable and no paid report will be offered");
 
   // 6. Determine audit mode based on classification tier + extracted fields
   const auditMode = determineAuditMode(
@@ -2449,6 +2468,7 @@ export async function validateDocuments(
     auditMode,
     userMessage,
     coverage,
+    extraction,
   };
 }
 

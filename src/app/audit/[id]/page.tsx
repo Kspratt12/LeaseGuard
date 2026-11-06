@@ -5,10 +5,11 @@ import { formatMoney, ROUNDING_NOTE } from "@/lib/format";
 import { useEffect, useState, useRef, use } from "react";
 import { AuditResultsFree } from "@/components/audit-results-free";
 import { AuditResultsPaid } from "@/components/audit-results-paid";
-import { NoPurchasePanel } from "@/components/audit-no-purchase";
+import { ConfidenceNotRated, NoPurchasePanel, TotalUnreliableNotice } from "@/components/audit-no-purchase";
 import { CoverageNotice } from "@/components/coverage-notice";
 import { QuantificationNoticeBlock } from "@/components/quantification-notice";
 import { PaymentReviewNotice } from "@/components/payment-review-notice";
+import { EXTRACTION_INCOMPLETE_SENTENCE } from "@/lib/extraction-status";
 import { CONFIDENCE_COVERAGE_CAPTION, CONFIDENCE_COVERAGE_QUALIFIER, coverageOf, isAiTruncated } from "@/lib/analysis-coverage";
 import { AuditProgress } from "@/components/audit-progress";
 import { SUPPORT_EMAIL } from "@/lib/constants";
@@ -52,7 +53,7 @@ interface Audit {
   /** Decided by the server (same rule checkout enforces): whether this audit may be sold, and how complete it is. */
   purchase?:
     | { eligible: true; completeness: "complete" | "partial"; notes: string[] }
-    | { eligible: false; reason: "nothing_to_unlock" | "insufficient_analysis"; coverageNote?: string; unquantifiedChecks?: number };
+    | { eligible: false; reason: "nothing_to_unlock" | "insufficient_analysis" | "extraction_incomplete"; coverageNote?: string; unquantifiedChecks?: number };
 }
 
 export default function AuditPage({
@@ -626,12 +627,15 @@ function AuditResultsRenderer({
             {/* Summary and the report actions: the unlocked report card jumps to the top */}
             <div className="flex flex-col gap-6 sm:gap-8">
             {/* Savings estimate / Overcharge detected */}
+            {audit.purchase?.eligible === false && audit.purchase.reason === "extraction_incomplete" && <TotalUnreliableNotice />}
             <AuditHeadline unavailable={headlineUnavailable(comparisonStatusOf(audit.lease_clauses_summary))} hasOvercharge={hasOvercharge} savingsEstimate={savingsEstimate} breakdown={overchargeBreakdown}>
-            {audit.purchase && !audit.purchase.eligible && audit.purchase.reason === "insufficient_analysis" ? (
+            {audit.purchase && !audit.purchase.eligible && (audit.purchase.reason === "insufficient_analysis" || audit.purchase.reason === "extraction_incomplete") ? (
               <div className="rounded-xl bg-gray-50 border border-gray-200 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
                 <p className="text-xs text-gray-600 font-semibold uppercase tracking-widest">Analysis Incomplete</p>
                 <p className="text-sm text-gray-500 leading-relaxed max-w-md mx-auto">
-                  We could not complete enough checks on these documents to report discrepancies. This is not a clean result. See the notices on this page.
+                  {audit.purchase.reason === "extraction_incomplete"
+                    ? EXTRACTION_INCOMPLETE_SENTENCE
+                    : "We could not complete enough checks on these documents to report discrepancies. This is not a clean result. See the notices on this page."}
                 </p>
               </div>
             ) : hasFindings && !(audit.purchase && !audit.purchase.eligible) ? (
@@ -732,12 +736,16 @@ function AuditResultsRenderer({
             </div>
 
             {/* Confidence indicator */}
-            {audit.confidence && (
-              <ConfidenceIndicator
-                level={audit.confidence}
-                score={audit.confidence_score ?? 0}
-                coverageLimited={isAiTruncated(coverage)}
-              />
+            {audit.purchase && !audit.purchase.eligible && audit.purchase.reason === "extraction_incomplete" ? (
+              <ConfidenceNotRated />
+            ) : (
+              audit.confidence && (
+                <ConfidenceIndicator
+                  level={audit.confidence}
+                  score={audit.confidence_score ?? 0}
+                  coverageLimited={isAiTruncated(coverage)}
+                />
+              )
             )}
 
             {/* Lease Clauses Detected */}

@@ -12,6 +12,7 @@
 
 import { formatMoney } from "@/lib/format";
 import { isAiTruncated, type AnalysisCoverage } from "@/lib/analysis-coverage";
+import { undetermined, type ExtractionIncomplete } from "@/lib/extraction-status";
 import {
   normalizeNumber,
   type DocumentValidationResult,
@@ -91,6 +92,8 @@ export interface LeaseClauseSummary {
    * say so without depending on which findings are visible. See src/lib/quantification.ts.
    */
   comparisonStatus?: ComparisonStatus;
+  /** Present only when the AI reading failed for a document (see src/lib/extraction-status.ts). Absent on every earlier audit. */
+  extractionIncomplete?: ExtractionIncomplete;
 }
 
 export interface AuditResult {
@@ -371,6 +374,9 @@ export async function runAudit(
 
   // Track which required fields were flagged as missing
   const missingFields = new Set(issues.map((i: ValidationIssue) => i.field));
+  // The AI reading failed for a document: a value that is missing may simply not have been read, so no finding below may
+  // say a term is absent. (Audits without this record are unchanged.)
+  const aiDegraded = !!validation.extraction;
 
   // --- Diagnostic logging: trace extracted fields ---
   console.log(`[audit-engine] === Extracted Fields ===`);
@@ -555,9 +561,10 @@ export async function runAudit(
     if (!isLimited) {
       freeFindings.push({
         category: "CAM Cap Compliance",
-        description:
-          "No CAM cap language was detected in the lease. This may mean the lease does not include a cap on controllable expenses, " +
-          "or the cap language uses non-standard phrasing. Review the lease to confirm whether a cap exists.",
+        description: aiDegraded
+          ? undetermined("whether the lease has a cap on controllable expenses")
+          : "No CAM cap language was detected in the lease. This may mean the lease does not include a cap on controllable expenses, " +
+            "or the cap language uses non-standard phrasing. Review the lease to confirm whether a cap exists.",
         potential_savings: 0,
         severity: "medium",
         insufficientData: true,
@@ -623,7 +630,9 @@ export async function runAudit(
         description:
           `Year-over-year CAM expenses increased by ${increasePercent.toFixed(1)}%, ` +
           `from ${formatMoney(priorYearTotal)} to ${formatMoney(reconTotal)}. ` +
-          `No CAM cap was detected in the lease to compare against. ` +
+          (aiDegraded
+            ? `${undetermined("whether the lease has a cap to compare this change with")} `
+            : `No CAM cap was detected in the lease to compare against. `) +
           `Check your lease for any limit on increases.`,
         potential_savings: 0,
         // A change with no cap detected is an observation for the customer to read, not an item to raise: low severity makes it a
@@ -727,9 +736,10 @@ export async function runAudit(
   } else if (missingFields.has("admin_fee") && !isLimited) {
     paidFindings.push({
       category: "Admin Fee Review",
-      description:
-        "No admin or management fee cap was detected in the lease. " +
-        "If the lease includes fee limitations under different terminology, manual review is recommended.",
+      description: aiDegraded
+        ? undetermined("whether the lease limits administrative or management fees")
+        : "No admin or management fee cap was detected in the lease. " +
+          "If the lease includes fee limitations under different terminology, manual review is recommended.",
       potential_savings: 0,
       severity: "low",
       insufficientData: true,
@@ -796,9 +806,10 @@ export async function runAudit(
   } else if (missingFields.has("pro_rata") && !isLimited) {
     paidFindings.push({
       category: "Pro-Rata Share Review",
-      description:
-        "Pro-rata share percentage could not be detected in the lease. " +
-        "Verify that the reconciliation applies the correct tenant share based on actual rentable area.",
+      description: aiDegraded
+        ? undetermined("the tenant's pro-rata share")
+        : "Pro-rata share percentage could not be detected in the lease. " +
+          "Verify that the reconciliation applies the correct tenant share based on actual rentable area.",
       potential_savings: 0,
       severity: "low",
       insufficientData: true,
@@ -1372,10 +1383,11 @@ export async function runAudit(
   } else if (missingFields.has("expense_categories") && !isLimited) {
     freeFindings.push({
       category: "Expense Category Review",
-      description:
-        "No itemized expense categories were detected in the reconciliation statement. " +
-        "Without a line-item breakdown, it is not possible to verify whether excluded categories were billed. " +
-        "Request a detailed expense breakdown from the landlord.",
+      description: aiDegraded
+        ? undetermined("which expense categories the statement lists")
+        : "No itemized expense categories were detected in the reconciliation statement. " +
+          "Without a line-item breakdown, it is not possible to verify whether excluded categories were billed. " +
+          "Request a detailed expense breakdown from the landlord.",
       potential_savings: 0,
       severity: "low",
       insufficientData: true,
@@ -1428,10 +1440,11 @@ export async function runAudit(
     if (missingFields.has("total_cam") && !isLimited) {
       freeFindings.push({
         category: "Reconciliation Totals",
-        description:
-          "Your reconciliation statement contains individual expense line items but does not include a total CAM or operating expense summary. " +
-          "Because of this, savings calculations that depend on total charges cannot be completed. " +
-          "If available, upload a reconciliation summary page that includes a total operating expense amount, or request one from the landlord.",
+        description: aiDegraded
+          ? undetermined("the statement's total CAM or operating expense charges")
+          : "Your reconciliation statement contains individual expense line items but does not include a total CAM or operating expense summary. " +
+            "Because of this, savings calculations that depend on total charges cannot be completed. " +
+            "If available, upload a reconciliation summary page that includes a total operating expense amount, or request one from the landlord.",
         potential_savings: 0,
         severity: "low",
         insufficientData: true,
@@ -1563,7 +1576,9 @@ export async function runAudit(
             `to ${curr.year} (${formatMoney(curr.total)}).` +
             (camCapPct != null
               ? ` This is below the ${camCapPct}% figure found in the lease text. It does not confirm compliance: how the cap is measured and which expenses it covers were not established.`
-              : ` No CAM cap was detected in the lease to compare against.`),
+              : aiDegraded
+                ? ` ${undetermined("whether the lease has a cap to compare this change with")}`
+                : ` No CAM cap was detected in the lease to compare against.`),
           potential_savings: 0,
           ...(camCapPct != null ? { quantified: false, letterText: "" } : {}),
           // low in both variants: with or without a cap this is an observation, never an item that qualifies an audit for purchase
@@ -2070,6 +2085,18 @@ export async function runAudit(
         tenantSquareFootage: null, buildingSquareFootage: null, excludedCategories: [], additionalClauses: [],
       }),
       coverage: validation.coverage,
+    };
+  }
+
+  // The AI reading failed for a document: keep the record with the clause summary (an existing JSON column), so the
+  // server can refuse a purchase and every surface can say the analysis is not reliable. Same empty-summary rule as above.
+  if (validation.extraction) {
+    leaseClausesSummary = {
+      ...(leaseClausesSummary ?? {
+        camCap: null, adminFeeCap: null, managementFeeCap: null, tenantProRataShare: null,
+        tenantSquareFootage: null, buildingSquareFootage: null, excludedCategories: [], additionalClauses: [],
+      }),
+      extractionIncomplete: validation.extraction,
     };
   }
 
