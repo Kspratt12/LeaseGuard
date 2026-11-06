@@ -54,7 +54,7 @@ export function Pricing() {
               <span className="text-lg font-semibold text-ink">Free preview</span>
             </p>
             <p className="mt-1 text-sm text-ink-muted">
-              Create a free account, upload your lease and statement, and see the total of potential billing discrepancies, the lease clauses we
+              Create a free account, upload your lease and statement, and see a total of potential billing discrepancies where supported calculations are available, the lease clauses we
               found, and the first findings. No payment details needed.
             </p>
           </div>

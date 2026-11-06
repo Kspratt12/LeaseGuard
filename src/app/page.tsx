@@ -41,7 +41,7 @@ const faqItems = [
   },
   {
     q: "What does the free preview include?",
-    a: "The free preview includes a total of potential billing discrepancies, the lease clauses detected (CAM caps, admin fee limits, excluded expenses), a breakdown table, and the first findings. A free account is required so your documents stay private.",
+    a: "The free preview includes a total of potential billing discrepancies where supported calculations are available, the lease clauses detected (CAM caps, admin fee limits, excluded expenses), a breakdown table, and the first findings. A free account is required so your documents stay private.",
   },
   {
     q: "What does the full report include, and what does it cost?",
