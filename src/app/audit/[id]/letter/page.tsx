@@ -11,7 +11,9 @@ import { buttonClass } from "@/components/ui";
 
 interface Draft {
   text: string;
-  total: number;
+  /** Null when an earlier audit's overall total could not be reconciled (totalNote says so). */
+  total: number | null;
+  totalNote?: string | null;
   headlineTotal: number | null;
   placeholders: string[];
   /** Set when the AI step read only part of a long lease. */
@@ -108,16 +110,22 @@ export default function DisputeLetterPage({ params }: { params: Promise<{ id: st
             </p>
           </div>
 
-          <p className="mt-4 text-sm text-gray-700">
-            Total of the calculation-backed items:{" "}
-            <span className="font-semibold">{formatMoney(draft.total)}</span>
-            {draft.headlineTotal != null && draft.headlineTotal !== draft.total && (
-              <span className="text-red-700">
-                {" "}
-                (differs from your audit total of {formatMoney(draft.headlineTotal)}: please double-check)
-              </span>
-            )}
-          </p>
+          {draft.total == null ? (
+            <p className="mt-4 text-sm text-gray-700" data-testid="letter-total-unavailable">
+              {draft.totalNote ?? "The overall total for this earlier audit could not be reconciled, so none is shown."} The letter lists the individual items only.
+            </p>
+          ) : (
+            <p className="mt-4 text-sm text-gray-700">
+              Total of the calculation-backed items:{" "}
+              <span className="font-semibold">{formatMoney(draft.total)}</span>
+              {draft.headlineTotal != null && draft.headlineTotal !== draft.total && (
+                <span className="text-red-700">
+                  {" "}
+                  (differs from your audit total of {formatMoney(draft.headlineTotal)}: please double-check)
+                </span>
+              )}
+            </p>
+          )}
 
           <label htmlFor="letter" className="mt-4 block text-sm font-medium text-gray-700">
             Letter (editable)

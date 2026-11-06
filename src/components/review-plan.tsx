@@ -1,6 +1,6 @@
 import { CheckCircle2, ClipboardList, HelpCircle, ListChecks, Scale } from "lucide-react";
 import { Pill } from "@/components/ui";
-import { ROUNDING_NOTE } from "@/lib/format";
+import { ROUNDING_NOTE_PLAN } from "@/lib/format";
 import { planMoney, reviewedSentence, type PlanItem, type PlanTier, type ReviewPlan } from "@/services/review-plan";
 
 /**
@@ -121,10 +121,11 @@ export function ReviewPlanPanel({ plan, sample = false }: { plan: ReviewPlan; sa
           {(plan.calculatedTotal > 0 || plan.judgmentTotal > 0) && (
             <p className="mt-2 text-xs text-ink-muted">
               Amounts in question: {planMoney(plan.calculatedTotal)} calculated, {planMoney(plan.judgmentTotal)} that depends on judgment. They are shown separately because they are different kinds of items, and
-              neither is a confirmed overcharge. {ROUNDING_NOTE}
+              neither is a confirmed overcharge. {ROUNDING_NOTE_PLAN}
             </p>
           )}
           {plan.confidenceNote && <p className="mt-1 text-xs text-ink-muted">{plan.confidenceNote}</p>}
+          {plan.quantificationNote && <p className="mt-1 text-xs text-ink-muted">{plan.quantificationNote}</p>}
           {reviewedSentence(plan.reviewed) && <p className="mt-1 text-xs text-ink-muted">{reviewedSentence(plan.reviewed)}</p>}
 
           <h3 className="mt-6 flex items-center gap-2 text-sm font-semibold text-ink"><ListChecks className="h-4 w-4" aria-hidden /> Your items, in priority order</h3>

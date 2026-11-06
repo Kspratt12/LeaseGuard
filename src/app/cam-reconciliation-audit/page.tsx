@@ -113,7 +113,7 @@ export default function CamReconciliationAudit() {
               passed through as operating expenses
             </li>
             <li>
-              Year-over-year increases that exceed contractual escalation caps
+              Year-over-year changes in total charges between consecutive years, shown beside the cap percentage extracted from your lease (an observation, not a finding that a cap was breached)
             </li>
           </ul>
           <p>
@@ -153,8 +153,8 @@ export default function CamReconciliationAudit() {
               excluded categories, or contain calculation inconsistencies
             </li>
             <li>
-              Supporting multi-year uploads for year-over-year comparison to
-              detect escalation patterns
+              Supporting multi-year uploads for year-over-year comparison between
+              consecutive years, to show how total charges changed
             </li>
           </ul>
           <p>

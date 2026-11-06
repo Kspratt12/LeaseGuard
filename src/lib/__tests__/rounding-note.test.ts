@@ -30,8 +30,8 @@ const squash = (s: string) => s.replace(/\s+/g, "").toLowerCase();
 
   await t("the paid results page, the plan (screen and PDF), the report PDF and the letter all use the shared note", () => {
     assert.match(read("app/audit/[id]/page.tsx"), /\{ROUNDING_NOTE\}/);
-    assert.match(read("components/review-plan.tsx"), /\{ROUNDING_NOTE\}/);
-    assert.match(read("services/review-plan-pdf.ts"), /\$\{ROUNDING_NOTE\}/);
+    assert.match(read("components/review-plan.tsx"), /\{ROUNDING_NOTE_PLAN\}/);
+    assert.match(read("services/review-plan-pdf.ts"), /\$\{ROUNDING_NOTE_PLAN\}/);
     assert.match(read("services/report-pdf.ts"), /ROUNDING_NOTE/);
     assert.match(read("services/dispute-letter.ts"), /ROUNDING_NOTE_SHORT/);
   });

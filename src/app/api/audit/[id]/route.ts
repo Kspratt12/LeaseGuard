@@ -10,6 +10,7 @@ import {
 import { TIERS, tierForYearCount } from "@/lib/payments";
 import { supabasePaymentStore } from "@/lib/payment-store";
 import { decidePurchase, purchaseInputFromRow, publicPurchase } from "@/lib/purchase-eligibility";
+import { readPaymentReview, type PaymentRowsDb } from "@/lib/payment-review";
 
 // Prevent Next.js from caching this route
 export const dynamic = "force-dynamic";
@@ -81,6 +82,9 @@ export async function GET(
   // Paid content is released only when a webhook-verified payment exists for
   // this audit AND this owner. Nothing the browser sends can change that.
   const unlocked = await supabasePaymentStore(service).hasPaid(id, user.id);
+  // SEPARATE from entitlement (`unlocked` above is unchanged and still the only access decision): does a confirmed charge on
+  // THIS owner's audit need review? Read only after ownership was established, filtered by audit AND owner. One word or null.
+  const payment_review = await readPaymentReview(service as unknown as PaymentRowsDb, id, user.id, unlocked);
   const tier = tierForYearCount(paidRow?.recon_year_count);
 
   const publicAudit = toPublicAudit(audit, paidRow?.paid_findings ?? null, {
@@ -122,5 +126,5 @@ export async function GET(
     ),
   );
 
-  return NextResponse.json({ ...publicAudit, purchase }, { headers: NO_STORE });
+  return NextResponse.json({ ...publicAudit, purchase, payment_review }, { headers: NO_STORE });
 }

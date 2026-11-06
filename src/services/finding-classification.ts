@@ -21,6 +21,7 @@ export type FindingKind =
 export function findingKind(f: Finding): FindingKind {
   if (isExcludedCategoryFinding(f)) return "excluded";
   if (f.insufficientData) return "clarify"; // never an amount: the check could not be completed
+  if (f.quantified === false) return "clarify"; // an observation with no calculated amount, whatever amount it carries
   if (f.potential_savings > 0) return "adjustment";
   if (f.potential_savings === 0 && f.severity !== "low") return "clarify";
   return "note";

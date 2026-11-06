@@ -1,7 +1,7 @@
 import { rgb, type PDFDocument, type PDFFont, type PDFPage } from "pdf-lib";
 import { planMoney, reviewedSentence, TIER_LABEL, type ReviewPlan } from "@/services/review-plan";
 import { toWinAnsi } from "@/services/dispute-letter";
-import { ROUNDING_NOTE } from "@/lib/format";
+import { ROUNDING_NOTE_PLAN } from "@/lib/format";
 
 /**
  * Draws the CAM Review Plan into the existing paid report PDF: a one-page checklist and action summary,
@@ -100,11 +100,12 @@ export function drawReviewPlanPages(doc: PDFDocument, font: PDFFont, bold: PDFFo
   w.para(`Calculated from your documents: ${c.calculated}   |   Needs your judgment: ${c.judgment}   |   Needs more information: ${c["needs-data"]}   |   Matches: ${c.match}`, { size: 9, bold: true, gap: 2 });
   if (plan.calculatedTotal > 0 || plan.judgmentTotal > 0) {
     w.para(
-      `Amounts in question: ${planMoney(plan.calculatedTotal)} calculated and ${planMoney(plan.judgmentTotal)} that depends on judgment. They are kept separate because they are different kinds of items, and neither is a confirmed overcharge. ${ROUNDING_NOTE}`,
+      `Amounts in question: ${planMoney(plan.calculatedTotal)} calculated and ${planMoney(plan.judgmentTotal)} that depends on judgment. They are kept separate because they are different kinds of items, and neither is a confirmed overcharge. ${ROUNDING_NOTE_PLAN}`,
       { size: 8.5, color: GRAY, gap: 2 },
     );
   }
   if (plan.confidenceNote) w.para(plan.confidenceNote, { size: 8.5, color: GRAY, gap: 2 });
+  if (plan.quantificationNote) w.para(plan.quantificationNote, { size: 8.5, color: GRAY, gap: 2 });
   const readSentence = reviewedSentence(plan.reviewed);
   if (readSentence) w.para(readSentence, { size: 8.5, color: GRAY, gap: 4 });
   w.rule();

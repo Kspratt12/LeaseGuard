@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { containLegacyAudit } from "@/lib/legacy-containment";
 
 /**
  * Server-side audit authorization helpers.
@@ -79,8 +80,8 @@ async function verifyWithSupabase(token: string) {
  * Teaser for paid findings. Never includes descriptions or source evidence.
  */
 export function toPublicAudit(
-  audit: Record<string, unknown>,
-  paidFindings: unknown,
+  storedAudit: Record<string, unknown>,
+  storedPaidFindings: unknown,
   access: {
     unlocked: boolean;
     tier: "single" | "multi" | null;
@@ -88,6 +89,11 @@ export function toPublicAudit(
     reportAvailable: boolean;
   } = { unlocked: false, tier: null, amountCents: null, reportAvailable: false },
 ) {
+  // Read-time containment of audits stored before cap/gross-up amounts were withheld (src/lib/legacy-containment.ts):
+  // the old amounts, their prose and the old headline never reach the browser, locked teaser included.
+  const contained = containLegacyAudit({ ...storedAudit, paid_findings: storedPaidFindings });
+  const audit = contained as Record<string, unknown>;
+  const paidFindings = contained.paid_findings;
   const paid = Array.isArray(paidFindings)
     ? (paidFindings as Array<Record<string, unknown>>)
     : paidFindings === null || paidFindings === undefined
@@ -106,8 +112,10 @@ export function toPublicAudit(
       ? paid.map((f) => ({
           category: f.category,
           severity: f.severity,
-          potential_savings: f.potential_savings,
+          // an amount that was deliberately not calculated is never shown, even if a stray value were stored
+          potential_savings: f.quantified === false ? 0 : f.potential_savings,
           insufficientData: f.insufficientData,
+          quantified: f.quantified,
           description: "Full details are included in the complete report.",
         }))
       : null,

@@ -26,6 +26,7 @@ import {
   totalSavings,
 } from "@/services/savings-math";
 import { dedupeBySourceLine, supportedPriorYearTotal } from "@/services/line-ledger";
+import { buildComparisonStatus, type ComparisonStatus, type UnquantifiedCheck } from "@/lib/quantification";
 
 /** Lines of the reconciliation that are management/admin fee charges (building level). */
 const ADMIN_FEE_LINE_KEYWORDS = [
@@ -51,6 +52,14 @@ export interface Finding {
   severity: "high" | "medium" | "low";
   /** When true, the finding could not be fully verified. */
   insufficientData?: boolean;
+  /**
+   * `false`: the amount was deliberately NOT calculated (the lease's cap method, baseline or covered expenses are not
+   * established). It is counted nowhere and the finding is a needs-review item. Absent: unchanged legacy behavior.
+   * See src/lib/quantification.ts.
+   */
+  quantified?: boolean;
+  /** First-person wording for the dispute letter, for items that ask the landlord a question. Falls back to `description`. */
+  letterText?: string;
   sourceEvidence?: SourceEvidence[];
 }
 
@@ -77,6 +86,11 @@ export interface LeaseClauseSummary {
    * the preview, report, plan and letter can all state the limitation. See src/lib/analysis-coverage.ts.
    */
   coverage?: AnalysisCoverage;
+  /**
+   * Which comparisons did not run and which checks calculated no amount, so the purchase control, report and plan can
+   * say so without depending on which findings are visible. See src/lib/quantification.ts.
+   */
+  comparisonStatus?: ComparisonStatus;
 }
 
 export interface AuditResult {
@@ -350,6 +364,9 @@ export async function runAudit(
 
   const freeFindings: Finding[] = [];
   const paidFindings: Finding[] = [];
+  // Checks that reported an observation but deliberately calculated no amount (see src/lib/quantification.ts).
+  const unquantifiedChecks: UnquantifiedCheck[] = [];
+  const notComparedPairs: string[] = [];
   const isLimited = auditMode === "limited";
 
   // Track which required fields were flagged as missing
@@ -425,31 +442,31 @@ export async function runAudit(
     // Build a stronger description depending on available data
     const totalDisplay = reconFields.totalCamCharges ?? reconFields.reconciliationTotal;
     let camCapDesc =
-      `The lease limits annual CAM or controllable expense increases to ${leaseFields.camCapPercentage}%. ` +
+      `The lease text identified in this review mentions a ${leaseFields.camCapPercentage}% limit on increases. ` +
       `Total CAM charges of ${totalDisplay ? formatMoney(normalizeNumber(totalDisplay)) : totalDisplay} were detected in the reconciliation statement.`;
 
     if (priorYearTotal != null && priorYearTotal > 0) {
       const yoyIncrease = ((reconTotal! - priorYearTotal) / priorYearTotal) * 100;
       const capPctVal = parseFloat(leaseFields.camCapPercentage!);
       if (yoyIncrease > capPctVal) {
-        const allowedMax = priorYearTotal * (1 + capPctVal / 100);
-        const excess = reconTotal! - allowedMax;
+        // Observation only. How the lease measures the cap, what it covers and which year is the baseline are not
+        // established, so no allowable maximum or excess is stated: that would present a lease result we do not have.
         camCapDesc +=
-          ` Year-over-year charges increased ${yoyIncrease.toFixed(1)}% (from ${formatMoney(priorYearTotal)} to ${formatMoney(reconTotal!)}), ` +
-          `which is above the ${leaseFields.camCapPercentage}% cap. ` +
-          `The maximum allowable amount under that cap would be ${formatMoney(Math.round(allowedMax))}, ` +
-          `a potential excess of ${formatMoney(Math.round(excess))} to review.`;
+          ` The statement's total changed ${yoyIncrease.toFixed(1)}% (from ${formatMoney(priorYearTotal)} to ${formatMoney(reconTotal!)}), ` +
+          `which is above ${leaseFields.camCapPercentage}%. ` +
+          `This review did not establish how the cap is measured (against the prior year or a base year, cumulative or not), which expenses it covers, or whether an amendment changes it, ` +
+          `so no allowable amount or excess is calculated and nothing is counted in any total.`;
       } else {
         camCapDesc +=
-          ` Year-over-year charges increased ${yoyIncrease.toFixed(1)}% (from ${formatMoney(priorYearTotal)}), ` +
-          `which is within the ${leaseFields.camCapPercentage}% cap. Verify prior-year baseline accuracy to confirm.`;
+          ` The statement's total changed ${yoyIncrease.toFixed(1)}% (from ${formatMoney(priorYearTotal)}), ` +
+          `which is below ${leaseFields.camCapPercentage}%. This does not confirm compliance: how the cap is measured and which expenses it covers were not established.`;
       }
       // The cap in many leases applies only to controllable expenses. This check compares the
       // statement's total, so say so instead of presenting it as a confirmed violation.
       if (/controllable/i.test(leaseText)) {
         camCapDesc +=
           ` Note: your lease refers to controllable expenses, and this comparison uses the statement's total charges, ` +
-          `so it may overstate any excess. Compare only the categories the cap covers to confirm.`;
+          `which may include expenses the cap does not cover.`;
       }
     } else {
       camCapDesc +=
@@ -459,7 +476,15 @@ export async function runAudit(
 
     // Three honest states: no baseline (cannot assess), within cap, or potentially exceeded.
     const baselineAvailable = priorYearTotal != null && priorYearTotal > 0 && !isNaN(capPct);
-    const potentialExcess = Math.round(estimatedOverage);
+    // computeCamCapExcess is used only as the "total is above the stated percentage" test; its dollar result is not
+    // reported anywhere, because the formula assumes a plain annual cap on total charges that this review cannot establish.
+    const aboveStatedPercent = estimatedOverage > 0;
+    const capLetterText =
+      baselineAvailable && aboveStatedPercent
+        ? `The statement shows total CAM charges of ${formatMoney(reconTotal!)}, compared with a prior-year total of ${formatMoney(priorYearTotal!)}, a change of ${(((reconTotal! - priorYearTotal!) / priorYearTotal!) * 100).toFixed(1)}%. ` +
+          `The lease text I reviewed mentions a ${leaseFields.camCapPercentage}% limit on increases. ` +
+          `Please explain how the cap applies under the lease (whether it is measured against the prior year or a base year, whether it is cumulative, and which expenses it covers) and provide the calculation you used.`
+        : undefined;
     if (priorYearRaw && priorYearTotal != null && priorYearTotal > 0) {
       const priorSnippet = extractSnippet(reconText, priorYearRaw);
       if (priorSnippet) {
@@ -481,31 +506,38 @@ export async function runAudit(
             insufficientData: true,
             sourceEvidence: evidence.length > 0 ? evidence : undefined,
           }
-        : potentialExcess > 0
+        : aboveStatedPercent
           ? {
-              category: "Potential CAM Cap Exceedance",
+              category: "CAM Cap Review: Increase Above Stated Percentage",
               description: camCapDesc,
-              potential_savings: potentialExcess,
-              severity: "high",
+              potential_savings: 0,
+              quantified: false,
+              letterText: capLetterText,
+              severity: "medium",
               sourceEvidence: evidence.length > 0 ? evidence : undefined,
             }
           : {
-              category: "CAM Cap Within Limit",
+              category: "CAM Cap Review: Increase Below Stated Percentage",
               description: camCapDesc,
               potential_savings: 0,
+              // Not a compliance result: the cap method is not established, so this cannot make an audit purchasable and
+              // is not called clean. It raises nothing with the landlord (letterText "").
+              quantified: false,
+              letterText: "",
               severity: "low",
               sourceEvidence: evidence.length > 0 ? evidence : undefined,
             },
     );
+    if (baselineAvailable && aboveStatedPercent) unquantifiedChecks.push("cap");
   } else if (leaseFields.camCapPercentage && !reconTotal) {
     // We found a cap in the lease but no total in the reconciliation
     const capSnippet = extractSnippet(leaseText, leaseFields.camCapPercentage + "%");
     freeFindings.push({
       category: "CAM Cap Exceeded",
       description:
-        `Lease specifies a CAM cap of ${leaseFields.camCapPercentage}%, ` +
+        `The lease text identified in this review mentions a CAM cap of ${leaseFields.camCapPercentage}%, ` +
         `but the reconciliation statement contains only individual expense line items without a total CAM or operating expense summary. ` +
-        `Because no total is available, the system cannot verify whether the year-over-year increase exceeds the contractual cap. ` +
+        `Because no total is available, the system cannot compare the year-over-year change with that percentage. ` +
         `If available, upload a reconciliation summary page that includes a total operating expense amount.`,
       potential_savings: 0,
       severity: "medium",
@@ -592,9 +624,11 @@ export async function runAudit(
           `Year-over-year CAM expenses increased by ${increasePercent.toFixed(1)}%, ` +
           `from ${formatMoney(priorYearTotal)} to ${formatMoney(reconTotal)}. ` +
           `No CAM cap was detected in the lease to compare against. ` +
-          `Review your lease to determine if this increase is within contractual limits.`,
+          `Check your lease for any limit on increases.`,
         potential_savings: 0,
-        severity: "medium",
+        // A change with no cap detected is an observation for the customer to read, not an item to raise: low severity makes it a
+        // note, so it never qualifies an audit for purchase by itself.
+        severity: "low",
         sourceEvidence: yoyEvidence.length > 0 ? yoyEvidence : undefined,
       });
     }
@@ -1413,20 +1447,53 @@ export async function runAudit(
   const multiYearRecons = options?.multiYearReconciliations;
   const multiYearComparisonRan = multiYearRecons != null && multiYearRecons.length >= 2;
 
+  let multiYearPairsCompared = 0;
+  let multiYearPairsSkipped = 0;
+  let multiYearDistinctYears = 0;
+
   if (multiYearRecons && multiYearRecons.length >= 2) {
-    // Sort chronologically
-    const sorted = [...multiYearRecons].sort((a, b) => a.year - b.year);
-    console.log(`[audit-engine] Multi-year comparison across ${sorted.length} years`);
+    // One entry per distinct year, in order. A cap limits year-to-year change, so only a year and the year directly
+    // before it can be compared. The same statement uploaded twice (same year, same total) counts once; a year with
+    // two DIFFERENT totals is ambiguous and is never compared, because the software cannot tell which one is right.
+    const totalsByYear = new Map<number, number[]>();
+    for (const r of multiYearRecons) totalsByYear.set(r.year, [...(totalsByYear.get(r.year) ?? []), r.total]);
+    const ambiguousYears = new Set<number>();
+    const sorted = [...totalsByYear.keys()]
+      .sort((a, b) => a - b)
+      .map((year) => {
+        const totals = totalsByYear.get(year)!;
+        if (new Set(totals).size > 1) ambiguousYears.add(year);
+        return multiYearRecons.find((r) => r.year === year && r.total === totals[0])!;
+      });
+    console.log(`[audit-engine] Multi-year comparison across ${sorted.length} distinct years`);
+    multiYearDistinctYears = sorted.length;
 
     const camCapPct = leaseFields.camCapPercentage
       ? parseFloat(leaseFields.camCapPercentage)
       : null;
 
+    // No cap step carries an amount (see src/lib/quantification.ts), so a year can be reported by both section 1 and
+    // this comparison without counting anything twice. There is deliberately no guess about which findings describe the
+    // same pair of years: that match would need the baseline, amount, scope and method to agree, and none is established.
+    const notComparable: string[] = [];
+
     for (let i = 1; i < sorted.length; i++) {
       const prev = sorted[i - 1];
       const curr = sorted[i];
 
+      if (ambiguousYears.has(prev.year) || ambiguousYears.has(curr.year)) {
+        const dup = ambiguousYears.has(prev.year) ? prev.year : curr.year;
+        notComparable.push(`${prev.year} to ${curr.year}: more than one statement with different totals was found for ${dup}`);
+        multiYearPairsSkipped++;
+        continue;
+      }
+      if (curr.year - prev.year !== 1) {
+        notComparable.push(`${prev.year} to ${curr.year}: the years are not consecutive, so the annual cap cannot be applied to the change`);
+        multiYearPairsSkipped++;
+        continue;
+      }
       if (prev.total <= 0 || curr.total <= 0) continue;
+      multiYearPairsCompared++;
 
       const increasePercent =
         ((curr.total - prev.total) / prev.total) * 100;
@@ -1434,22 +1501,18 @@ export async function runAudit(
       console.log(`[audit-engine] Multi-year step evaluated`);
 
       if (camCapPct != null && increasePercent > camCapPct) {
-        const allowedIncrease = prev.total * (camCapPct / 100);
-        const allowedTotal = prev.total + allowedIncrease;
-        const overcharge = Math.max(0, curr.total - allowedTotal);
-
         const evidence: SourceEvidence[] = [
           {
             document: prev.docName ?? `Reconciliation ${prev.year}`,
             page: null,
             extractedText: `${prev.year} Total: ${formatMoney(prev.total)}`,
-            findingCategory: "Year-over-Year CAM Escalation Exceeds Lease Cap",
+            findingCategory: "CAM Cap Review: Increase Above Stated Percentage",
           },
           {
             document: curr.docName ?? `Reconciliation ${curr.year}`,
             page: null,
             extractedText: `${curr.year} Total: ${formatMoney(curr.total)}`,
-            findingCategory: "Year-over-Year CAM Escalation Exceeds Lease Cap",
+            findingCategory: "CAM Cap Review: Increase Above Stated Percentage",
           },
         ];
 
@@ -1461,37 +1524,50 @@ export async function runAudit(
               document: leaseDocName,
               page: findPageForText(leaseText, leaseFields.camCapPercentage + "%"),
               extractedText: capSnippet,
-              findingCategory: "Year-over-Year CAM Escalation Exceeds Lease Cap",
+              findingCategory: "CAM Cap Review: Increase Above Stated Percentage",
             });
           }
         }
 
         const finding: Finding = {
-          category: "Year-over-Year CAM Escalation Exceeds Lease Cap",
+          category: "CAM Cap Review: Increase Above Stated Percentage",
           description:
-            `CAM charges increased ${increasePercent.toFixed(1)}% from ${prev.year} (${formatMoney(prev.total)}) ` +
-            `to ${curr.year} (${formatMoney(curr.total)}), which is above the lease CAM cap of ${camCapPct}%. ` +
-            `Applying the cap, the total for ${curr.year} would be ${formatMoney(Math.round(allowedTotal))}. ` +
-            `Potential discrepancy: ${formatMoney(Math.round(overcharge))}. This is a calculation from the documents, not a confirmed overcharge.`,
-          potential_savings: overcharge > 0 ? Math.round(overcharge) : 0,
-          severity: "high",
+            `Total CAM charges changed ${increasePercent.toFixed(1)}% from ${prev.year} (${formatMoney(prev.total)}) ` +
+            `to ${curr.year} (${formatMoney(curr.total)}), which is above the ${camCapPct}% limit on increases mentioned in the lease text identified in this review. ` +
+            `This review did not establish how the cap is measured (against the prior year or a base year, cumulative or not), which expenses it covers, or whether an amendment changes it, ` +
+            `so no allowable amount or excess is calculated and nothing is counted in any total.` +
+            (/controllable/i.test(leaseText)
+              ? ` Note: your lease refers to controllable expenses, and this comparison uses each statement's total charges, which may include expenses the cap does not cover.`
+              : ""),
+          potential_savings: 0,
+          quantified: false,
+          letterText:
+            `The statements show total CAM charges of ${formatMoney(prev.total)} for ${prev.year} and ${formatMoney(curr.total)} for ${curr.year}, a change of ${increasePercent.toFixed(1)}%. ` +
+            `The lease text I reviewed mentions a ${camCapPct}% limit on increases. ` +
+            `Please explain how the cap applies under the lease (whether it is measured against the prior year or a base year, whether it is cumulative, and which expenses it covers) and provide the calculation you used.`,
+          severity: "medium",
           sourceEvidence: evidence,
         };
 
         paidFindings.push(finding);
+        unquantifiedChecks.push("cap");
         console.log(`[audit-engine] Multi-year finding recorded`);
       } else if (increasePercent > 0) {
         // Even if within cap or no cap, generate an informational finding for multi-year
         freeFindings.push({
-          category: "Year-over-Year CAM Change (Multi-Year)",
+          // Cap present: an unsupported cap observation, same treatment as the single-statement one (needs review, cannot
+          // make an audit purchasable, not called clean). No cap detected: the separate no-cap behavior is unchanged.
+          category: camCapPct != null ? "CAM Cap Review: Increase Below Stated Percentage" : "Year-over-Year CAM Change (Multi-Year)",
           description:
             `CAM charges changed ${increasePercent.toFixed(1)}% from ${prev.year} (${formatMoney(prev.total)}) ` +
             `to ${curr.year} (${formatMoney(curr.total)}).` +
             (camCapPct != null
-              ? ` This is within the lease CAM cap of ${camCapPct}%.`
+              ? ` This is below the ${camCapPct}% figure found in the lease text. It does not confirm compliance: how the cap is measured and which expenses it covers were not established.`
               : ` No CAM cap was detected in the lease to compare against.`),
           potential_savings: 0,
-          severity: "medium",
+          ...(camCapPct != null ? { quantified: false, letterText: "" } : {}),
+          // low in both variants: with or without a cap this is an observation, never an item that qualifies an audit for purchase
+          severity: "low",
           sourceEvidence: [
             {
               document: prev.docName ?? `Reconciliation ${prev.year}`,
@@ -1506,6 +1582,26 @@ export async function runAudit(
           ],
         });
       }
+    }
+
+    for (const y of ambiguousYears) {
+      if (!notComparable.some((n) => n.endsWith(` for ${y}`) || n.includes(` for ${y};`))) {
+        notComparable.push(`${y}: more than one statement with different totals was found for ${y}`);
+        multiYearPairsSkipped++;
+      }
+    }
+
+    if (notComparable.length > 0) {
+      notComparedPairs.push(...notComparable);
+      freeFindings.push({
+        category: "CAM Cap Review: Years Not Comparable",
+        description:
+          `Some of the statements you uploaded could not be compared against the annual cap: ${notComparable.join("; ")}. ` +
+          `No amount is counted for these. To run the check, upload one statement for each year, with no year missing in between.`,
+        potential_savings: 0,
+        severity: "medium",
+        insufficientData: true,
+      });
     }
   }
 
@@ -1561,6 +1657,7 @@ export async function runAudit(
       for (let i = 1; i < sorted.length; i++) {
         const prev = sorted[i - 1];
         const curr = sorted[i];
+        if (curr.year - prev.year !== 1) continue; // same year or a gap: not a year-over-year step
 
         // Build lookup for prior year line items
         const prevLookup = new Map<string, number>();
@@ -1668,42 +1765,40 @@ export async function runAudit(
         });
       }
 
-      // Estimate potential review amount from suspicious controllable increases
-      let potentialReviewAmount = 0;
+      // Screening signal only. The previous version priced the jump above a fixed 5% "reasonable" increase and 15%
+      // trigger: neither comes from the lease, and the same increase is also inside the total-change and fee checks.
       const hasDetailedJumps = suspiciousJumps.some((j) => j.priorAmount > 0);
-      if (hasDetailedJumps) {
-        for (const jump of suspiciousJumps) {
-          if (jump.priorAmount > 0) {
-            // Excess above a 5% reasonable increase threshold
-            const reasonable = jump.priorAmount * 1.05;
-            const excess = Math.max(0, jump.currentAmount - reasonable);
-            potentialReviewAmount += excess;
-          }
-        }
-        potentialReviewAmount = Math.round(potentialReviewAmount);
-      }
 
       // Determine severity
       const severity: "high" | "medium" =
         hasDetailedJumps && matchedKeywords.length >= 2 ? "high" : "medium";
 
-      let description =
-        "The uploaded documents suggest a possible gross-up or occupancy-based adjustment to operating expenses. " +
-        "Certain controllable categories increased materially year-over-year, and gross-up style language " +
-        `was detected (${matchedKeywords.slice(0, 3).map((k) => `"${k}"`).join(", ")}). ` +
-        "Review recommended to confirm whether expenses were adjusted beyond what the lease permits.";
-
-      if (potentialReviewAmount > 0) {
-        description += ` Potential review amount: ${formatMoney(potentialReviewAmount)}.`;
-      }
+      const jumpFacts = suspiciousJumps
+        .filter((j) => j.priorAmount > 0)
+        .slice(0, 3)
+        .map((j) => `${j.category} ${formatMoney(j.priorAmount)} (${j.priorYear}) to ${formatMoney(j.currentAmount)} (${j.currentYear}), +${j.increasePercent.toFixed(1)}%`);
+      const description =
+        "This is a screening signal from a heuristic. It is not a conclusion about what your lease permits. " +
+        `Gross-up style language was detected (${matchedKeywords.slice(0, 3).map((k) => `"${k}"`).join(", ")}), ` +
+        "and certain categories increased more than 15% year over year, a screening threshold set by this tool and not taken from your lease. " +
+        (jumpFacts.length ? `Statement amounts: ${jumpFacts.join("; ")}. ` : "") +
+        "The lease's gross-up provision, the occupancy percentages used and which expenses are variable were not reviewed, " +
+        "so no adjustment amount is calculated and nothing is counted in any total. " +
+        "Ask the landlord whether, and how, expenses were adjusted for occupancy.";
 
       paidFindings.push({
-        category: "Possible Gross-Up / Occupancy Adjustment",
+        category: "Gross-Up Screening Signal (Heuristic)",
         description,
-        potential_savings: potentialReviewAmount,
+        potential_savings: 0,
+        quantified: false,
+        letterText:
+          (jumpFacts.length ? `The statements show these changes: ${jumpFacts.join("; ")}. ` : "") +
+          `The lease or statements refer to a gross-up or occupancy adjustment (${matchedKeywords.slice(0, 3).map((k) => `"${k}"`).join(", ")}). ` +
+          "Please explain whether expenses were adjusted for occupancy, the occupancy percentage used, which lease provision permits the adjustment, and provide the calculation.",
         severity,
         sourceEvidence: grossUpEvidence.length > 0 ? grossUpEvidence : undefined,
       });
+      unquantifiedChecks.push("gross-up");
     } else if (hasGrossUpLanguage && !hasSuspiciousJumps) {
       // Gross-up language found but no controllable jump data to confirm — informational only
       const grossUpEvidence: SourceEvidence[] = [];
@@ -1819,11 +1914,11 @@ export async function runAudit(
     });
   }
 
+  // Invariant: a finding whose amount was deliberately not calculated carries exactly $0, whatever produced it.
+  for (const f of [...verifiedFree, ...verifiedPaid]) if (f.quantified === false) f.potential_savings = 0;
+
   // Calculate savings only from verified, non-insufficient findings
   // Include estimated overcharge from excluded categories
-  const findingSavings = [...verifiedFree, ...verifiedPaid]
-    .filter((f) => !f.insufficientData)
-    .reduce((sum, f) => sum + f.potential_savings, 0);
   const savings = totalSavings([...verifiedFree, ...verifiedPaid], estimatedOvercharge);
 
   // Build validation warning — clear, non-alarming messages
@@ -1869,10 +1964,13 @@ export async function runAudit(
       : camNote;
   }
 
-  // When multi-year comparison ran successfully, add positive status message
-  if (multiYearComparisonRan) {
+  // Say what the multi-year step did, and no more: statement totals were compared. That is not a validation of the
+  // lease cap, whose method and scope are not established, and no cap amount comes from it.
+  if (multiYearComparisonRan && multiYearPairsCompared > 0) {
     const multiYearNote =
-      "Multi-year CAM comparison completed. Year-over-year change was analyzed against the lease-defined cap.";
+      multiYearPairsSkipped > 0
+        ? "Statement totals were compared for consecutive years only. Other years could not be compared; see the notice in the findings. No cap amount is calculated."
+        : "Statement totals were compared across the years uploaded. This does not validate the lease cap: no cap amount is calculated.";
     validationWarning = validationWarning
       ? `${validationWarning} ${multiYearNote}`
       : multiYearNote;
@@ -1898,7 +1996,7 @@ export async function runAudit(
 
   // Boost for substantive findings with real savings
   const substantiveFindings = [...freeFindings, ...paidFindings].filter(
-    (f) => !f.insufficientData && f.potential_savings > 0,
+    (f) => !f.insufficientData && f.quantified !== false && f.potential_savings > 0,
   );
   if (substantiveFindings.length >= 2) {
     adjustedConfidenceScore = Math.min(adjustedConfidenceScore + 8, 100);
@@ -1906,10 +2004,8 @@ export async function runAudit(
     adjustedConfidenceScore = Math.min(adjustedConfidenceScore + 5, 100);
   }
 
-  // Boost for multi-year comparison
-  if (multiYearComparisonRan) {
-    adjustedConfidenceScore = Math.min(adjustedConfidenceScore + 5, 100);
-  }
+  // No boost for comparing years: comparing statement totals does not validate the lease cap (method and scope are not
+  // established), so it must not raise confidence. Confidence reflects calculated findings only.
 
   // Recalculate confidence level with adjusted thresholds
   if (adjustedConfidenceScore >= 55) adjustedConfidence = "high";
@@ -1975,6 +2071,27 @@ export async function runAudit(
       }),
       coverage: validation.coverage,
     };
+  }
+
+  // What did not run and what carries no amount, kept with the clause summary so the purchase control, report and plan
+  // can say so without depending on which findings are visible. Same empty-summary rule as the coverage record.
+  {
+    const status = buildComparisonStatus({
+      notCompared: notComparedPairs,
+      unquantified: unquantifiedChecks,
+      // facts for the pre-payment disclosure: only when statements were actually processed together
+      comparison: multiYearComparisonRan ? { years: multiYearDistinctYears, pairsRun: multiYearPairsCompared, pairsSkipped: multiYearPairsSkipped } : undefined,
+      uploadedButFailed: options?.multiYearUploadedButFailed === true,
+    });
+    if (status) {
+      leaseClausesSummary = {
+        ...(leaseClausesSummary ?? {
+          camCap: null, adminFeeCap: null, managementFeeCap: null, tenantProRataShare: null,
+          tenantSquareFootage: null, buildingSquareFootage: null, excludedCategories: [], additionalClauses: [],
+        }),
+        comparisonStatus: status,
+      };
+    }
   }
 
   // --- Diagnostic logging: trace final results ---

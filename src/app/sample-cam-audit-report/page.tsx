@@ -23,7 +23,7 @@ const INCLUDED = [
   "The calculation behind each dollar amount",
   "A downloadable PDF report",
   "An editable dispute letter draft, exported to PDF or Word",
-  "Year-over-year comparison, when you upload two to five years of statements",
+  "Year-over-year observations between consecutive years, when you upload two to five distinct years of statements",
 ];
 
 export default function SampleCamAuditReportPage() {
@@ -78,7 +78,7 @@ export default function SampleCamAuditReportPage() {
               </span>
               <span>
                 <span className="text-4xl font-semibold tabular-nums">$149</span>{" "}
-                <span className="text-sm text-ink-muted">two to five years</span>
+                <span className="text-sm text-ink-muted">two to five distinct years</span>
               </span>
             </p>
             <p className="mt-3 text-xs text-ink-muted">No subscription. Findings are items to review, not confirmed overcharges.</p>

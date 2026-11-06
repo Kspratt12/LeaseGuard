@@ -199,22 +199,23 @@ async function main() {
   const capFindings = (r: Awaited<ReturnType<typeof runAudit>>) =>
     [...r.free_findings, ...r.paid_findings].filter((f) => /CAM Cap|Year-over-Year/.test(f.category));
 
-  await test("CAM cap with a prior-year baseline above the cap: exactly ONE finding carries the excess", async () => {
+  await test("CAM cap with a prior-year baseline above the stated percentage: ONE observation, NO dollar amount, nothing in the total", async () => {
     const r = await withPrior("40,000.00");
     const fs2 = capFindings(r);
     const total = r.free_findings.concat(r.paid_findings).filter((f) => !f.insufficientData).reduce((s2, f) => s2 + f.potential_savings, 0);
-    const carrying = fs2.filter((f) => f.potential_savings > 0);
-    assert.strictEqual(carrying.length, 1, `dollar-bearing CAM findings: ${fs2.map((f) => f.category + ":" + f.potential_savings).join(", ")}`);
-    assert.strictEqual(carrying[0].category, "Potential CAM Cap Exceedance");
-    assert.strictEqual(carrying[0].potential_savings, Math.round(computeCamCapExcess({ currentTotal: 53444.13, priorYearTotal: 40000, capPercent: 5 })));
-    assert.ok(carrying[0].sourceEvidence?.some((e) => /40,000/.test(e.extractedText)) || true);
+    assert.strictEqual(fs2.filter((f) => f.potential_savings > 0).length, 0, `dollar-bearing CAM findings: ${fs2.map((f) => f.category + ":" + f.potential_savings).join(", ")}`);
+    const obs = fs2.filter((f) => f.category === "CAM Cap Review: Increase Above Stated Percentage");
+    assert.strictEqual(obs.length, 1);
+    assert.strictEqual(obs[0].quantified, false);
+    assert.ok(obs[0].sourceEvidence?.some((e) => /40,000/.test(e.extractedText)), "the attributed prior-year figure is kept as evidence");
     assert.strictEqual(r.savings_estimate, r2(total + r.estimated_overcharge));
   });
-  await test("CAM cap within the cap: labelled 'Within Limit', no dollars, not a violation", async () => {
+  await test("CAM cap below the stated percentage: no dollars, and it does not say the lease cap was complied with", async () => {
     const r = await withPrior("52,000.00");
-    const cap = capFindings(r).find((f) => f.category === "CAM Cap Within Limit");
+    const cap = capFindings(r).find((f) => f.category === "CAM Cap Review: Increase Below Stated Percentage");
     assert.ok(cap && cap.potential_savings === 0 && cap.severity === "low");
-    assert.ok(!capFindings(r).some((f) => /Exceed/i.test(f.category)));
+    assert.ok(/does not confirm compliance/.test(cap!.description));
+    assert.ok(!capFindings(r).some((f) => /Exceed|Within Limit/i.test(f.category)));
   });
   await test("CAM cap with no baseline: needs data, not a violation, and not counted in the total", async () => {
     const r = await withPrior(null);

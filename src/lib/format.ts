@@ -35,6 +35,13 @@ export function formatMoney(n: number | null | undefined): string {
 export const ROUNDING_NOTE =
   "How the amounts add up: each finding's amount is rounded to the nearest dollar when it is calculated, while excluded-expense rows are shown to the cent. The total is the exact sum of the amounts shown, so it can include cents.";
 
+/**
+ * The review plan shows two separate amounts (calculated, and depends on judgment), so there is no single total there.
+ * Same rounding rule as ROUNDING_NOTE; the sentence refers to each displayed subtotal.
+ */
+export const ROUNDING_NOTE_PLAN =
+  "How the amounts add up: each finding's amount is rounded to the nearest dollar when it is calculated, while excluded-expense rows are shown to the cent. Each displayed subtotal is the exact sum of the amounts shown in it, so it can include cents.";
+
 /** Shorter form for the dispute letter, which goes to the landlord. */
 export const ROUNDING_NOTE_SHORT =
   "Amounts are rounded to the nearest dollar unless cents are shown. The total is the exact sum of the amounts listed.";

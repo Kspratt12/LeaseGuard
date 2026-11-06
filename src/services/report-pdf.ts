@@ -13,6 +13,8 @@ import { drawReviewPlanPages } from "@/services/review-plan-pdf";
 import { toWinAnsi } from "@/services/dispute-letter";
 import { ROUNDING_NOTE } from "@/lib/format";
 import { CONFIDENCE_COVERAGE_QUALIFIER, coverageOf, coverageSentence, isAiTruncated } from "@/lib/analysis-coverage";
+import { containLegacyAudit } from "@/lib/legacy-containment";
+import { HEADLINE_UNAVAILABLE_SENTENCE, headlineUnavailable, comparisonStatusOf, isNoCapObservationOnly, isUnquantified, NO_AMOUNT_LABEL, NO_CAP_ONLY_IDENTIFIED, NO_CAP_ONLY_LABEL, NO_CAP_ONLY_NO_CAP, NO_CAP_ONLY_NOT_A_PASS, quantificationNotice, sumCounted } from "@/lib/quantification";
 
 interface ReportInput {
   auditId: string;
@@ -110,8 +112,25 @@ function winAnsiDeep<T>(v: T): T {
 }
 
 export async function generateReportPdf(
-  rawInput: ReportInput,
+  storedInput: ReportInput,
 ): Promise<Buffer> {
+  // Read-time containment of audits stored before cap/gross-up amounts were withheld (src/lib/legacy-containment.ts).
+  const c = containLegacyAudit({
+    free_findings: storedInput.freeFindings,
+    paid_findings: storedInput.paidFindings,
+    savings_estimate: storedInput.savingsEstimate,
+    estimated_overcharge: storedInput.estimatedOvercharge,
+    overcharge_breakdown: storedInput.overchargeBreakdown,
+    lease_clauses_summary: storedInput.leaseClausesSummary,
+  });
+  const rawInput: ReportInput = {
+    ...storedInput,
+    freeFindings: c.free_findings,
+    paidFindings: c.paid_findings,
+    // null (never a number) when the earlier audit's total could not be reconciled; read as unavailable below
+    savingsEstimate: c.savings_estimate as number,
+    leaseClausesSummary: c.lease_clauses_summary as ReportInput["leaseClausesSummary"],
+  };
   const input = winAnsiDeep(rawInput);
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -173,14 +192,32 @@ export async function generateReportPdf(
   // Use total findings count to determine summary — not just preview findings
   const totalFindings = [...input.freeFindings, ...input.paidFindings];
   const totalFindingsCount = totalFindings.length;
-  const totalSavingsFromFindings = totalFindings
-    .reduce((sum, f) => sum + f.potential_savings, 0);
-  const effectiveSavings = Math.max(input.savingsEstimate, totalSavingsFromFindings);
-  const boxH = 90;
+  // sumCounted: an amount that was deliberately not calculated can never come back through this fallback.
+  const totalSavingsFromFindings = sumCounted(totalFindings);
+  // An earlier audit whose total could not be reconciled has NO overall total: the max() fallback must not rebuild one.
+  const totalUnavailable = headlineUnavailable(comparisonStatusOf(input.leaseClausesSummary));
+  const effectiveSavings = totalUnavailable ? 0 : Math.max(input.savingsEstimate ?? 0, totalSavingsFromFindings);
+  // Wording only: every finding is a no-cap observation and nothing carries an amount (same rule as the results page).
+  const noCapOnlyBox = !totalUnavailable && !hasOvercharge && effectiveSavings <= 0 && isNoCapObservationOnly(totalFindings);
+  const BG_GRAY_NOCAP = rgb(0.96, 0.96, 0.97);
+  const boxH = noCapOnlyBox ? 130 : 90;
   const boxW = 320;
   const boxX = (PAGE_WIDTH - boxW) / 2;
 
-  if (hasOvercharge) {
+  if (totalUnavailable) {
+    ctx.page.drawRectangle({
+      x: boxX, y: ctx.y - boxH, width: boxW, height: boxH,
+      color: rgb(0.99, 0.97, 0.92), borderColor: rgb(0.93, 0.87, 0.72), borderWidth: 1,
+    });
+    const AMBER_T = rgb(0.6, 0.4, 0.08);
+    const labelY = ctx.y - 28;
+    drawCenteredText(ctx.page, "OVERALL TOTAL NOT AVAILABLE", fontBold, 9, AMBER_T, labelY);
+    let ty = labelY - 22;
+    for (const line of wrapText(winAnsiDeep(HEADLINE_UNAVAILABLE_SENTENCE), font, 8, boxW - 24)) {
+      drawCenteredText(ctx.page, line, font, 8, AMBER_T, ty);
+      ty -= 11;
+    }
+  } else if (hasOvercharge) {
     const BG_OVERCHARGE = rgb(0.98, 0.94, 0.92);
     ctx.page.drawRectangle({
       x: boxX,
@@ -209,6 +246,17 @@ export async function generateReportPdf(
     drawCenteredText(ctx.page, "POTENTIAL BILLING DISCREPANCIES", fontBold, 9, GREEN, labelY);
     const amountY = labelY - 38;
     drawCenteredText(ctx.page, `${usd(effectiveSavings)}`, fontBold, 36, GREEN, amountY);
+  } else if (noCapOnlyBox) {
+    ctx.page.drawRectangle({
+      x: boxX, y: ctx.y - boxH, width: boxW, height: boxH,
+      color: BG_GRAY_NOCAP, borderColor: LINE_GRAY, borderWidth: 1,
+    });
+    drawCenteredText(ctx.page, winAnsiDeep(NO_CAP_ONLY_LABEL).toUpperCase(), fontBold, 8, GRAY, ctx.y - 24);
+    let ny = ctx.y - 44;
+    for (const line of wrapText(winAnsiDeep(`${NO_CAP_ONLY_IDENTIFIED} ${NO_CAP_ONLY_NO_CAP} ${NO_CAP_ONLY_NOT_A_PASS}`), font, 8, boxW - 24)) {
+      drawCenteredText(ctx.page, line, font, 8, GRAY, ny);
+      ny -= 11;
+    }
   } else if (totalFindingsCount > 0) {
     const BG_AMBER = rgb(0.99, 0.97, 0.92);
     ctx.page.drawRectangle({
@@ -364,6 +412,22 @@ export async function generateReportPdf(
     }
   }
 
+  // Which comparisons did not run and which checks calculate no amount: the same notice as the purchase control.
+  {
+    const notice = quantificationNotice(comparisonStatusOf(input.leaseClausesSummary));
+    if (notice) {
+      ctx.y -= 16;
+      drawCenteredText(ctx.page, notice.title, fontBold, 9, AMBER, ctx.y);
+      ctx.y -= 14;
+      for (const text of notice.lines) {
+        for (const line of wrapText(winAnsiDeep(text), font, 9, CONTENT_WIDTH)) {
+          drawCenteredText(ctx.page, line, font, 9, AMBER, ctx.y);
+          ctx.y -= 14;
+        }
+      }
+    }
+  }
+
   // Summary paragraph
   ctx.y -= 52;
   const summaryLines = wrapText(
@@ -482,7 +546,10 @@ export async function generateReportPdf(
       f.category === "Tenant Allocation Discrepancy" ||
       f.category === "Administrative Fee Cap Exceeded" ||
       f.category === "Year-over-Year CAM Escalation Exceeds Lease Cap" ||
-      f.category === "Possible Gross-Up / Occupancy Adjustment",
+      f.category === "Possible Gross-Up / Occupancy Adjustment" ||
+      // current names of the cap and gross-up observations (the names above stay for audits stored earlier)
+      f.category === "CAM Cap Review: Increase Above Stated Percentage" ||
+      f.category === "Gross-Up Screening Signal (Heuristic)",
   );
   const identifiedFindings = [...input.freeFindings, ...premiumInIdentified];
 
@@ -650,9 +717,7 @@ export async function generateReportPdf(
     const count = input.paidFindings.length;
 
     ctx.y -= 20;
-    const premiumSavings = input.paidFindings
-      .filter((f) => !f.insufficientData)
-      .reduce((sum, f) => sum + f.potential_savings, 0);
+    const premiumSavings = sumCounted(input.paidFindings.filter((f) => !f.insufficientData));
     const premiumSummary = premiumSavings > 0
       ? `${count} additional premium finding${count !== 1 ? "s" : ""} identified. ${lockedAmountNote(usd(premiumSavings))}`
       : `${count} additional premium finding${count !== 1 ? "s" : ""} identified. Full report includes source-level evidence and discrepancy analysis.`;
@@ -870,7 +935,12 @@ function drawFinding(ctx: PageCtx, finding: Finding, leaseClausesSummary?: Lease
   ctx.y -= 4; // was 6
 
   // Savings / action line
-  if (finding.potential_savings > 0) {
+  if (isUnquantified(finding)) {
+    ctx.page.drawText(NO_AMOUNT_LABEL + ": nothing is counted in any total", {
+      x: MARGIN, y: ctx.y, size: 10, font: fontBold, color: AMBER,
+    });
+    ctx.y -= 16;
+  } else if (finding.potential_savings > 0) {
     ctx.page.drawText(
       `Potential discrepancy: ${usd(finding.potential_savings)}`,
       { x: MARGIN, y: ctx.y, size: 11, font: fontBold, color: GREEN },
