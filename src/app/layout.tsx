@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     apple: "/leaseguard-icon.png",
   },
   openGraph: {
-    title: "LeaseGuard | AI CAM Audit for Commercial Tenants",
+    title: "LeaseGuard | CAM Audit Tool for Commercial Tenants",
     description:
       "Detect CAM overcharges by comparing your lease clauses with reconciliation statements. See the findings in a free preview.",
     type: "website",
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "LeaseGuard | AI CAM Audit for Commercial Tenants",
+    title: "LeaseGuard | CAM Audit Tool for Commercial Tenants",
     description:
       "Detect CAM overcharges by comparing your lease clauses with reconciliation statements. See the findings in a free preview.",
   },

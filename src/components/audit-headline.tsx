@@ -82,7 +82,33 @@ function SourceEvidenceCard({
 export function ExcludedBreakdown({ rows }: { rows: OverchargeLineItem[] }) {
   return (
     <>
-      <div className="mt-6 sm:mt-8 overflow-x-auto -mx-2 sm:mx-0" role="region" aria-label="Breakdown table, scrolls sideways" tabIndex={0}>
+      {/* Narrow screens: one card per row, the Tenant charge and the Reason always readable (the wide table below is for sm and up). */}
+      <ul className="mt-6 space-y-3 sm:hidden" aria-label="Excluded expense items" data-testid="breakdown-stacked">
+        {rows.map((row, i) => (
+          <li key={i} className="rounded-lg border border-review/20 bg-white/60 p-3">
+            <p className="text-sm font-semibold capitalize text-ink">{row.category}</p>
+            <dl className="mt-2 space-y-1 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-700">Tenant charge</dt>
+                <dd className="font-semibold tabular-nums text-ink">${money2(row.tenant_charge)}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-700">Total expense</dt>
+                <dd className="tabular-nums text-gray-800">${money2(row.total_expense)}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-700">Tenant share</dt>
+                <dd className="tabular-nums text-gray-800">{row.tenant_share_percent}%</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-700">Reason</dt>
+                <dd className="text-right text-gray-600">{row.reason}</dd>
+              </div>
+            </dl>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-6 sm:mt-8 overflow-x-auto -mx-2 sm:mx-0 hidden sm:block" role="region" aria-label="Breakdown table, scrolls sideways" tabIndex={0}>
         <table className="w-full text-xs sm:text-sm border-separate min-w-[480px]" style={{ borderSpacing: "0 0" }}>
           <thead>
             <tr className="border-b-2 border-review/25">
@@ -160,12 +186,15 @@ export function AuditHeadline({
   hasOvercharge,
   savingsEstimate,
   breakdown,
+  includedNote,
   children,
 }: {
   unavailable: boolean;
   hasOvercharge: boolean;
   savingsEstimate: number;
   breakdown: OverchargeLineItem[];
+  /** One sentence saying what part of the total is only itemised after unlock. Derived by the caller from the audit's own data. */
+  includedNote?: string | null;
   children?: ReactNode;
 }) {
   if (unavailable) {
@@ -202,6 +231,11 @@ export function AuditHeadline({
           <p className="text-sm text-ink-soft leading-relaxed max-w-md mx-auto">
             Calculated from your uploaded lease and CAM documents. These are items to review with your landlord, not confirmed overcharges. Professional review is recommended.
           </p>
+          {includedNote && (
+            <p className="text-sm font-medium text-ink leading-relaxed max-w-md mx-auto" data-testid="headline-includes">
+              {includedNote}
+            </p>
+          )}
         </div>
         <ExcludedBreakdown rows={breakdown} />
       </div>
@@ -219,6 +253,11 @@ export function AuditHeadline({
         <p className="text-sm text-ink-soft leading-relaxed max-w-md mx-auto">
           Calculated from your uploaded lease and CAM documents. These are items to review with your landlord, not confirmed overcharges. Professional review is recommended.
         </p>
+        {includedNote && (
+          <p className="text-sm font-medium text-ink leading-relaxed max-w-md mx-auto" data-testid="headline-includes">
+            {includedNote}
+          </p>
+        )}
       </div>
     );
   }

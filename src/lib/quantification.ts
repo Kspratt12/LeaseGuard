@@ -209,6 +209,20 @@ export const NO_CAP_ONLY_IDENTIFIED = "No billing discrepancy was identified by 
 export const NO_CAP_ONLY_NO_CAP = "No CAM cap was found in the uploaded lease, so the observed change could not be compared with a lease cap.";
 export const NO_CAP_ONLY_NOT_A_PASS = "This is not a statement that the charges comply with a cap, or that the statement is correct in every respect.";
 
+/**
+ * What the headline total includes that is only itemised after unlock: the counted amount of this audit's own paid findings and how
+ * many there are. Null once unlocked, or when no paid finding carries a counted amount. Derived, never hardcoded.
+ */
+export function lockedIncludedOf(
+  paid: Array<{ insufficientData?: boolean; potential_savings: number; quantified?: boolean }> | null | undefined,
+  unlocked: boolean,
+): { amount: number; count: number } | null {
+  if (unlocked || !Array.isArray(paid)) return null;
+  const counted = paid.filter((f) => !f.insufficientData && !isUnquantified(f as never) && f.potential_savings > 0);
+  const amount = sumCounted(counted as never);
+  return amount > 0 ? { amount, count: counted.length } : null;
+}
+
 /** Shown on an item that carries no amount because it was deliberately not calculated. */
 export const NO_AMOUNT_LABEL = "No amount calculated";
 export const NO_AMOUNT_ACTION = "No amount is calculated for this item. Check the lease and ask the landlord how the cap or adjustment was applied.";
