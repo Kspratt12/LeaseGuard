@@ -12,6 +12,7 @@
 import type { Finding, LeaseClauseSummary, OverchargeLineItem, SourceEvidence } from "@/services/audit-logic";
 import { coverageOf, coverageSentence, isAiTruncated } from "@/lib/analysis-coverage";
 import { findingKind, isExcludedCategoryFinding } from "@/services/finding-classification";
+import { comparisonStatusOf, quantificationNotice } from "@/lib/quantification";
 
 export type PlanTier = "calculated" | "judgment" | "needs-data" | "match";
 
@@ -72,6 +73,8 @@ export interface ReviewPlan {
   /** Up to three short next steps for the one-page action summary. */
   topActions: string[];
   confidenceNote: string | null;
+  /** Which comparisons did not run and which checks calculate no amount (same wording as the purchase control). */
+  quantificationNote: string | null;
   /** What the lease text yielded, so the customer can see what the checks were based on. */
   reviewed: { found: string[]; notFound: string[]; /** the AI step read only part of a long document */ aiCoverageLimited?: boolean } | null;
   caution: string;
@@ -334,6 +337,8 @@ interface Entry {
   category: string;
   description: string;
   row?: OverchargeLineItem;
+  /** The amount was deliberately not calculated (see src/lib/quantification.ts). */
+  unquantified?: boolean;
 }
 
 // ───────────────────────────── builder ─────────────────────────────
@@ -383,11 +388,13 @@ export function buildReviewPlan(input: PlanInput): ReviewPlan {
       tier = JUDGMENT_CATEGORY.test(f.category) ? "judgment" : "calculated";
       amount = f.potential_savings;
     } else if (kind === "clarify") {
-      tier = f.insufficientData ? "needs-data" : "judgment";
+      // An unquantified cap/gross-up observation is an incomplete check: it is listed, but it is not an item to raise
+      // with a calculated or judgment amount, so it can never make an audit purchasable by itself.
+      tier = f.insufficientData || f.quantified === false ? "needs-data" : "judgment";
     } else {
       tier = "match";
     }
-    entries.push({ key: `f-${i}`, title: f.category, tier, amount, severity: f.severity, evidence: toEvidence(f.sourceEvidence), category: f.category, description: f.description });
+    entries.push({ key: `f-${i}`, title: f.category, tier, amount, severity: f.severity, evidence: toEvidence(f.sourceEvidence), category: f.category, description: f.description, unquantified: f.quantified === false });
   });
 
   // ── rank ──
@@ -430,7 +437,10 @@ export function buildReviewPlan(input: PlanInput): ReviewPlan {
       match: "No discrepancy was reported for this check. It is listed for completeness.",
     };
     const sevPart = e.tier === "match" || e.tier === "needs-data" ? "" : ` The report rates it ${e.severity} severity.`;
-    const whyRanked = `${base[e.tier]}${amountPart}${sevPart} ${STRENGTH_LABEL[strength]}.`;
+    const lead = e.unquantified
+      ? "This item reports an observation from your documents, not a calculated amount: how the lease measures the cap or adjustment, and what it covers, were not established. Nothing is counted for it in any total, and it is listed for you to ask about."
+      : base[e.tier];
+    const whyRanked = `${lead}${amountPart}${sevPart} ${STRENGTH_LABEL[strength]}.`;
 
     // calculation steps: only when the report holds the figures
     const calculation: string[] = [];
@@ -527,6 +537,9 @@ export function buildReviewPlan(input: PlanInput): ReviewPlan {
       ? `Overall confidence in this audit is ${input.confidence}. Check each item against your own documents before relying on it.`
       : null;
 
+  const qn = quantificationNotice(comparisonStatusOf(lcs));
+  const quantificationNote = qn ? `${qn.title}. ${qn.lines.join(" ")}` : null;
+
   const reviewed = lcs
     ? (() => {
         const rows: Array<[string, boolean]> = [
@@ -548,6 +561,7 @@ export function buildReviewPlan(input: PlanInput): ReviewPlan {
     checklist,
     topActions,
     confidenceNote,
+    quantificationNote,
     reviewed,
     caution: PLAN_CAUTION,
     rankingRule: RANKING_RULE,

@@ -46,8 +46,8 @@ export default function UploadPage() {
               Upload CAM Statements
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
-              Upload one or more annual CAM reconciliation statements. Add
-              multiple years to enable year-over-year comparison.
+              Upload one or more annual CAM reconciliation statements. Statements for
+              consecutive years can be compared year over year; the $149 option is for two to five distinct years.
             </p>
           </div>
         </div>

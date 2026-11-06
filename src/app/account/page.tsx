@@ -14,6 +14,8 @@ interface AuditSummary {
   created_at: string | null;
   status: string | null;
   savings_estimate: number | null;
+  /** An earlier audit whose overall total could not be reconciled: no figure is shown. */
+  headline_unavailable?: boolean;
   years: number | null;
   price_cents: number | null;
   unlocked: boolean;
@@ -73,6 +75,9 @@ function AuditCard({ a }: { a: AuditSummary }) {
           Potential billing discrepancies: <span className="font-semibold text-gray-900">{amount}</span>
           <span className="text-gray-500"> (items to review, not confirmed overcharges)</span>
         </p>
+      )}
+      {(view === "preview" || view === "unlocked") && a.headline_unavailable && (
+        <p className="mt-3 text-sm text-gray-600">Overall total not available for this earlier audit. The individual items are in the audit.</p>
       )}
       {view === "preview" && a.purchasable !== false && (
         <p className="mt-1 text-sm text-gray-600">

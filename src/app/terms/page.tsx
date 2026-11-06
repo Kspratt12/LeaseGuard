@@ -62,7 +62,7 @@ export default function TermsPage() {
               4. Payments and Refunds
             </h2>
             <p>
-              The Free Audit Preview is available at no cost. The full report is available as a one-time purchase: $49 for a one-year audit or $149 for an audit covering two to five years of statements.
+              The Free Audit Preview is available at no cost. The full report is available as a one-time purchase: $49 for a one-year audit or $149 for an audit covering two to five distinct years of statements. Year-over-year comparison runs only between consecutive years, and a completed comparison is an observation of the change in total charges, not a calculated cap claim. The price follows the number of distinct years found, not how many comparisons could run.
               There are no subscriptions, recurring charges, or hidden fees.
               Payments are processed securely through our payment provider.
               A full report is offered only when the free analysis found items to review. If it found nothing to raise, or the documents could not be analyzed well enough, no purchase is offered.

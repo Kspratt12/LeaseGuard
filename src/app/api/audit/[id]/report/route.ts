@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase";
 import { authenticate, userOwnsAudit, UUID_RE } from "@/lib/audit-access";
 import { authorizeReportAccess } from "@/lib/payments";
 import { supabasePaymentStore } from "@/lib/payment-store";
+import { containLegacyAudit } from "@/lib/legacy-containment";
 
 /**
  * Report download. Requires a signed-in OWNER and a VERIFIED payment (recorded
@@ -44,13 +45,15 @@ export async function GET(
     return NextResponse.json({ error }, { status: access.status, headers: NO_STORE });
   }
 
-  const { data: a } = await db
+  const { data: stored } = await db
     .from("audits")
     .select("created_at,savings_estimate,free_findings,paid_findings,confidence,confidence_score,validation_warning,estimated_overcharge,overcharge_breakdown,lease_clauses_summary")
     .eq("id", id)
     .eq("owner_id", user!.id)
     .maybeSingle();
-  if (!a) return NextResponse.json({ error: "Report not found" }, { status: 404, headers: NO_STORE });
+  if (!stored) return NextResponse.json({ error: "Report not found" }, { status: 404, headers: NO_STORE });
+  // Read-time containment of audits stored before cap/gross-up amounts were withheld (also applied inside the generator).
+  const a = containLegacyAudit(stored as Record<string, unknown>) as typeof stored;
 
   try {
     const { generateReportPdf } = await import("@/services/report-pdf");

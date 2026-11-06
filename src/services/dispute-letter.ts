@@ -16,6 +16,8 @@ import { totalSavings } from "@/services/savings-math";
 import { formatMoney, ROUNDING_NOTE_SHORT } from "@/lib/format";
 import { coverageOf, isAiTruncated } from "@/lib/analysis-coverage";
 import { findingKind, isExcludedCategoryFinding } from "@/services/finding-classification";
+import { comparisonStatusOf, headlineUnavailable, HEADLINE_UNAVAILABLE_SENTENCE, isUnquantified } from "@/lib/quantification";
+import { containLegacyFindings } from "@/lib/legacy-containment";
 
 export interface LetterItem {
   kind: "adjustment" | "clarify";
@@ -29,8 +31,13 @@ export interface LetterItem {
 export interface DisputeLetter {
   text: string;
   items: LetterItem[];
-  /** Equals the audit's savings_estimate when built from the same inputs. */
-  total: number;
+  /**
+   * Equals the audit's savings_estimate when built from the same inputs. NULL when an earlier audit's overall total could
+   * not be reconciled: no overall total is stated, and none is rebuilt from the listed items.
+   */
+  total: number | null;
+  /** Shown to the customer when `total` is null. */
+  totalNote: string | null;
   placeholders: string[];
 }
 
@@ -61,7 +68,9 @@ export function buildDisputeLetter(input: {
   overchargeBreakdown: OverchargeLineItem[];
   leaseClausesSummary: LeaseClauseSummary | null;
 }): DisputeLetter {
-  const { findings, overchargeBreakdown, leaseClausesSummary } = input;
+  const { overchargeBreakdown, leaseClausesSummary } = input;
+  // Read-time containment of audits stored before cap/gross-up amounts were withheld (src/lib/legacy-containment.ts).
+  const findings = containLegacyFindings(input.findings).findings;
   const items: LetterItem[] = [];
 
   // Evidence for excluded categories lives on the "Excluded Category Billed" finding(s)
@@ -100,11 +109,14 @@ export function buildDisputeLetter(input: {
   //    compliance/informational notes and are left out of the letter.
   for (const f of findings) {
     if (findingKind(f) !== "clarify") continue;
+    // letterText "" = an observation that raises nothing with the landlord (for example a change below the stated percentage)
+    if (isUnquantified(f) && f.letterText === "") continue;
     items.push({
       kind: "clarify",
       title: f.category,
       amount: null,
-      explanation: f.description.trim(),
+      // an item asking the landlord a question reads in the customer's own voice when the audit supplied that wording
+      explanation: (isUnquantified(f) && f.letterText?.trim() ? f.letterText : f.description).trim(),
       evidence: evidenceOf(f.sourceEvidence),
     });
   }
@@ -119,6 +131,7 @@ export function buildDisputeLetter(input: {
     findingPart.map((i) => ({ potential_savings: i.amount ?? 0 })),
     excludedPart.reduce((s, i) => s + (i.amount ?? 0), 0),
   );
+  const totalUnavailable = headlineUnavailable(comparisonStatusOf(leaseClausesSummary));
 
   const L: string[] = [];
   const src = (e: { document: string; page: number | null; quote: string }) =>
@@ -146,7 +159,12 @@ export function buildDisputeLetter(input: {
       for (const e of it.evidence.slice(0, 3)) L.push(src(e));
       L.push("");
     });
-    L.push(`Total of the items above: ${money(total)}`, `(${ROUNDING_NOTE_SHORT})`, "");
+    if (totalUnavailable) {
+      // Individual items and their factual amounts stay; no overall total is stated or rebuilt.
+      L.push("");
+    } else {
+      L.push(`Total of the items above: ${money(total)}`, `(${ROUNDING_NOTE_SHORT})`, "");
+    }
   }
 
   if (clarifications.length) {
@@ -176,7 +194,7 @@ export function buildDisputeLetter(input: {
 
   const text = L.join("\n");
   const placeholders = Array.from(new Set(text.match(/\[[^\]\n]{2,60}\]/g) ?? []));
-  return { text, items, total, placeholders };
+  return { text, items, total: totalUnavailable ? null : total, totalNote: totalUnavailable ? HEADLINE_UNAVAILABLE_SENTENCE : null, placeholders };
 }
 
 // ---------------------------------------------------------------------------

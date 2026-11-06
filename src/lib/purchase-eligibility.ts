@@ -19,6 +19,8 @@
 import { buildReviewPlan, type ReviewPlan } from "@/services/review-plan";
 import type { Finding, LeaseClauseSummary, OverchargeLineItem } from "@/services/audit-logic";
 import { coverageOf, coverageShort, isAiTruncated } from "@/lib/analysis-coverage";
+import { isUnquantified } from "@/lib/quantification";
+import { containLegacyAudit } from "@/lib/legacy-containment";
 
 export interface PurchaseInput {
   freeFindings: Finding[];
@@ -34,14 +36,23 @@ export type NotEligibleReason = "nothing_to_unlock" | "insufficient_analysis";
 
 export type PurchaseDecision =
   | { eligible: true; completeness: "complete" | "partial"; notes: string[] }
-  | { eligible: false; reason: NotEligibleReason; /** set when the AI step read only part of a document: a result with nothing flagged does not cover the whole text */ coverageNote?: string };
+  | {
+      eligible: false;
+      reason: NotEligibleReason;
+      /** set when the AI step read only part of a document: a result with nothing flagged does not cover the whole text */
+      coverageNote?: string;
+      /** How many cap/gross-up observations carry no calculated amount. They are listed, but cannot make an audit purchasable. */
+      unquantifiedChecks?: number;
+    };
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const list = <T,>(v: unknown, ok: (x: unknown) => boolean): T[] => (Array.isArray(v) ? (v.filter(ok) as T[]) : []);
 
 /** Build the input from a raw audits row. Anything missing or malformed counts as absent, never as a finding. */
 export function purchaseInputFromRow(row: Record<string, unknown> | null | undefined): PurchaseInput {
-  const r = row ?? {};
+  // Every eligibility read uses the contained representation (src/lib/legacy-containment.ts). Checkout creation and the
+  // payment webhook share this one read, and the webhook code itself is unchanged.
+  const r = containLegacyAudit(row ?? {});
   const conf = r.confidence;
   return {
     freeFindings: list<Finding>(r.free_findings, (f) => isObj(f) && typeof f.category === "string"),
@@ -68,6 +79,7 @@ export function decidePurchase(input: PurchaseInput): PurchaseDecision {
   });
   const actionable = plan.tierCounts.calculated + plan.tierCounts.judgment;
   const needsData = plan.tierCounts["needs-data"];
+  const unquantified = [...input.freeFindings, ...input.paidFindings].filter(isUnquantified).length;
   const limited = input.auditMode === "limited";
   const coverage = coverageOf(input.leaseClausesSummary);
   const coverageNote = isAiTruncated(coverage) ? coverageShort(coverage) : null;
@@ -78,12 +90,19 @@ export function decidePurchase(input: PurchaseInput): PurchaseDecision {
     // Nothing to raise. Say "nothing found" only if checks actually ran and matched; otherwise the analysis was
     // insufficient and we must not present it as a clean result.
     const reason: NotEligibleReason = plan.items.length === 0 || needsData > 0 || limited ? "insufficient_analysis" : "nothing_to_unlock";
-    return coverageNote ? { eligible: false, reason, coverageNote } : { eligible: false, reason };
+    return {
+      eligible: false,
+      reason,
+      ...(coverageNote ? { coverageNote } : {}),
+      ...(unquantified > 0 ? { unquantifiedChecks: unquantified } : {}),
+    };
   }
 
   const notes: string[] = [];
   if (limited) notes.push("Some checks could not be completed because information was missing or unclear in the documents.");
-  if (needsData > 0) notes.push(`${needsData} check${needsData === 1 ? "" : "s"} could not be completed and ${needsData === 1 ? "is" : "are"} listed as needing more information. Nothing is counted for ${needsData === 1 ? "it" : "them"}.`);
+  const otherNeedsData = needsData - unquantified;
+  if (otherNeedsData > 0) notes.push(`${otherNeedsData} check${otherNeedsData === 1 ? "" : "s"} could not be completed and ${otherNeedsData === 1 ? "is" : "are"} listed as needing more information. Nothing is counted for ${otherNeedsData === 1 ? "it" : "them"}.`);
+  if (unquantified > 0) notes.push(`${unquantified} cap or gross-up observation${unquantified === 1 ? " is" : "s are"} listed without a dollar amount, because the lease's method and scope were not established. Nothing is counted for ${unquantified === 1 ? "it" : "them"}, and ${unquantified === 1 ? "it does" : "they do"} not by ${unquantified === 1 ? "itself" : "themselves"} make this report available.`);
   const warning = input.validationWarning;
   if (warning && UNREAD_WARNING.test(warning)) {
     // the cause is known: say it
@@ -99,6 +118,6 @@ export function decidePurchase(input: PurchaseInput): PurchaseDecision {
 /** What the screen is told. Counts and fixed sentences only: never any finding text. */
 export type PublicPurchase =
   | { eligible: true; completeness: "complete" | "partial"; notes: string[] }
-  | { eligible: false; reason: NotEligibleReason };
+  | { eligible: false; reason: NotEligibleReason; unquantifiedChecks?: number };
 
 export const publicPurchase = (d: PurchaseDecision): PublicPurchase => d;

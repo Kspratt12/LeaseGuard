@@ -4,6 +4,8 @@ import { Lock, ShieldCheck, FileSearch, ArrowRight, FileText, AlertTriangle, Sca
 import type { Finding, OverchargeLineItem, LeaseClauseSummary } from "@/services/audit-logic";
 import { getLeaseClauseEvidence } from "@/lib/lease-clause-evidence";
 import { buttonClass } from "@/components/ui";
+import { countedAmount, isUnquantified, NO_AMOUNT_LABEL, sumCounted, type QuantificationNotice } from "@/lib/quantification";
+import { QuantificationNoticeBlock } from "@/components/quantification-notice";
 
 export function AuditResultsPaid({
   findings,
@@ -16,7 +18,10 @@ export function AuditResultsPaid({
   unlockError,
   confirmingPayment,
   partialNotes,
+  quantificationNotice,
 }: {
+  /** Which comparisons did not run / calculate no amount. Shown next to the purchase control, whatever findings are visible. */
+  quantificationNotice?: QuantificationNotice | null;
   /** Set only when the audit is sellable but incomplete: shown before the price so it is never sold as a full analysis. */
   partialNotes?: string[];
   /** The customer just returned from checkout and the payment is not verified yet: never offer a second purchase. */
@@ -39,7 +44,7 @@ export function AuditResultsPaid({
 
   // Only real savings from this audit's own findings
   const totalLockedSavings =
-    premiumSavings > 0 ? premiumSavings : lockedFindings.reduce((s, f) => s + f.potential_savings, 0);
+    premiumSavings > 0 ? premiumSavings : sumCounted(lockedFindings);
 
   return (
     <div className="space-y-6">
@@ -98,10 +103,14 @@ export function AuditResultsPaid({
                 <p className="text-sm text-gray-600 leading-relaxed">
                   {f.description}
                 </p>
-                {f.potential_savings > 0 && (
-                  <p className="text-sm font-semibold text-green-700">
-                    Potential discrepancy: {formatMoney(f.potential_savings)}
-                  </p>
+                {isUnquantified(f) ? (
+                  <p className="text-xs text-review">{NO_AMOUNT_LABEL}</p>
+                ) : (
+                  countedAmount(f) > 0 && (
+                    <p className="text-sm font-semibold text-green-700">
+                      Potential discrepancy: {formatMoney(countedAmount(f))}
+                    </p>
+                  )
                 )}
 
                 {/* Detected in your lease (summary, not a quotation) */}
@@ -156,6 +165,8 @@ export function AuditResultsPaid({
             <span>PDF report, CAM Review Plan and an editable dispute letter draft</span>
           </li>
         </ul>
+
+        {quantificationNotice && <QuantificationNoticeBlock notice={quantificationNotice} onDark />}
 
         {partialNotes && partialNotes.length > 0 && (
           <div role="note" className="mt-5 rounded-lg border border-amber-300/40 bg-amber-100/10 p-3 text-sm leading-relaxed text-white/85">

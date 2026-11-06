@@ -28,7 +28,7 @@ export function getLeaseClauseEvidence(
     if (summary.camCap) {
       return {
         section: "CAM Expense Cap Provision",
-        text: `The lease sets a cap of ${summary.camCap} on annual increases in CAM or controllable operating expenses.`,
+        text: `The lease text mentions a cap of ${summary.camCap} on increases in CAM or controllable operating expenses. How the cap is measured, which expenses it covers and its baseline were not established.`,
       };
     }
   }
@@ -94,7 +94,7 @@ export function getLeaseClauseEvidence(
     if (summary.camCap) {
       return {
         section: "CAM Expense Cap / Gross-Up",
-        text: `The lease sets a cap of ${summary.camCap} on annual CAM increases. Check how any gross-up adjustment interacts with that cap in your lease.`,
+        text: `The lease text mentions a cap of ${summary.camCap} on increases in CAM expenses. Check in your lease how any gross-up adjustment interacts with that cap.`,
       };
     }
   }
@@ -115,7 +115,7 @@ export function getLeaseClauseEvidence(
     if (summary.camCap) {
       return {
         section: "Operating Expense Provisions",
-        text: `The lease sets a cap of ${summary.camCap} on annual CAM increases. A complete reconciliation with totals is needed to test it.`,
+        text: `The lease text mentions a cap of ${summary.camCap} on increases in CAM expenses. A complete reconciliation with totals is needed to compare against it.`,
       };
     }
   }

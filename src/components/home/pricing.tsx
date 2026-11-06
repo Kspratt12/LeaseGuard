@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
+import { PRICING_DISCLOSURE } from "@/lib/pricing-copy";
 
 /**
  * Pricing, with the one-year ($49) and two-to-five-year ($149) options given equal weight.
@@ -25,11 +26,11 @@ const PLANS = [
     name: "Two to Five Year Review",
     price: "$149",
     who: "For reviewing two to five years of CAM charges",
-    note: "Applies automatically when you upload two to five years.",
+    note: "Applies automatically when your statements cover two to five distinct years.",
     features: [
       "Everything in the one-year report",
-      "Year-over-year comparison across your statements",
-      "Escalation compared with your lease cap, when your lease has one",
+      "Year-over-year observations, where your statements are for consecutive years",
+      "The cap percentage found in your lease shown beside each year-over-year change (an observation, not a cap claim)",
       "Covers up to five years in one audit",
     ],
     featured: true,
@@ -105,7 +106,7 @@ export function Pricing() {
         </div>
 
         <p className="mx-auto mt-6 max-w-2xl text-center text-xs leading-relaxed text-ink-muted sm:text-sm">
-          You see the price before you pay, after the free preview. The price follows the number of years of statements in your audit. Findings
+          You see the price before you pay, after the free preview. {PRICING_DISCLOSURE} Findings
           are items to review, not confirmed overcharges, and this is not legal or accounting advice.
         </p>
       </div>

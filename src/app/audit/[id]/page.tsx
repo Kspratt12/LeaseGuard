@@ -7,6 +7,8 @@ import { AuditResultsFree } from "@/components/audit-results-free";
 import { AuditResultsPaid } from "@/components/audit-results-paid";
 import { NoPurchasePanel } from "@/components/audit-no-purchase";
 import { CoverageNotice } from "@/components/coverage-notice";
+import { QuantificationNoticeBlock } from "@/components/quantification-notice";
+import { PaymentReviewNotice } from "@/components/payment-review-notice";
 import { CONFIDENCE_COVERAGE_CAPTION, CONFIDENCE_COVERAGE_QUALIFIER, coverageOf, isAiTruncated } from "@/lib/analysis-coverage";
 import { AuditProgress } from "@/components/audit-progress";
 import { SUPPORT_EMAIL } from "@/lib/constants";
@@ -17,8 +19,10 @@ import { getAuthHeaders } from "@/lib/auth-client";
 import { formatUsdFromCents } from "@/lib/format";
 import { buttonClass } from "@/components/ui";
 import { ReviewPlanPanel } from "@/components/review-plan";
+import { comparisonStatusOf, headlineFigures, headlineUnavailable, isNoCapObservationOnly, quantificationNotice, sumCounted } from "@/lib/quantification";
+import { AuditHeadline, NoDiscrepancyBox } from "@/components/audit-headline";
 import { buildReviewPlan } from "@/services/review-plan";
-import type { Finding, OverchargeLineItem, SourceEvidence, LeaseClauseSummary } from "@/services/audit-logic";
+import type { Finding, OverchargeLineItem, LeaseClauseSummary } from "@/services/audit-logic";
 
 interface Audit {
   id: string;
@@ -43,10 +47,12 @@ interface Audit {
     amount_cents: number | null;
     currency: string;
   };
+  /** Set by the server, independent of `payment.unlocked`: a confirmed payment for this audit could not be applied / an additional payment was not applied. */
+  payment_review?: "not_applied" | "additional_payment" | null;
   /** Decided by the server (same rule checkout enforces): whether this audit may be sold, and how complete it is. */
   purchase?:
     | { eligible: true; completeness: "complete" | "partial"; notes: string[] }
-    | { eligible: false; reason: "nothing_to_unlock" | "insufficient_analysis"; coverageNote?: string };
+    | { eligible: false; reason: "nothing_to_unlock" | "insufficient_analysis"; coverageNote?: string; unquantifiedChecks?: number };
 }
 
 export default function AuditPage({
@@ -378,10 +384,13 @@ export default function AuditPage({
   // Summary must reflect ALL findings, not just preview/free-tier findings.
   const totalFindings = [...freeFindings, ...paidFindings];
   const totalFindingsCount = totalFindings.length;
-  const totalSavingsFromFindings = totalFindings
-    .reduce((sum, f) => sum + f.potential_savings, 0);
-  const dbSavings = audit.savings_estimate ?? 0;
-  const savingsEstimate = Math.max(dbSavings, totalSavingsFromFindings);
+  // headlineFigures: an amount that was deliberately not calculated can never come back through the fallback, and an
+  // earlier audit whose total could not be reconciled has NO overall total (the max() fallback must not rebuild one).
+  const { savingsEstimate } = headlineFigures({
+    storedHeadline: audit.savings_estimate,
+    findings: totalFindings,
+    status: comparisonStatusOf(audit.lease_clauses_summary),
+  });
 
   const hasFindings = totalFindingsCount > 0;
 
@@ -423,8 +432,6 @@ export default function AuditPage({
   }
 }
 
-/** $1,979.60 (always cents) for statement-line amounts. */
-const money2 = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function AuditResultsRenderer({
   audit,
@@ -464,6 +471,8 @@ function AuditResultsRenderer({
   const [unlocking, setUnlocking] = useState(false);
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const unlocked = audit.payment?.unlocked === true;
+  // Wording only: true when every finding is a no-cap observation (see isNoCapObservationOnly in quantification.ts).
+  const noCapOnly = isNoCapObservationOnly([...freeFindings, ...paidFindings]);
   // Set when the AI step read only the start of a long document (stored with the clause summary).
   const coverage = coverageOf(audit.lease_clauses_summary);
   const priceLabel = formatUsdFromCents(audit.payment?.amount_cents);
@@ -564,6 +573,15 @@ function AuditResultsRenderer({
             {/* Coverage: the AI step read only part of a long document. Always shown, in every audit mode. */}
             {isAiTruncated(coverage) && <CoverageNotice coverage={coverage} />}
 
+            {/* A confirmed payment that could not be applied. Independent of whether the report is unlocked. */}
+            {audit.payment_review && <PaymentReviewNotice kind={audit.payment_review} auditId={audit.id} />}
+
+            {/* Unlocked: the same notice the purchase control showed, kept on the report page. Before payment it sits next to the price. */}
+            {unlocked && (() => {
+              const n = quantificationNotice(comparisonStatusOf(audit.lease_clauses_summary));
+              return n ? <QuantificationNoticeBlock notice={n} /> : null;
+            })()}
+
             {/* Limited audit mode banner */}
             {audit.audit_mode === "limited" && (
               <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 sm:p-4 flex items-start gap-3">
@@ -608,82 +626,8 @@ function AuditResultsRenderer({
             {/* Summary and the report actions: the unlocked report card jumps to the top */}
             <div className="flex flex-col gap-6 sm:gap-8">
             {/* Savings estimate / Overcharge detected */}
-            {hasOvercharge ? (
-              <div className="rounded-xl bg-review-soft border border-review/25 p-5 sm:p-8">
-                <div className="text-center space-y-2 sm:space-y-3">
-                  <p className="font-figures text-[11px] text-review font-medium uppercase tracking-widest">
-                    Potential Billing Discrepancies
-                  </p>
-                  <p className="text-4xl sm:text-5xl font-semibold tracking-tight text-ink tabular-nums">
-                    {formatMoney(savingsEstimate)}
-                  </p>
-                  <p className="text-sm text-ink-soft leading-relaxed max-w-md mx-auto">
-                    Calculated from your uploaded lease and CAM documents. These are items to review with your landlord, not confirmed overcharges. Professional review is recommended.
-                  </p>
-                </div>
-
-                {/* Overcharge breakdown table */}
-                <div className="mt-6 sm:mt-8 overflow-x-auto -mx-2 sm:mx-0" role="region" aria-label="Breakdown table, scrolls sideways" tabIndex={0}>
-                  <table className="w-full text-xs sm:text-sm border-separate min-w-[480px]" style={{ borderSpacing: "0 0" }}>
-                    <thead>
-                      <tr className="border-b-2 border-review/25">
-                        <th className="pb-2 sm:pb-3 pr-3 sm:pr-4 font-semibold text-ink text-left w-[28%]">Category</th>
-                        <th className="pb-2 sm:pb-3 px-2 sm:px-3 font-semibold text-ink text-right w-[18%]">Total Expense</th>
-                        <th className="pb-2 sm:pb-3 px-2 sm:px-3 font-semibold text-ink text-center w-[14%]">Tenant Share</th>
-                        <th className="pb-2 sm:pb-3 px-2 sm:px-3 font-semibold text-ink text-right w-[18%]">Tenant Charge</th>
-                        <th className="pb-2 sm:pb-3 pl-3 sm:pl-4 font-semibold text-ink text-left w-[22%]">Reason</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {overchargeBreakdown.map((row, i) => (
-                        <tr key={i} className="border-b border-review/15 last:border-0">
-                          <td className="py-3 pr-4 text-gray-800 capitalize">{row.category}</td>
-                          <td className="py-3 px-3 text-gray-800 text-right tabular-nums">${money2(row.total_expense)}</td>
-                          <td className="py-3 px-3 text-gray-800 text-center tabular-nums">{row.tenant_share_percent}%</td>
-                          <td className="py-3 px-3 font-semibold text-ink text-right tabular-nums">${money2(row.tenant_charge)}</td>
-                          <td className="py-3 pl-4 text-gray-500 text-sm">{row.reason}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Source Evidence */}
-                {overchargeBreakdown.some((r) => r.sourceEvidence) && (
-                  <div className="mt-8 pt-6 border-t border-review/25">
-                    <p className="font-figures text-[11px] font-medium text-review uppercase tracking-widest mb-4">
-                      Source Evidence
-                    </p>
-                    <div className="space-y-3">
-                      {overchargeBreakdown
-                        .filter((r) => r.sourceEvidence)
-                        .map((row, i) => (
-                          <SourceEvidenceCard
-                            key={i}
-                            category={row.category}
-                            evidence={row.sourceEvidence!}
-                            totalExpense={row.total_expense}
-                            tenantShare={row.tenant_share_percent}
-                            tenantCharge={row.tenant_charge}
-                          />
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : savingsEstimate > 0 ? (
-              <div className="rounded-xl bg-review-soft border border-review/25 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
-                <p className="font-figures text-[11px] text-review font-medium uppercase tracking-widest">
-                  Potential Billing Discrepancies
-                </p>
-                <p className="text-4xl sm:text-5xl font-semibold tracking-tight text-ink tabular-nums">
-                  {formatMoney(savingsEstimate)}
-                </p>
-                <p className="text-sm text-ink-soft leading-relaxed max-w-md mx-auto">
-                  Calculated from your uploaded lease and CAM documents. These are items to review with your landlord, not confirmed overcharges. Professional review is recommended.
-                </p>
-              </div>
-            ) : audit.purchase && !audit.purchase.eligible && audit.purchase.reason === "insufficient_analysis" ? (
+            <AuditHeadline unavailable={headlineUnavailable(comparisonStatusOf(audit.lease_clauses_summary))} hasOvercharge={hasOvercharge} savingsEstimate={savingsEstimate} breakdown={overchargeBreakdown}>
+            {audit.purchase && !audit.purchase.eligible && audit.purchase.reason === "insufficient_analysis" ? (
               <div className="rounded-xl bg-gray-50 border border-gray-200 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
                 <p className="text-xs text-gray-600 font-semibold uppercase tracking-widest">Analysis Incomplete</p>
                 <p className="text-sm text-gray-500 leading-relaxed max-w-md mx-auto">
@@ -703,15 +647,9 @@ function AuditResultsRenderer({
                 </p>
               </div>
             ) : (
-              <div className="rounded-xl bg-gray-50 border border-gray-200 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
-                <p className="text-xs text-gray-600 font-semibold uppercase tracking-widest">
-                  No Clear Discrepancies Detected
-                </p>
-                <p className="text-sm text-gray-500 leading-relaxed max-w-md mx-auto">
-                  The uploaded documents did not show a clear billing discrepancy based on current audit checks.
-                </p>
-              </div>
+              <NoDiscrepancyBox noCapOnly={noCapOnly} />
             )}
+            </AuditHeadline>
 
             {savingsEstimate > 0 && (
               <p className="text-center text-xs leading-relaxed text-ink-muted">{ROUNDING_NOTE}</p>
@@ -737,7 +675,7 @@ function AuditResultsRenderer({
                     <p className="mt-2 font-semibold text-ink">Please do not pay again.</p>
                     <ul className="mt-2 list-disc space-y-1 pl-5 text-ink-soft">
                       <li>Wait a few minutes, then choose Check again or refresh this page.</li>
-                      <li>If the charge does not appear on your card statement, the payment did not go through and you have not been charged.</li>
+                      <li>Your card statement shows whether a charge was made. This page cannot show that.</li>
                       <li>
                         Still stuck? Email{" "}
                         <a className="font-medium text-ink underline" href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Payment confirmation for LeaseGuard reference " + audit.id.slice(0, 8).toUpperCase())}`}>
@@ -822,9 +760,16 @@ function AuditResultsRenderer({
                 leaseClausesSummary={audit.lease_clauses_summary}
               />
             ) : audit.purchase && !audit.purchase.eligible ? (
-              <NoPurchasePanel reason={audit.purchase.reason} coverageNote={audit.purchase.coverageNote} />
+              <NoPurchasePanel
+                reason={audit.purchase.reason}
+                coverageNote={audit.purchase.coverageNote}
+                unquantifiedChecks={audit.purchase.unquantifiedChecks}
+                noCapObservationOnly={noCapOnly}
+                notice={quantificationNotice(comparisonStatusOf(audit.lease_clauses_summary))}
+              />
             ) : (
             <AuditResultsPaid
+              quantificationNotice={quantificationNotice(comparisonStatusOf(audit.lease_clauses_summary))}
               partialNotes={audit.purchase?.eligible && audit.purchase.completeness === "partial" ? audit.purchase.notes : undefined}
               confirmingPayment={confirmingPayment}
               priceLabel={priceLabel}
@@ -832,9 +777,7 @@ function AuditResultsRenderer({
               unlocking={unlocking}
               unlockError={unlockError}
               findings={paidFindings}
-              premiumSavings={paidFindings
-                .filter((f) => !f.insufficientData)
-                .reduce((sum, f) => sum + f.potential_savings, 0)}
+              premiumSavings={sumCounted(paidFindings.filter((f) => !f.insufficientData))}
               overchargeBreakdown={overchargeBreakdown}
               leaseClausesSummary={audit.lease_clauses_summary}
             />
@@ -967,77 +910,6 @@ function ConfidenceIndicator({
       <p className="text-xs text-gray-400 mt-1.5">
         {coverageLimited ? CONFIDENCE_COVERAGE_CAPTION : "Based on completeness of extracted data and document clarity."}
       </p>
-    </div>
-  );
-}
-
-function SourceEvidenceCard({
-  category,
-  evidence,
-  totalExpense,
-  tenantShare,
-  tenantCharge,
-}: {
-  category: string;
-  evidence: SourceEvidence;
-  totalExpense: number;
-  tenantShare: number;
-  tenantCharge: number;
-}) {
-  return (
-    <div className="rounded-lg bg-white/60 border border-red-100 p-4">
-      <div className="flex items-start gap-3 mb-2">
-        <FileText className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-semibold text-gray-900 capitalize">
-            {category}
-          </p>
-          {evidence.findingCategory && (
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-50 text-red-600">
-              {evidence.findingCategory}
-            </span>
-          )}
-        </div>
-      </div>
-      <div className="ml-7 text-xs text-gray-500 space-y-1.5">
-        <div className="flex flex-wrap gap-x-4 gap-y-1">
-          <p>
-            <span className="font-medium text-gray-700">Document:</span>{" "}
-            {evidence.document}
-          </p>
-          {evidence.page != null && (
-            <p>
-              <span className="font-medium text-gray-700">Page:</span>{" "}
-              {evidence.page}
-            </p>
-          )}
-        </div>
-        {evidence.extractedText && (
-          <div className="mt-2 pl-3 border-l-2 border-red-200">
-            <p className="text-xs text-gray-600 italic leading-relaxed">
-              &ldquo;{evidence.extractedText}&rdquo;
-            </p>
-          </div>
-        )}
-        <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-          <span>
-            <span className="font-medium text-gray-700">Detected Amount:</span>{" "}
-            <span className="tabular-nums">
-              {formatMoney(totalExpense)}
-            </span>
-          </span>
-          <span>
-            <span className="font-medium text-gray-700">Tenant Share:</span>{" "}
-            <span className="tabular-nums">{tenantShare}%</span>
-          </span>
-          <span>
-            <span className="font-medium text-ink">Potential discrepancy:</span>{" "}
-            <span className="tabular-nums font-semibold text-ink">
-              {formatMoney(tenantCharge)}
-            </span>
-          </span>
-        </p>
-      </div>
     </div>
   );
 }

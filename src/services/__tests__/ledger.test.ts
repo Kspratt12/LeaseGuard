@@ -156,13 +156,16 @@ async function productionLikeValidation(statementText: string, extra?: { priorYe
     assert.strictEqual(r.savings_estimate, 5520, "headline holds no cap amount");
   });
 
-  await test("a genuinely labelled prior-year total still produces the cap comparison", async () => {
+  await test("a genuinely labelled prior-year total still produces the cap comparison, as an observation with no amount", async () => {
     const withPrior = STATEMENT.replace("Estimated payments received during 2025                 $12,000.00",
       "Prior year total (2024)                                 $12,000.00");
     const r = await runAudit(await productionLikeValidation(withPrior));
-    const cap = [...r.free_findings, ...r.paid_findings].find((f) => /CAM Cap/i.test(f.category) && f.potential_savings > 0);
-    assert.ok(cap, "cap finding present when the baseline is real");
-    assert.strictEqual(cap!.potential_savings, 2280, "14,760 - 12,000 x 1.04 = 2,280");
+    const cap = [...r.free_findings, ...r.paid_findings].find((f) => /CAM Cap/i.test(f.category) && f.quantified === false);
+    assert.ok(cap, "cap observation present when the baseline is real");
+    assert.strictEqual(cap!.potential_savings, 0, "no amount: the lease's cap method and scope are not established");
+    assert.ok(/\$12,000/.test(cap!.description) && /\$14,760/.test(cap!.description), "the attributed statement totals are kept");
+    assert.ok(!/\$2,280/.test(cap!.description), "the old calculated excess (14,760 - 12,000 x 1.04) is not stated");
+    assert.strictEqual(r.savings_estimate, 5520, "the headline is unchanged by the observation");
   });
 
   console.log("competing claims and reconciliation");

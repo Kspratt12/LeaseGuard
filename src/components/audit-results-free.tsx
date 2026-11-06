@@ -2,6 +2,7 @@ import { formatMoney } from "@/lib/format";
 import { CheckCircle, AlertCircle, Scale } from "lucide-react";
 import type { Finding, LeaseClauseSummary } from "@/services/audit-logic";
 import { getLeaseClauseEvidence } from "@/lib/lease-clause-evidence";
+import { countedAmount, isUnquantified, NO_AMOUNT_ACTION, NO_AMOUNT_LABEL } from "@/lib/quantification";
 
 export function AuditResultsFree({
   findings,
@@ -38,12 +39,12 @@ export function AuditResultsFree({
           <li
             key={i}
             className={`flex items-start gap-3 sm:gap-4 rounded-xl border p-4 sm:p-5 ${
-              f.insufficientData
+              f.insufficientData || isUnquantified(f)
                 ? "border-amber-200 bg-amber-50"
                 : "border-gray-200 bg-white"
             }`}
           >
-            {f.insufficientData ? (
+            {f.insufficientData || isUnquantified(f) ? (
               <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
             ) : (
               <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
@@ -56,11 +57,18 @@ export function AuditResultsFree({
                     Insufficient Data
                   </span>
                 )}
+                {isUnquantified(f) && (
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                    {NO_AMOUNT_LABEL}
+                  </span>
+                )}
               </div>
               <p className="text-sm text-gray-600 leading-relaxed">{f.description}</p>
-              {f.potential_savings > 0 ? (
+              {isUnquantified(f) ? (
+                <p className="text-xs text-review">{NO_AMOUNT_ACTION}</p>
+              ) : countedAmount(f) > 0 ? (
                 <p className="text-sm font-semibold text-green-700">
-                  Potential discrepancy: {formatMoney(f.potential_savings)}
+                  Potential discrepancy: {formatMoney(countedAmount(f))}
                 </p>
               ) : f.insufficientData ? (
                 <p className="text-xs text-review">

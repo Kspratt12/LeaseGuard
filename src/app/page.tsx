@@ -33,7 +33,7 @@ const faqItems = [
   },
   {
     q: "Can I upload multiple CAM reconciliation PDFs?",
-    a: "Yes. Uploading two to five years of reconciliation statements enables year-over-year comparison, which can reveal escalation patterns, inconsistent charges, and additional discrepancies across billing periods.",
+    a: "Yes. Uploading statements for consecutive years enables year-over-year comparison between those years, which can show how total charges changed. A completed comparison is an observation, not a calculated cap claim, and it runs only between consecutive years.",
   },
   {
     q: "Is this legal advice?",
@@ -45,7 +45,7 @@ const faqItems = [
   },
   {
     q: "What does the full report include, and what does it cost?",
-    a: "The full report is a one-time purchase: $49 for a one-year audit, or $149 for an audit covering two to five years of statements. It adds the remaining findings, source references with page numbers where available, a downloadable multi-page PDF report, and an editable dispute-letter draft built from your findings.",
+    a: "The full report is a one-time purchase: $49 for a one-year audit, or $149 for an audit covering two to five distinct years of statements (the price follows the number of distinct years found, not how many comparisons could run). It adds the remaining findings, source references with page numbers where available, a downloadable multi-page PDF report, and an editable dispute-letter draft built from your findings.",
   },
   {
     q: "How accurate are the results?",
@@ -93,7 +93,7 @@ const CALCULATED = [
   { title: "Management and admin fees", text: "The fee percentage and dollar amount on the statement against the cap in the lease." },
   { title: "Tenant share", text: "The share on the statement against the square footage and share in the lease." },
   { title: "Expense totals", text: "Whether the statement's own totals and reconciliation add up." },
-  { title: "Annual increase cap and year-over-year change", text: "This year against prior years, when you upload more than one statement." },
+  { title: "Annual increase cap and year-over-year change", text: "Each year against the year before it, when you upload statements for consecutive years." },
 ];
 
 const JUDGMENT = [

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePaidAudit } from "@/lib/paid-access";
 import { coverageOf, coverageSentence, isAiTruncated } from "@/lib/analysis-coverage";
 import { buildDisputeLetter, letterToDocx, letterToPdf } from "@/services/dispute-letter";
+import { containLegacyAudit } from "@/lib/legacy-containment";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +15,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const gate = await requirePaidAudit(req, id);
   if (!gate.ok) return gate.response;
 
-  const { data: a } = await gate.db
+  const { data: stored } = await gate.db
     .from("audits")
     .select("free_findings,paid_findings,overcharge_breakdown,lease_clauses_summary,savings_estimate")
     .eq("id", id)
     .eq("owner_id", gate.userId)
     .maybeSingle();
-  if (!a) return NextResponse.json({ error: "Not found" }, { status: 404, headers: NO_STORE });
+  if (!stored) return NextResponse.json({ error: "Not found" }, { status: 404, headers: NO_STORE });
+  // Read-time containment of audits stored before cap/gross-up amounts were withheld: the letter and its headline agree.
+  const a = containLegacyAudit(stored as Record<string, unknown>) as typeof stored;
 
   const letter = buildDisputeLetter({
     findings: [...(a.free_findings ?? []), ...(a.paid_findings ?? [])],
@@ -31,6 +34,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     {
       text: letter.text,
       total: letter.total,
+      // set (and total is null) when an earlier audit's overall total could not be reconciled
+      totalNote: letter.totalNote,
       headlineTotal: a.savings_estimate ?? null,
       placeholders: letter.placeholders,
       items: letter.items,
