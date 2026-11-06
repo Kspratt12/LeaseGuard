@@ -21,6 +21,7 @@ import type { Finding, LeaseClauseSummary, OverchargeLineItem } from "@/services
 import { coverageOf, coverageShort, isAiTruncated } from "@/lib/analysis-coverage";
 import { isUnquantified } from "@/lib/quantification";
 import { containLegacyAudit } from "@/lib/legacy-containment";
+import { extractionIncompleteOf } from "@/lib/extraction-status";
 
 export interface PurchaseInput {
   freeFindings: Finding[];
@@ -32,7 +33,7 @@ export interface PurchaseInput {
   validationWarning: string | null;
 }
 
-export type NotEligibleReason = "nothing_to_unlock" | "insufficient_analysis";
+export type NotEligibleReason = "nothing_to_unlock" | "insufficient_analysis" | "extraction_incomplete";
 
 export type PurchaseDecision =
   | { eligible: true; completeness: "complete" | "partial"; notes: string[] }
@@ -83,6 +84,12 @@ export function decidePurchase(input: PurchaseInput): PurchaseDecision {
   const limited = input.auditMode === "limited";
   const coverage = coverageOf(input.leaseClausesSummary);
   const coverageNote = isAiTruncated(coverage) ? coverageShort(coverage) : null;
+
+  // The automated reading of a document FAILED (recorded at analysis time; earlier audits have no record and are not
+  // affected). Checked first: whatever the regex-only fallback found cannot be presented as a reliable paid report.
+  if (extractionIncompleteOf(input.leaseClausesSummary)) {
+    return { eligible: false, reason: "extraction_incomplete" };
+  }
 
   // WHETHER the audit may be sold depends only on the findings. Everything below (notes, completeness) is wording and
   // can never change this answer.

@@ -55,6 +55,7 @@ export async function POST(
     already_paid: [409, "This audit is already unlocked."],
     nothing_to_unlock: [409, "There are no additional findings to unlock for this audit, so there is nothing to purchase."],
     insufficient_analysis: [409, "We could not complete enough checks on these documents to offer a paid report, so this audit cannot be purchased."],
+    extraction_incomplete: [409, "The automated reading of these documents did not complete, so no paid report is offered for this analysis. Please run the audit again."],
     not_configured: [503, "Payments are not available right now."],
     price_mismatch: [503, "Payments are not available right now."],
     stripe_error: [502, "Could not start checkout. Please try again."],

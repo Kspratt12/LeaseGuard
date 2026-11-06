@@ -128,6 +128,9 @@ async function processAudit(
       "@/services/ai-extraction"
     );
 
+    // An additional statement the AI step could not read (key configured, no result): the analysis is then recorded as
+    // incomplete, exactly as for the lease and the first statement (see src/lib/extraction-status.ts).
+    let extraStatementAiFailed = false;
     let multiYearReconciliations:
       | Array<{
           year: number;
@@ -193,8 +196,11 @@ async function processAudit(
                 reconciliationTotal: (aiFields.reconciliationTotal?.replace(/^\$\s*/, "") ?? null) || fields.reconciliationTotal,
                 reconciliationYear: aiFields.reconciliationYear ?? fields.reconciliationYear,
               };
+            } else if (aiConfigured) {
+              extraStatementAiFailed = true;
             }
           } catch (aiErr) {
+            if (aiConfigured) extraStatementAiFailed = true;
             console.warn(`[process:${auditId}] Extra recon AI extraction failed: ${errorInfo(aiErr)}`);
           }
 
@@ -244,6 +250,9 @@ async function processAudit(
       extraRecons != null &&
       extraRecons.length > 0 &&
       (multiYearReconciliations == null || multiYearReconciliations.length < 2);
+    if (extraStatementAiFailed) {
+      validation.extraction = { lease: validation.extraction?.lease ?? false, statement: true };
+    }
     const result = await withTimeout(
       runAudit(validation, {
         leaseDocName: docNames?.leaseDocName,
