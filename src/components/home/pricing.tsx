@@ -13,7 +13,7 @@ const PLANS = [
     name: "One Year Review",
     price: "$49",
     who: "For reviewing one year of CAM charges",
-    note: "Choose this when you upload a single year.",
+    note: "Applies automatically when you upload a single year of statements.",
     features: [
       "All findings, with source text and page numbers where available",
       "The calculation behind each dollar amount",
@@ -66,9 +66,9 @@ export function Pricing() {
           </Link>
         </div>
 
-        <p className="mt-8 text-center text-sm font-medium text-ink-muted">To unlock the full report, choose one:</p>
+        <p className="mt-8 text-center text-sm font-medium text-ink-muted">Your price depends on how many years you upload:</p>
 
-        {/* the two paid options, equal weight */}
+        {/* the two prices; the one that applies is set by the number of distinct statement years uploaded */}
         <div className="mt-4 grid gap-5 md:grid-cols-2">
           {PLANS.map((p) => (
             <article
@@ -93,14 +93,6 @@ export function Pricing() {
                   </li>
                 ))}
               </ul>
-              <Link
-                href="/upload"
-                className={`mt-8 inline-flex min-h-12 items-center justify-center rounded-lg px-6 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
-                  "bg-ink text-white hover:bg-ink-soft"
-                }`}
-              >
-                Start free preview
-              </Link>
             </article>
           ))}
         </div>

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, FilePlus2, FileText, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getAuthHeaders } from "@/lib/auth-client";
-import { formatUsdFromCents, formatYears } from "@/lib/format";
+import { formatMoney, formatUsdFromCents, formatYears } from "@/lib/format";
 import { Pill, buttonClass, cardClass } from "@/components/ui";
 
 interface AuditSummary {
@@ -39,7 +39,7 @@ function AuditCard({ a }: { a: AuditSummary }) {
     : "Date unavailable";
   const years = formatYears(a.years);
   const price = formatUsdFromCents(a.price_cents);
-  const amount = a.savings_estimate ? `$${a.savings_estimate.toLocaleString("en-US")}` : null;
+  const amount = a.savings_estimate ? formatMoney(a.savings_estimate) : null;
 
   return (
     <li className={`${cardClass} p-4 sm:p-5`}>

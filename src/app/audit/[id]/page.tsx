@@ -20,7 +20,7 @@ import { getAuthHeaders } from "@/lib/auth-client";
 import { formatUsdFromCents } from "@/lib/format";
 import { buttonClass } from "@/components/ui";
 import { ReviewPlanPanel } from "@/components/review-plan";
-import { comparisonStatusOf, headlineFigures, headlineUnavailable, isNoCapObservationOnly, quantificationNotice, sumCounted } from "@/lib/quantification";
+import { comparisonStatusOf, headlineFigures, headlineUnavailable, isNoCapObservationOnly, lockedIncludedOf, quantificationNotice, sumCounted } from "@/lib/quantification";
 import { AuditHeadline, NoDiscrepancyBox } from "@/components/audit-headline";
 import { buildReviewPlan } from "@/services/review-plan";
 import type { Finding, OverchargeLineItem, LeaseClauseSummary } from "@/services/audit-logic";
@@ -472,6 +472,12 @@ function AuditResultsRenderer({
   const [unlocking, setUnlocking] = useState(false);
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const unlocked = audit.payment?.unlocked === true;
+  // What the headline total includes that is only itemised after unlock. Derived from this audit's own paid findings, and only
+  // while locked: it states an amount and a count the page already shows under Additional Findings, nothing more.
+  const lockedIncluded = lockedIncludedOf(paidFindings, unlocked);
+  const includedNote = lockedIncluded
+    ? `Includes ${formatMoney(lockedIncluded.amount)} from ${lockedIncluded.count} finding${lockedIncluded.count === 1 ? "" : "s"} under Additional Findings, itemised when you unlock the report.`
+    : null;
   // Wording only: true when every finding is a no-cap observation (see isNoCapObservationOnly in quantification.ts).
   const noCapOnly = isNoCapObservationOnly([...freeFindings, ...paidFindings]);
   // Set when the AI step read only the start of a long document (stored with the clause summary).
@@ -628,7 +634,7 @@ function AuditResultsRenderer({
             <div className="flex flex-col gap-6 sm:gap-8">
             {/* Savings estimate / Overcharge detected */}
             {audit.purchase?.eligible === false && audit.purchase.reason === "extraction_incomplete" && <TotalUnreliableNotice />}
-            <AuditHeadline unavailable={headlineUnavailable(comparisonStatusOf(audit.lease_clauses_summary))} hasOvercharge={hasOvercharge} savingsEstimate={savingsEstimate} breakdown={overchargeBreakdown}>
+            <AuditHeadline unavailable={headlineUnavailable(comparisonStatusOf(audit.lease_clauses_summary))} includedNote={includedNote} hasOvercharge={hasOvercharge} savingsEstimate={savingsEstimate} breakdown={overchargeBreakdown}>
             {audit.purchase && !audit.purchase.eligible && (audit.purchase.reason === "insufficient_analysis" || audit.purchase.reason === "extraction_incomplete") ? (
               <div className="rounded-xl bg-gray-50 border border-gray-200 p-5 sm:p-8 text-center space-y-2 sm:space-y-3">
                 <p className="text-xs text-gray-600 font-semibold uppercase tracking-widest">Analysis Incomplete</p>
