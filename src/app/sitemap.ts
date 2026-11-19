@@ -14,6 +14,7 @@ const pages: { path: string; priority: number; changeFrequency: "weekly" | "mont
   { path: "/commercial-tenant-cam-audit-guide", priority: 0.8, changeFrequency: "monthly" },
   { path: "/triple-net-lease-audit", priority: 0.8, changeFrequency: "monthly" },
   { path: "/cam-calculator", priority: 0.9, changeFrequency: "monthly" },
+  { path: "/cam-cap-calculator", priority: 0.8, changeFrequency: "monthly" },
   { path: "/sample-cam-audit-report", priority: 0.7, changeFrequency: "monthly" },
   { path: "/resources", priority: 0.7, changeFrequency: "weekly" },
   { path: "/resources/cam-charges-explained", priority: 0.7, changeFrequency: "monthly" },

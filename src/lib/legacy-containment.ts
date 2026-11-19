@@ -79,17 +79,71 @@ type Kind = "cap" | "gross-up";
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * SHARE class (src/services/share-math.ts explains the defect). Four overlapping checks of the earlier engine each priced
+ * one share difference as "a statement total x the percentage-point gap" (a total not established as the pool the share
+ * was applied to) and each added it to the headline. Identified by category AND the exact generated opening sentence, from
+ * which the billed and expected percentages are read back. The amount is withheld, the figures and evidence are kept, and
+ * all such findings of one audit collapse into ONE item (they describe the same billed share).
+ */
+const P = "(\\d+(?:\\.\\d+)?)";
+const LEGACY_SHARE_PATTERNS: Array<{ category: string; re: RegExp; order: "billed-first" | "expected-first" }> = [
+  { category: "Pro-Rata Share Mismatch", re: new RegExp(`^The reconciliation applies a tenant share of ${P}%, but the lease specifies ${P}%`), order: "billed-first" },
+  { category: "CAM Allocation Discrepancy", re: new RegExp(`^The tenant appears to be billed a CAM allocation of ${P}%, while the lease indicates the tenant's proportionate share should be approximately ${P}%`), order: "billed-first" },
+  { category: "Tenant Allocation Discrepancy", re: new RegExp(`^The reconciliation statement bills the tenant at a ${P}% allocation share, but the expected share is ${P}%`), order: "billed-first" },
+  { category: "Tenant Allocation Discrepancy", re: new RegExp(`^Tenant Allocation Validation: The tenant's billed CAM share does not match the lease-defined pro-rata share\\..*?Calculated expected share: ${P}%\\. Billed share \\(from [^)]+\\): ${P}%\\.`), order: "expected-first" },
+];
+const SHARE_EARLIER =
+  "An earlier version of this review calculated an amount for this difference by multiplying a statement total by the difference in percentage points, and could count the same difference more than once. " +
+  "That amount is no longer shown: the total it used was not established as the amount your share was applied to. The share figures and text quoted as source evidence are from your documents. No amount is counted for this item.";
+const shareLetter = (billed: string, expected: string) =>
+  `The statement applies a tenant share of ${billed}%, while the share I expected under the lease is ${expected}%. Please explain how my share was determined, identify the total it was applied to, and provide the calculation.`;
+
 interface Contained {
   finding: Finding;
   /** amount class: dollars the stored headline counted for this finding */
   removed: number;
   kind: Kind | null;
+  /** share class: this is a contained legacy share finding (all but the first in an audit are dropped) */
+  share?: boolean;
+}
+
+function containShare(f: Finding, desc: string): Contained | null {
+  for (const p of LEGACY_SHARE_PATTERNS) {
+    if (f.category !== p.category) continue;
+    const m = p.re.exec(desc);
+    if (!m) continue;
+    const [billed, expected] = p.order === "billed-first" ? [m[1], m[2]] : [m[2], m[1]];
+    const under = Number(billed) < Number(expected);
+    const amount = typeof f.potential_savings === "number" && f.potential_savings > 0 && f.insufficientData !== true ? f.potential_savings : 0;
+    return {
+      kind: null,
+      share: true,
+      removed: amount,
+      finding: {
+        ...f,
+        category: under ? "Pro-Rata Share Below Lease Share" : "Tenant Allocation Discrepancy",
+        description:
+          `The statement applies a tenant share of ${billed}%, and the expected share recorded by this review is ${expected}%. ` +
+          (under ? "The billed share is lower than the expected share, so it is not a charge above the lease. " : "") +
+          SHARE_EARLIER,
+        letterText: under ? "" : shareLetter(billed, expected),
+        potential_savings: 0,
+        severity: under ? ("low" as const) : ("high" as const),
+      },
+    };
+  }
+  return null;
 }
 
 function containOne(f: Finding): Contained | null {
   if (!isObj(f) || typeof f.category !== "string") return null;
   if ((f as { quantified?: unknown }).quantified !== undefined) return null; // a new-format record says what it is
   const desc = typeof f.description === "string" ? f.description : "";
+
+  // ── share class ──
+  const share = containShare(f, desc);
+  if (share) return share;
 
   // ── amount class ──
   const kind: Kind | null = LEGACY_CAP_CATEGORIES.includes(f.category) ? "cap" : f.category === LEGACY_GROSS_UP_CATEGORY && f.insufficientData !== true ? "gross-up" : null;
@@ -151,22 +205,37 @@ export interface ContainedFindings {
   kinds: Kind[];
   /** Any finding was replaced (amount class or wording class). */
   changed: boolean;
+  /** A legacy share finding was contained (and any duplicates of it dropped). */
+  shareContained: boolean;
 }
 
-/** Contain a list of findings. Returns the SAME array when nothing matches. */
-export function containLegacyFindings(findings: Finding[]): ContainedFindings {
+/**
+ * Contain a list of findings. Returns the SAME array when nothing matches. `state.shareSeen` lets one audit's two lists
+ * (free, then paid) keep only the FIRST contained share finding between them.
+ */
+export function containLegacyFindings(findings: Finding[], state: { shareSeen: boolean } = { shareSeen: false }): ContainedFindings {
   let removed = 0;
   const kinds: Kind[] = [];
   let changed = false;
-  const out = findings.map((f) => {
+  let shareContained = false;
+  const out: Finding[] = [];
+  for (const f of findings) {
     const c = containOne(f);
-    if (!c) return f;
+    if (!c) {
+      out.push(f);
+      continue;
+    }
     changed = true;
     removed += c.removed;
     if (c.kind) kinds.push(c.kind);
-    return c.finding;
-  });
-  return { findings: changed ? out : findings, removed: round2(removed), kinds, changed };
+    if (c.share) {
+      shareContained = true;
+      if (state.shareSeen) continue; // the same billed share, already listed once: dropped, its amount withheld above
+      state.shareSeen = true;
+    }
+    out.push(c.finding);
+  }
+  return { findings: changed ? out : findings, removed: round2(removed), kinds, changed, shareContained };
 }
 
 /** Sum of the amounts the engine's own formula counts: not insufficient-data, not withheld. */
@@ -178,8 +247,9 @@ const counted = (fs: Finding[]) =>
  * free_findings, paid_findings, savings_estimate and lease_clauses_summary.comparisonStatus.
  */
 export function containLegacyAudit<T extends Record<string, unknown>>(row: T): T {
-  const free = Array.isArray(row.free_findings) ? containLegacyFindings(row.free_findings as Finding[]) : null;
-  const paid = Array.isArray(row.paid_findings) ? containLegacyFindings(row.paid_findings as Finding[]) : null;
+  const shareState = { shareSeen: false };
+  const free = Array.isArray(row.free_findings) ? containLegacyFindings(row.free_findings as Finding[], shareState) : null;
+  const paid = Array.isArray(row.paid_findings) ? containLegacyFindings(row.paid_findings as Finding[], shareState) : null;
   if (!free?.changed && !paid?.changed) return row;
 
   const next: Record<string, unknown> = { ...row };
@@ -188,7 +258,8 @@ export function containLegacyAudit<T extends Record<string, unknown>>(row: T): T
 
   const removed = round2((free?.removed ?? 0) + (paid?.removed ?? 0));
   const kinds = [...(free?.kinds ?? []), ...(paid?.kinds ?? [])];
-  if (kinds.length === 0 && removed === 0) return next as T; // wording-only change: no amount was withheld, nothing else to say
+  const shareContained = !!(free?.shareContained || paid?.shareContained);
+  if (kinds.length === 0 && removed === 0 && !shareContained) return next as T; // wording-only change: no amount was withheld, nothing else to say
 
   // Headline: presented only if it reconciles. Nothing is clamped into a precise-looking total.
   let unavailable = false;
@@ -219,7 +290,9 @@ export function containLegacyAudit<T extends Record<string, unknown>>(row: T): T
     comparisonStatus: buildComparisonStatus({
       notCompared: existing?.notCompared ?? [],
       unquantified,
-      legacyContained: true,
+      // the cap/gross-up sentence is said only when a cap or gross-up amount was actually contained
+      legacyContained: kinds.length > 0 || existing?.legacyContained === true,
+      legacyShareContained: shareContained || existing?.legacyShareContained === true,
       headlineUnavailable: unavailable || existing?.headlineUnavailable === true,
       comparison: existing?.comparison,
       uploadedButFailed: existing?.uploadedButFailed,

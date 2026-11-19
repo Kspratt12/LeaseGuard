@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import { Download, Loader2, RotateCcw } from "lucide-react";
 import { getAuthHeaders } from "@/lib/auth-client";
 import { buttonClass } from "@/components/ui";
+import { AuditRightsPanel } from "@/components/audit-rights-panel";
+import type { AuditRightsClause } from "@/lib/audit-rights";
 
 interface Draft {
   text: string;
@@ -24,13 +26,23 @@ interface Draft {
     amount: number | null;
     evidence: { document: string; page: number | null; quote: string }[];
   }[];
+  /** Absent on responses from before this feature; treated as "none quoted". */
+  auditRights?: AuditRightsClause[];
+  documentRequest?: { text: string; items: { title: string; documents: string[] }[]; placeholders: string[]; citesLeaseClause: boolean };
 }
+
+type DocKind = "dispute" | "documents";
 
 export default function DisputeLetterPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [text, setText] = useState("");
+  const [disputeText, setDisputeText] = useState("");
+  const [requestText, setRequestText] = useState("");
+  const [kind, setKind] = useState<DocKind>("dispute");
+  const text = kind === "dispute" ? disputeText : requestText;
+  const setText = kind === "dispute" ? setDisputeText : setRequestText;
+  const generated = kind === "dispute" ? draft?.text ?? "" : draft?.documentRequest?.text ?? "";
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"pdf" | "docx" | null>(null);
 
@@ -49,7 +61,8 @@ export default function DisputeLetterPage({ params }: { params: Promise<{ id: st
       if (!res.ok) return setError("We could not prepare the letter for this audit.");
       const d: Draft = await res.json();
       setDraft(d);
-      setText(d.text);
+      setDisputeText(d.text);
+      setRequestText(d.documentRequest?.text ?? "");
     })();
     return () => {
       cancelled = true;
@@ -67,13 +80,13 @@ export default function DisputeLetterPage({ params }: { params: Promise<{ id: st
       const res = await fetch(`/api/audit/${id}/letter`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ text, format }),
+        body: JSON.stringify({ text, format, kind }),
       });
       if (!res.ok) throw new Error("The download failed. Please try again.");
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement("a");
       a.href = url;
-      a.download = `LeaseGuard-Dispute-Letter-${id.slice(0, 8)}.${format}`;
+      a.download = `LeaseGuard-${kind === "documents" ? "Document-Request" : "Dispute-Letter"}-${id.slice(0, 8)}.${format}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -90,7 +103,11 @@ export default function DisputeLetterPage({ params }: { params: Promise<{ id: st
       <Link href={`/audit/${id}`} className="inline-flex min-h-11 items-center text-sm text-blue-700 hover:underline">
         &larr; Back to your audit
       </Link>
-      <h1 className="mt-3 text-2xl font-bold text-gray-900">Dispute letter draft</h1>
+      <h1 className="mt-3 text-2xl font-bold text-gray-900">Letters to your landlord</h1>
+      <p className="mt-1 text-sm text-gray-600">
+        Two editable drafts built from this audit: a letter about the items found, and a request for the records behind them.
+        Nothing is sent from here.
+      </p>
 
       {error && (
         <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">
@@ -101,6 +118,36 @@ export default function DisputeLetterPage({ params }: { params: Promise<{ id: st
 
       {draft && (
         <>
+          <div role="tablist" aria-label="Draft" className="mt-5 flex gap-1 rounded-xl bg-gray-100 p-1">
+            {([["dispute", "Dispute letter"], ["documents", "Request for documents"]] as const).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={kind === k}
+                onClick={() => setKind(k)}
+                className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-semibold ${kind === k ? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-200" : "text-gray-600 hover:text-gray-900"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <AuditRightsPanel clauses={draft.auditRights ?? []} />
+
+          {kind === "documents" && (
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-semibold">Review and edit before you send anything.</p>
+              <p>
+                This request lists the records behind each item in your audit. {draft.documentRequest?.citesLeaseClause
+                  ? "It quotes the audit-rights sentence found in your lease, but it does not claim that sentence entitles you to copies: whether it does depends on the full clause."
+                  : "No audit-rights clause was quoted, so it is written as a request, not as a demand under the lease."}{" "}
+                It contains no deadlines or legal citations. This is not legal advice.
+              </p>
+            </div>
+          )}
+
+          {kind === "dispute" && (<>
           <div className="mt-4 space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             <p className="font-semibold">Review and edit before you send anything.</p>
             <p>
@@ -126,9 +173,10 @@ export default function DisputeLetterPage({ params }: { params: Promise<{ id: st
               )}
             </p>
           )}
+          </>)}
 
           <label htmlFor="letter" className="mt-4 block text-sm font-medium text-gray-700">
-            Letter (editable)
+            {kind === "dispute" ? "Dispute letter (editable)" : "Request for documents (editable)"}
           </label>
           <textarea
             id="letter"
@@ -174,13 +222,14 @@ export default function DisputeLetterPage({ params }: { params: Promise<{ id: st
             </button>
             <button
               type="button"
-              onClick={() => setText(draft.text)}
+              onClick={() => setText(generated)}
               className={buttonClass("ghost")}
             >
               <RotateCcw className="h-4 w-4" /> Reset to generated draft
             </button>
           </div>
 
+          {kind === "dispute" && (
           <details className="mt-8 rounded-lg border border-gray-200 bg-white p-4">
             <summary className="cursor-pointer font-medium text-gray-900">Evidence behind each item</summary>
             <ul className="mt-3 space-y-4 text-sm text-gray-700">
@@ -201,6 +250,7 @@ export default function DisputeLetterPage({ params }: { params: Promise<{ id: st
               ))}
             </ul>
           </details>
+          )}
         </>
       )}
     </main>

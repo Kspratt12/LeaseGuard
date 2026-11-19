@@ -3,6 +3,8 @@ import { requirePaidAudit } from "@/lib/paid-access";
 import { coverageOf, coverageSentence, isAiTruncated } from "@/lib/analysis-coverage";
 import { buildDisputeLetter, letterToDocx, letterToPdf } from "@/services/dispute-letter";
 import { containLegacyAudit } from "@/lib/legacy-containment";
+import { buildDocumentRequest } from "@/services/document-request";
+import { parseAuditRights } from "@/lib/audit-rights";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +27,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // Read-time containment of audits stored before cap/gross-up amounts were withheld: the letter and its headline agree.
   const a = containLegacyAudit(stored as Record<string, unknown>) as typeof stored;
 
+  const findings = [...(a.free_findings ?? []), ...(a.paid_findings ?? [])];
   const letter = buildDisputeLetter({
-    findings: [...(a.free_findings ?? []), ...(a.paid_findings ?? [])],
+    findings,
+    overchargeBreakdown: a.overcharge_breakdown ?? [],
+    leaseClausesSummary: a.lease_clauses_summary ?? null,
+  });
+  // A separate, editable request for the records behind the same items (src/services/document-request.ts).
+  const request = buildDocumentRequest({
+    findings,
     overchargeBreakdown: a.overcharge_breakdown ?? [],
     leaseClausesSummary: a.lease_clauses_summary ?? null,
   });
@@ -41,6 +50,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       items: letter.items,
       // Set when the AI step read only part of a long lease; the letter page shows it above the text.
       coverageNote: isAiTruncated(coverageOf(a.lease_clauses_summary)) ? coverageSentence(coverageOf(a.lease_clauses_summary)!) : null,
+      // Lease sentences on audit rights / dispute windows, quoted as found. Dates are worked out on the page from a date
+      // the customer enters; none is stored or assumed here.
+      auditRights: parseAuditRights((a.lease_clauses_summary as { auditRights?: unknown } | null)?.auditRights),
+      documentRequest: { text: request.text, items: request.items, placeholders: request.placeholders, citesLeaseClause: request.citedClause != null },
     },
     { headers: NO_STORE },
   );
@@ -52,7 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const gate = await requirePaidAudit(req, id);
   if (!gate.ok) return gate.response;
 
-  let body: { text?: unknown; format?: unknown };
+  let body: { text?: unknown; format?: unknown; kind?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -63,7 +76,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "The letter is empty or too long." }, { status: 400, headers: NO_STORE });
   }
 
-  const name = `LeaseGuard-Dispute-Letter-${id.slice(0, 8)}`;
+  // The filename is the only thing `kind` changes; the export is the customer's own edited text either way.
+  const name = `LeaseGuard-${body.kind === "documents" ? "Document-Request" : "Dispute-Letter"}-${id.slice(0, 8)}`;
   if (body.format === "docx") {
     return new NextResponse(new Uint8Array(await letterToDocx(text)), {
       headers: {

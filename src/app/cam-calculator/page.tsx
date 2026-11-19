@@ -75,7 +75,11 @@ export default function CamCalculatorPage() {
           <ul className="mt-4 list-disc space-y-2 pl-5 text-gray-600">
             <li>The expense total you enter is the amount your lease allows to be shared. It does not check which expenses belong in it.</li>
             <li>Your share is a fixed percentage for the whole year. Leases with gross-ups, caps on specific categories, base years, or occupancy adjustments need more than this.</li>
-            <li>The optional cap check compares totals only. Many caps apply to controllable expenses, and some are cumulative.</li>
+            <li>
+              The optional cap check compares totals only. Many caps apply to controllable expenses, and some are cumulative: use
+              the <Link href="/cam-cap-calculator" className="text-blue-700 underline">CAM cap and base-year calculator</Link> to
+              apply a cap year by year, or a base year or expense stop.
+            </li>
             <li>It is not legal or accounting advice. Deadlines and rights to question a statement depend on your lease and applicable law.</li>
           </ul>
         </section>

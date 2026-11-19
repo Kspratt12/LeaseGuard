@@ -24,7 +24,7 @@ export default function CamCapCommercialLease() {
     <ArticleLayout
       title="CAM Caps in Commercial Leases Explained"
       publishedDate="March 13, 2026"
-      modifiedDate="October 29, 2026"
+      modifiedDate="November 19, 2026"
       readTime="8 min read"
       description="Learn what CAM caps are, how cumulative and non-cumulative caps work, and how to verify your landlord is applying your cap correctly."
     >
@@ -151,9 +151,9 @@ export default function CamCapCommercialLease() {
       <p>
         A miscalculated base in Year
         1 can carry into later years, depending on how the cap is structured,
-        and the cumulative impact can amount to{" "}
+        so an error in the base can affect{" "}
         <Link href="/resources/common-cam-overcharges" className="text-blue-600 hover:underline">
-          thousands of dollars in overcharges
+          every later year&apos;s charge
         </Link>{" "}
         over the lease term.
       </p>
@@ -167,18 +167,28 @@ export default function CamCapCommercialLease() {
         <li>Calculate the maximum permitted charge for the current year</li>
         <li>Compare that maximum against what you were actually charged</li>
       </ol>
+      <p>
+        The{" "}
+        <Link href="/cam-cap-calculator" className="text-blue-600 hover:underline">
+          CAM cap and base-year calculator
+        </Link>{" "}
+        does steps 4 and 5 for each year once you have steps 1 to 3 from your lease, and shows the same figures under each
+        cap method so you can see how much the wording matters.
+      </p>
 
       <h2>How LeaseGuard Helps</h2>
       <p>
         A CAM cap check starts with the exact wording of your lease. LeaseGuard
         reads the cap percentage it finds in your lease and, when your
         documents show a prior-year total (for example, because you uploaded
-        more than one statement), calculates how far the year-over-year change
-        goes above that percentage. This is a comparison of totals. It does not
-        decide which expenses fall under the cap, which base amount applies, or
-        whether the cap is cumulative or non-cumulative. Those depend on your
-        lease wording and may need professional review. If no prior-year figure
-        is available, the report says the comparison could not be run.
+        more than one statement), reports the year-over-year change in the
+        statement totals next to that percentage. This is a comparison of
+        totals: it does not decide which expenses fall under the cap, which
+        base amount applies, or whether the cap is cumulative or
+        non-cumulative, so the audit calculates no dollar amount for the cap
+        and counts nothing from it in any total. Those depend on your lease
+        wording. If no prior-year figure is available, the report says the
+        comparison could not be run.
       </p>
 
       <h2>Key Takeaways</h2>
@@ -186,7 +196,7 @@ export default function CamCapCommercialLease() {
         <li>A CAM cap limits annual increases in operating expenses passed through to tenants</li>
         <li>Non-cumulative caps are more tenant-friendly than cumulative caps</li>
         <li>Many caps only cover controllable expenses: taxes and insurance may be uncapped</li>
-        <li>Verify the cap calculation on every reconciliation: errors are common</li>
+        <li>Check the cap calculation on every reconciliation against the method your lease describes</li>
       </ul>
     </ArticleLayout>
   );

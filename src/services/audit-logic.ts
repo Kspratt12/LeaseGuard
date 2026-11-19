@@ -27,6 +27,15 @@ import {
   totalSavings,
 } from "@/services/savings-math";
 import { dedupeBySourceLine, supportedPriorYearTotal } from "@/services/line-ledger";
+import { extractAuditRights, type AuditRightsClause } from "@/lib/audit-rights";
+import {
+  computeShareMisallocation,
+  findSharePool,
+  parseMoney,
+  parsePercent,
+  resolveExpectedShare,
+  shareMismatchThreshold,
+} from "@/services/share-math";
 import { buildComparisonStatus, type ComparisonStatus, type UnquantifiedCheck } from "@/lib/quantification";
 
 /** Lines of the reconciliation that are management/admin fee charges (building level). */
@@ -94,6 +103,11 @@ export interface LeaseClauseSummary {
   comparisonStatus?: ComparisonStatus;
   /** Present only when the AI reading failed for a document (see src/lib/extraction-status.ts). Absent on every earlier audit. */
   extractionIncomplete?: ExtractionIncomplete;
+  /**
+   * Audit-right / dispute-window sentences quoted from the lease (src/lib/audit-rights.ts). Absent on earlier audits and
+   * when none was found. Released to the owner only after a verified payment (see toPublicAudit).
+   */
+  auditRights?: AuditRightsClause[];
 }
 
 export interface AuditResult {
@@ -747,405 +761,149 @@ export async function runAudit(
   }
 
   // ------------------------------------------------------------------
-  // 3. Pro-Rata Share Mismatch
+  // 3. Pro-rata share: ONE check, ONE finding, at most ONE amount (see src/services/share-math.ts)
   // ------------------------------------------------------------------
-  if (leaseFields.proRataShare && reconFields.proRataShare) {
-    const leaseShare = parseFloat(leaseFields.proRataShare);
-    const reconShare = parseFloat(reconFields.proRataShare);
-    if (
-      !isNaN(leaseShare) &&
-      !isNaN(reconShare) &&
-      Math.abs(leaseShare - reconShare) > 0.01
-    ) {
-      let shareSavings = 0;
-      if (reconTotal != null && reconTotal > 0) {
-        shareSavings = Math.round(
-          reconTotal * (Math.abs(reconShare - leaseShare) / 100),
-        );
-      }
-      const shareEvidence: SourceEvidence[] = [];
-      const leaseShareSnippet = extractSnippet(leaseText, leaseFields.proRataShare + "%");
-      if (leaseShareSnippet) {
-        shareEvidence.push({
-          document: leaseDocName,
-          page: findPageForText(leaseText, leaseFields.proRataShare + "%"),
-          extractedText: leaseShareSnippet,
-        });
-      }
-      const reconShareSnippet = extractSnippet(reconText, reconFields.proRataShare + "%");
-      if (reconShareSnippet) {
-        shareEvidence.push({
-          document: reconDocName,
-          page: findPageForText(reconText, reconFields.proRataShare + "%"),
-          extractedText: reconShareSnippet,
-        });
-      }
+  // Earlier versions ran four overlapping share checks that each added an amount for the same discrepancy, and priced it
+  // as "the statement total" x the percentage-point difference, which is meaningless when that total is the tenant's own
+  // charge. Now the lease's expected share is resolved once and compared once with the billed share, and an amount is
+  // calculated only from a pool that the statement's own figures show the share was applied to. Underbilling is never savings.
+  {
+    const tenantSqFtRaw = leaseFields.tenantPremisesSqFt;
+    const buildingSqFtRaw = leaseFields.buildingTotalSqFt;
+    const tenantSqFt = tenantSqFtRaw ? normalizeNumber(tenantSqFtRaw) : null;
+    const buildingSqFt = buildingSqFtRaw ? normalizeNumber(buildingSqFtRaw) : null;
+    // A percentage the lease itself states. A share this software derived from square footage is never "stated".
+    const statedLeaseShareRaw = leaseFields.derivedProRataShare
+      ? leaseFields.statedTenantSharePercent
+      : (leaseFields.proRataShare ?? leaseFields.statedTenantSharePercent);
+    const expected = resolveExpectedShare({ statedPercent: statedLeaseShareRaw, tenantSqFt, buildingSqFt });
+    const billed = parsePercent(reconFields.proRataShare);
+    const pct = (n: number) => `${parseFloat(n.toFixed(4))}%`;
+    const sqftText =
+      expected.fromSquareFootage != null
+        ? `${tenantSqFt!.toLocaleString("en-US")} sq ft / ${buildingSqFt!.toLocaleString("en-US")} sq ft = ${pct(expected.fromSquareFootage)}`
+        : null;
 
-      // Note if the lease share was derived from square footage
-      const derivedNote = leaseFields.derivedProRataShare
-        ? ` (derived from ${leaseFields.tenantPremisesSqFt} tenant sq ft / ${leaseFields.buildingTotalSqFt} building sq ft)`
-        : " based on rentable square footage";
-
-      const shareDirection = reconShare > leaseShare ? "overbilled" : "underbilled";
-      let shareDesc =
-        `The reconciliation applies a tenant share of ${reconShare}%, ` +
-        `but the lease specifies ${leaseShare}%${derivedNote}. ` +
-        `This ${Math.abs(reconShare - leaseShare).toFixed(2)}% difference means the tenant is being ${shareDirection}.`;
-      if (shareSavings > 0) {
-        shareDesc += ` Estimated annual impact: ${formatMoney(shareSavings)}. Request a correction in the next billing cycle.`;
+    // Evidence: where the lease states the share (or the square footage), and where the statement applies it.
+    const shareEvidence: SourceEvidence[] = [];
+    const addEvidence = (text: string, doc: string, term: string | null | undefined, label: string) => {
+      if (!term) return;
+      const snippet = extractSnippet(text, term);
+      if (snippet && !shareEvidence.some((e) => e.extractedText === snippet)) {
+        shareEvidence.push({ document: doc, page: findPageForText(text, term), extractedText: snippet, findingCategory: label });
       }
+    };
+    if (statedLeaseShareRaw) addEvidence(leaseText, leaseDocName, `${statedLeaseShareRaw}%`, "Lease Share");
+    if (expected.basis !== "stated" || expected.conflict) {
+      addEvidence(leaseText, leaseDocName, tenantSqFtRaw, "Tenant Premises Sq Ft");
+      addEvidence(leaseText, leaseDocName, buildingSqFtRaw, "Building Total Sq Ft");
+    }
+    if (reconFields.proRataShare) addEvidence(reconText, reconDocName, `${reconFields.proRataShare}%`, "Billed Share");
 
-      paidFindings.push({
-        category: "Pro-Rata Share Mismatch",
-        description: shareDesc,
-        potential_savings: shareSavings,
-        severity: "high",
+    const expectedSentence =
+      expected.basis === "stated"
+        ? `The lease text identified in this review states a share of ${pct(expected.value!)}` +
+          (sqftText ? ` (its square footage gives ${sqftText}, consistent with that).` : ".")
+        : expected.basis === "square-footage"
+          ? `No share percentage stated in the lease was identified; the lease's square footage gives ${sqftText}.`
+          : "";
+
+    if (billed != null && expected.value != null) {
+      const diff = billed - expected.value;
+      if (Math.abs(diff) > shareMismatchThreshold(expected.basis!)) {
+        if (diff > 0) {
+          const pool = findSharePool({
+            statementText: reconText,
+            billedShare: billed,
+            candidateCharges: [parseMoney(reconFields.totalCamCharges), parseMoney(reconFields.reconciliationTotal)],
+          });
+          if (pool) {
+            if (pool.poolLine) shareEvidence.push({ document: reconDocName, page: findPageForText(reconText, pool.poolLine), extractedText: pool.poolLine, findingCategory: "Amount the Share Was Applied To" });
+            if (pool.chargeLine && pool.chargeLine !== pool.poolLine) shareEvidence.push({ document: reconDocName, page: findPageForText(reconText, pool.chargeLine), extractedText: pool.chargeLine, findingCategory: "Tenant Charge" });
+            const exact = computeShareMisallocation({ pool: pool.pool, billedShare: billed, expectedShare: expected.value });
+            const amount = Math.round(exact);
+            freeFindings.push({
+              category: "Tenant Allocation Discrepancy",
+              description:
+                `The statement applies a tenant share of ${pct(billed)}. ${expectedSentence} ` +
+                `The statement's own figures show the share was applied to ${formatMoney(pool.pool)} ` +
+                `(${formatMoney(pool.pool)} x ${pct(billed)} = ${formatMoney(pool.tenantCharge)}). ` +
+                `At ${pct(expected.value)} the same amount gives ${formatMoney(Math.round(pool.pool * expected.value) / 100)}. ` +
+                `Calculation: ${formatMoney(pool.pool)} x (${pct(billed)} - ${pct(expected.value)}) = ${formatMoney(exact)}, rounded to ${formatMoney(amount)}. ` +
+                `This is a calculation from the documents, not a confirmed overcharge. It assumes the lease share applies to the same expenses the statement applied its share to, ` +
+                `and that no other lease provision (for example a different share for some expense groups, or an occupancy adjustment) changes it.`,
+              potential_savings: amount,
+              severity: "high",
+              sourceEvidence: shareEvidence.length > 0 ? shareEvidence : undefined,
+            });
+          } else {
+            freeFindings.push({
+              category: "Tenant Allocation Discrepancy",
+              description:
+                `The statement applies a tenant share of ${pct(billed)}. ${expectedSentence} ` +
+                `That is ${parseFloat(diff.toFixed(4))} percentage points higher. ` +
+                `The statement's figures did not show which total the share was applied to, so no dollar amount is calculated and nothing is counted in any total. ` +
+                `Ask the landlord how the share was determined and which total it was applied to.`,
+              potential_savings: 0,
+              letterText:
+                `The statement applies a tenant share of ${pct(billed)}, while the lease ${expected.basis === "stated" ? `states ${pct(expected.value)}` : `square footage gives ${sqftText}`}. ` +
+                `Please explain how my share was determined, identify the total it was applied to, and provide the calculation.`,
+              severity: "high",
+              sourceEvidence: shareEvidence.length > 0 ? shareEvidence : undefined,
+            });
+          }
+        } else {
+          // Billed below the lease share: reported so the figures are visible, never as savings and never raised in the letter.
+          freeFindings.push({
+            category: "Pro-Rata Share Below Lease Share",
+            description:
+              `The statement applies a tenant share of ${pct(billed)}. ${expectedSentence} ` +
+              `The billed share is ${parseFloat(Math.abs(diff).toFixed(4))} percentage points lower than the lease share, so it is not a charge above the lease. ` +
+              `No amount is counted. A landlord could later correct an underbilled share, so keep this in mind before raising other items.`,
+            potential_savings: 0,
+            letterText: "",
+            severity: "low",
+            sourceEvidence: shareEvidence.length > 0 ? shareEvidence : undefined,
+          });
+        }
+      }
+    } else if (expected.conflict) {
+      // The lease gives two different figures. Which governs is a reading of the lease, so no expected share and no amount.
+      const matchesOne =
+        billed != null &&
+        (Math.abs(billed - expected.stated!) <= shareMismatchThreshold("stated") ||
+          Math.abs(billed - expected.fromSquareFootage!) <= shareMismatchThreshold("square-footage"));
+      freeFindings.push({
+        category: "Pro-Rata Share Review",
+        description:
+          `The lease text identified in this review states a share of ${pct(expected.stated!)}, but its square footage gives ${sqftText}. ` +
+          (billed != null
+            ? `The statement applies ${pct(billed)}. `
+            : "No billed share percentage was identified in the statement. ") +
+          `Which figure governs depends on the lease's wording (for example whether the stated share is fixed or subject to remeasurement), ` +
+          `so no expected share is assumed and no amount is calculated.`,
+        potential_savings: 0,
+        ...(billed == null
+          ? { insufficientData: true }
+          : {
+              letterText: matchesOne
+                ? ""
+                : `The statement applies a tenant share of ${pct(billed)}. The lease I reviewed states ${pct(expected.stated!)}, and its square footage gives ${sqftText}. Please explain how my share was determined and provide the calculation.`,
+            }),
+        severity: billed != null && !matchesOne ? "medium" : "low",
         sourceEvidence: shareEvidence.length > 0 ? shareEvidence : undefined,
       });
-    }
-  } else if (missingFields.has("pro_rata") && !isLimited) {
-    paidFindings.push({
-      category: "Pro-Rata Share Review",
-      description: aiDegraded
-        ? undetermined("the tenant's pro-rata share")
-        : "Pro-rata share percentage could not be detected in the lease. " +
-          "Verify that the reconciliation applies the correct tenant share based on actual rentable area.",
-      potential_savings: 0,
-      severity: "low",
-      insufficientData: true,
-    });
-  }
-
-  // ------------------------------------------------------------------
-  // 3b. CAM Allocation Discrepancy (square footage validation)
-  // ------------------------------------------------------------------
-  const tenantSqFtRaw = leaseFields.tenantPremisesSqFt;
-  const buildingSqFtRaw = leaseFields.buildingTotalSqFt;
-  const tenantSqFt = tenantSqFtRaw ? normalizeNumber(tenantSqFtRaw) : null;
-  const buildingSqFt = buildingSqFtRaw ? normalizeNumber(buildingSqFtRaw) : null;
-
-  // Calculate expected share from square footage
-  const expectedShare =
-    tenantSqFt != null && buildingSqFt != null && buildingSqFt > 0
-      ? (tenantSqFt / buildingSqFt) * 100
-      : null;
-
-  // Determine billed share: prefer recon pro-rata, then lease stated share
-  const billedShareRaw =
-    reconFields.proRataShare ?? leaseFields.statedTenantSharePercent;
-  const billedShare = billedShareRaw ? parseFloat(billedShareRaw) : null;
-
-  if (expectedShare != null && billedShare != null) {
-    const shareDifference = billedShare - expectedShare;
-    const absDifference = Math.abs(shareDifference);
-
-    if (absDifference > 0.5) {
-      // Calculate estimated overcharge impact
-      let estimatedImpact = 0;
-      if (reconTotal != null && reconTotal > 0) {
-        estimatedImpact = Math.round(reconTotal * (absDifference / 100));
-      }
-
-      // Build source evidence
-      const allocEvidence: SourceEvidence[] = [];
-
-      // Evidence from lease for square footage
-      const sqFtSearchTerms = [
-        tenantSqFtRaw,
-        buildingSqFtRaw,
-        leaseFields.statedTenantSharePercent
-          ? leaseFields.statedTenantSharePercent + "%"
-          : null,
-      ].filter(Boolean) as string[];
-
-      for (const term of sqFtSearchTerms) {
-        const snippet = extractSnippet(leaseText, term);
-        if (snippet) {
-          allocEvidence.push({
-            document: leaseDocName,
-            page: findPageForText(leaseText, term),
-            extractedText: snippet,
-          });
-          break; // one lease evidence is enough
-        }
-      }
-
-      // Evidence from reconciliation for billed share
-      if (reconFields.proRataShare) {
-        const reconSnippet = extractSnippet(reconText, reconFields.proRataShare + "%");
-        if (reconSnippet) {
-          allocEvidence.push({
-            document: reconDocName,
-            page: findPageForText(reconText, reconFields.proRataShare + "%"),
-            extractedText: reconSnippet,
-          });
-        }
-      }
-
-      const direction = shareDifference > 0 ? "overbilled" : "underbilled";
-
+    } else if (missingFields.has("pro_rata") && !isLimited) {
       paidFindings.push({
-        category: "CAM Allocation Discrepancy",
-        description:
-          `The tenant appears to be billed a CAM allocation of ${billedShare.toFixed(2)}%, ` +
-          `while the lease indicates the tenant's proportionate share should be approximately ` +
-          `${expectedShare.toFixed(2)}% based on square footage ` +
-          `(${tenantSqFt!.toLocaleString()} sq ft premises / ${buildingSqFt!.toLocaleString()} sq ft building). ` +
-          `The ${absDifference.toFixed(2)}% difference suggests the tenant may be ${direction}.` +
-          (estimatedImpact > 0
-            ? ` Estimated impact: ${formatMoney(estimatedImpact)}.`
-            : ""),
-        potential_savings: shareDifference > 0 ? estimatedImpact : 0,
-        severity: "high",
-        sourceEvidence: allocEvidence.length > 0 ? allocEvidence : undefined,
+        category: "Pro-Rata Share Review",
+        description: aiDegraded
+          ? undetermined("the tenant's pro-rata share")
+          : "Pro-rata share percentage could not be detected in the lease. " +
+            "Verify that the reconciliation applies the correct tenant share based on actual rentable area.",
+        potential_savings: 0,
+        severity: "low",
+        insufficientData: true,
       });
-    }
-  }
-
-  // ------------------------------------------------------------------
-  // 3c. Tenant Allocation Validation
-  // ------------------------------------------------------------------
-  {
-    // Determine billed share from reconciliation
-    const billedSharePercent = reconFields.proRataShare
-      ? parseFloat(reconFields.proRataShare)
-      : null;
-
-    // Priority A: calculate expected share from square footage
-    const calcExpectedShare =
-      tenantSqFt != null && buildingSqFt != null && buildingSqFt > 0
-        ? (tenantSqFt / buildingSqFt) * 100
-        : null;
-
-    // Priority B: use stated tenant share if sqft unavailable
-    const statedShare = leaseFields.statedTenantSharePercent
-      ? parseFloat(leaseFields.statedTenantSharePercent)
-      : null;
-
-    const tavExpectedShare = calcExpectedShare ?? statedShare;
-    const usedSqFt = calcExpectedShare != null;
-
-    // Priority C: note when both exist and diverge
-    let statedVsCalcNote = "";
-    if (calcExpectedShare != null && statedShare != null) {
-      const statedDiff = Math.abs(calcExpectedShare - statedShare);
-      if (statedDiff > 0.5) {
-        statedVsCalcNote =
-          ` Note: the lease states a tenant share of ${statedShare.toFixed(2)}%, ` +
-          `which differs from the square-footage-based calculation of ${calcExpectedShare.toFixed(2)}%.`;
-      }
-    }
-
-    if (tavExpectedShare != null && billedSharePercent != null) {
-      const tavDifference = billedSharePercent - tavExpectedShare;
-      const tavAbsDiff = Math.abs(tavDifference);
-
-      if (tavAbsDiff > 0.5) {
-        const overbilled = tavDifference > 0;
-        const direction = overbilled ? "overbilled" : "underbilled";
-        const severity: "high" | "medium" = overbilled ? "high" : "medium";
-
-        // Financial impact only when overbilled and total available
-        let estimatedOverallocation = 0;
-        if (overbilled && reconTotal != null && reconTotal > 0) {
-          estimatedOverallocation = Math.round(
-            reconTotal * (tavDifference / 100),
-          );
-        }
-
-        // --- Source evidence ---
-        const tavEvidence: SourceEvidence[] = [];
-
-        // Tenant sqft evidence
-        if (tenantSqFtRaw) {
-          const snippet = extractSnippet(leaseText, tenantSqFtRaw);
-          if (snippet) {
-            tavEvidence.push({
-              document: leaseDocName,
-              page: findPageForText(leaseText, tenantSqFtRaw),
-              extractedText: snippet,
-            });
-          }
-        }
-
-        // Building sqft evidence
-        if (buildingSqFtRaw) {
-          const snippet = extractSnippet(leaseText, buildingSqFtRaw);
-          if (snippet) {
-            tavEvidence.push({
-              document: leaseDocName,
-              page: findPageForText(leaseText, buildingSqFtRaw),
-              extractedText: snippet,
-            });
-          }
-        }
-
-        // Stated tenant share evidence
-        if (leaseFields.statedTenantSharePercent) {
-          const term = leaseFields.statedTenantSharePercent + "%";
-          const snippet = extractSnippet(leaseText, term);
-          if (snippet) {
-            tavEvidence.push({
-              document: leaseDocName,
-              page: findPageForText(leaseText, term),
-              extractedText: snippet,
-            });
-          }
-        }
-
-        // Billed share evidence from reconciliation
-        if (reconFields.proRataShare) {
-          const term = reconFields.proRataShare + "%";
-          const snippet = extractSnippet(reconText, term);
-          if (snippet) {
-            tavEvidence.push({
-              document: reconDocName,
-              page: findPageForText(reconText, term),
-              extractedText: snippet,
-            });
-          }
-        }
-
-        // Build description
-        const basisLabel = usedSqFt
-          ? `based on square footage (${tenantSqFt!.toLocaleString()} sq ft premises / ${buildingSqFt!.toLocaleString()} sq ft building)`
-          : "based on the stated lease percentage";
-
-        let desc =
-          `The reconciliation statement bills the tenant at a ${billedSharePercent.toFixed(2)}% allocation share, ` +
-          `but the expected share is ${tavExpectedShare.toFixed(2)}% ${basisLabel}. ` +
-          `The ${tavAbsDiff.toFixed(2)}% difference indicates the tenant appears to be ${direction}.`;
-
-        if (estimatedOverallocation > 0) {
-          desc += ` Potential difference to review: ${formatMoney(estimatedOverallocation)}.`;
-        }
-
-        desc += statedVsCalcNote;
-
-        freeFindings.push({
-          category: "Tenant Allocation Discrepancy",
-          description: desc,
-          potential_savings: overbilled ? estimatedOverallocation : 0,
-          severity,
-          sourceEvidence: tavEvidence.length > 0 ? tavEvidence : undefined,
-        });
-      }
-    }
-  }
-
-  // ------------------------------------------------------------------
-  // 3d. Tenant Allocation Validation (Premium)
-  // ------------------------------------------------------------------
-  {
-    // Only run when square footage data is available
-    if (tenantSqFt != null && buildingSqFt != null && buildingSqFt > 0) {
-      const tavPremiumExpected = (tenantSqFt / buildingSqFt) * 100;
-
-      // Determine billed share: prefer recon billedSharePercent, fallback to stated
-      const tavPremiumBilledRaw =
-        reconFields.proRataShare ?? leaseFields.statedTenantSharePercent;
-      const tavPremiumBilled = tavPremiumBilledRaw
-        ? parseFloat(tavPremiumBilledRaw)
-        : null;
-
-      if (tavPremiumBilled != null && !isNaN(tavPremiumBilled)) {
-        const tavPremiumDiff = tavPremiumBilled - tavPremiumExpected;
-        const tavPremiumAbsDiff = Math.abs(tavPremiumDiff);
-
-        if (tavPremiumAbsDiff > 0.5) {
-          // Financial impact only when overbilled
-          let tavPremiumOvercharge = 0;
-          if (
-            tavPremiumDiff > 0 &&
-            reconTotal != null &&
-            reconTotal > 0
-          ) {
-            tavPremiumOvercharge = Math.round(
-              reconTotal * (tavPremiumDiff / 100),
-            );
-          }
-
-          // Build structured source evidence
-          const tavPremiumEvidence: SourceEvidence[] = [];
-
-          if (tenantSqFtRaw) {
-            const snippet = extractSnippet(leaseText, tenantSqFtRaw);
-            if (snippet) {
-              tavPremiumEvidence.push({
-                document: leaseDocName,
-                page: findPageForText(leaseText, tenantSqFtRaw),
-                extractedText: snippet,
-                findingCategory: "Tenant Premises Sq Ft",
-              });
-            }
-          }
-
-          if (buildingSqFtRaw) {
-            const snippet = extractSnippet(leaseText, buildingSqFtRaw);
-            if (snippet) {
-              tavPremiumEvidence.push({
-                document: leaseDocName,
-                page: findPageForText(leaseText, buildingSqFtRaw),
-                extractedText: snippet,
-                findingCategory: "Building Total Sq Ft",
-              });
-            }
-          }
-
-          if (reconFields.proRataShare) {
-            const term = reconFields.proRataShare + "%";
-            const snippet = extractSnippet(reconText, term);
-            if (snippet) {
-              tavPremiumEvidence.push({
-                document: reconDocName,
-                page: findPageForText(reconText, term),
-                extractedText: snippet,
-                findingCategory: "Billed Share",
-              });
-            }
-          } else if (leaseFields.statedTenantSharePercent) {
-            const term = leaseFields.statedTenantSharePercent + "%";
-            const snippet = extractSnippet(leaseText, term);
-            if (snippet) {
-              tavPremiumEvidence.push({
-                document: leaseDocName,
-                page: findPageForText(leaseText, term),
-                extractedText: snippet,
-                findingCategory: "Stated Tenant Share (fallback)",
-              });
-            }
-          }
-
-          const billedSource = reconFields.proRataShare
-            ? "reconciliation statement"
-            : "lease stated percentage";
-
-          let tavPremiumDesc =
-            `Tenant Allocation Validation: The tenant's billed CAM share does not match the lease-defined pro-rata share. ` +
-            `Tenant premises: ${tenantSqFt!.toLocaleString()} sq ft. ` +
-            `Building total: ${buildingSqFt!.toLocaleString()} sq ft. ` +
-            `Calculated expected share: ${tavPremiumExpected.toFixed(2)}%. ` +
-            `Billed share (from ${billedSource}): ${tavPremiumBilled.toFixed(2)}%. ` +
-            `Difference: ${tavPremiumAbsDiff.toFixed(2)}%.`;
-
-          if (tavPremiumDiff > 0 && tavPremiumOvercharge > 0) {
-            tavPremiumDesc +=
-              ` Potential discrepancy: ${formatMoney(tavPremiumOvercharge)}. This is a calculation from the documents, not a confirmed overcharge.`;
-          }
-
-          paidFindings.push({
-            category: "Tenant Allocation Discrepancy",
-            description: tavPremiumDesc,
-            potential_savings:
-              tavPremiumDiff > 0 ? tavPremiumOvercharge : 0,
-            severity: "high",
-            sourceEvidence:
-              tavPremiumEvidence.length > 0
-                ? tavPremiumEvidence
-                : undefined,
-          });
-        }
-      }
     }
   }
 
@@ -2098,6 +1856,21 @@ export async function runAudit(
       }),
       extractionIncomplete: validation.extraction,
     };
+  }
+
+  // Audit-right / dispute-window sentences, quoted from the lease. The text is not stored after processing, so they are
+  // captured here. Same empty-summary rule as the coverage record. The period is read, never assumed.
+  {
+    const auditRights = extractAuditRights(leaseText);
+    if (auditRights.length > 0) {
+      leaseClausesSummary = {
+        ...(leaseClausesSummary ?? {
+          camCap: null, adminFeeCap: null, managementFeeCap: null, tenantProRataShare: null,
+          tenantSquareFootage: null, buildingSquareFootage: null, excludedCategories: [], additionalClauses: [],
+        }),
+        auditRights,
+      };
+    }
   }
 
   // What did not run and what carries no amount, kept with the clause summary so the purchase control, report and plan
