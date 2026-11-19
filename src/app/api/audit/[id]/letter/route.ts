@@ -4,6 +4,8 @@ import { coverageOf, coverageSentence, isAiTruncated } from "@/lib/analysis-cove
 import { buildDisputeLetter, letterToDocx, letterToPdf } from "@/services/dispute-letter";
 import { containLegacyAudit } from "@/lib/legacy-containment";
 import { buildDocumentRequest } from "@/services/document-request";
+import { applyInputOverrides } from "@/lib/input-overrides";
+import { readOverrides } from "@/lib/input-overrides-store";
 import { parseAuditRights } from "@/lib/audit-rights";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +27,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .maybeSingle();
   if (!stored) return NextResponse.json({ error: "Not found" }, { status: 404, headers: NO_STORE });
   // Read-time containment of audits stored before cap/gross-up amounts were withheld: the letter and its headline agree.
-  const a = containLegacyAudit(stored as Record<string, unknown>) as typeof stored;
+  const a = applyInputOverrides(
+    containLegacyAudit(stored as Record<string, unknown>),
+    (await readOverrides(gate.db, id, gate.userId)).overrides,
+  ) as typeof stored;
 
   const findings = [...(a.free_findings ?? []), ...(a.paid_findings ?? [])];
   const letter = buildDisputeLetter({

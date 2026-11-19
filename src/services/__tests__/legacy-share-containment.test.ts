@@ -139,7 +139,7 @@ async function main() {
 
   await test("old fee-over-base amount is withheld; its figures are kept as a question; an unrelated amount is untouched", () => {
     const row = { free_findings: [KEEP], paid_findings: [OLD_FEE], savings_estimate: 2962, estimated_overcharge: 0 };
-    const r = containLegacyAudit(row);
+    const r = containLegacyAudit(row as Record<string, unknown>);
     const fee = (r.paid_findings as Finding[])[0];
     assert.strictEqual(fee.potential_savings, 0);
     assert.ok(fee.description.includes("$100,897.20") && fee.description.includes("18.00%") && fee.description.includes("$560,540.00") && fee.description.includes("15%"));
@@ -169,7 +169,7 @@ async function main() {
     const row = { free_findings: weird, paid_findings: null, savings_estimate: null };
     const r = containLegacyAudit(row);
     assert.strictEqual(r, row, "nothing matched, so the row is returned as is");
-    const partial = containLegacyAudit({ free_findings: [(legacy.free_findings as Finding[]).find((f) => f.category === "Tenant Allocation Discrepancy")!] });
+    const partial = containLegacyAudit(<Record<string, unknown>>{ free_findings: [(legacy.free_findings as Finding[]).find((f) => f.category === "Tenant Allocation Discrepancy")!] });
     // no stored headline to reconcile: the total is marked unavailable (null), never invented
     assert.strictEqual(partial.savings_estimate, null);
     assert.strictEqual(comparisonStatusOf(partial.lease_clauses_summary as LeaseClauseSummary)?.headlineUnavailable, true);
@@ -177,7 +177,7 @@ async function main() {
   });
 
   await test("a stored headline that does not reconcile after withholding is shown as unavailable, never forced", () => {
-    const r = containLegacyAudit({ ...legacy, savings_estimate: 999 });
+    const r = containLegacyAudit({ ...legacy, savings_estimate: 999 } as Record<string, unknown>);
     assert.strictEqual(r.savings_estimate, null);
     assert.strictEqual(comparisonStatusOf(r.lease_clauses_summary as LeaseClauseSummary)?.headlineUnavailable, true);
   });

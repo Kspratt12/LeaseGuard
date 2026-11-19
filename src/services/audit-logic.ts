@@ -82,6 +82,8 @@ export interface Finding {
   checkId?: string;
   /** The deterministic inputs of a calculated finding, so its amount can be reproduced and recomputed from corrected values. */
   calc?: ShareCalc | AdminFeeCalc;
+  /** Set only on the DISPLAYED copy when it was recalculated from customer-corrected inputs (src/lib/input-overrides.ts). */
+  correctedInputs?: string[];
 }
 
 /** Inputs of the management/admin fee calculation (see src/services/savings-math.ts). */
@@ -133,6 +135,8 @@ export interface LeaseClauseSummary {
    * when none was found. Released to the owner only after a verified payment (see toPublicAudit).
    */
   auditRights?: AuditRightsClause[];
+  /** Set only on the DISPLAYED copy: which corrected inputs were applied and what was not reassessed (never stored here). */
+  inputCorrections?: import("@/lib/input-overrides").InputCorrectionsRecord;
 }
 
 export interface AuditResult {

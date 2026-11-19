@@ -11,6 +11,9 @@ import { TIERS, tierForYearCount } from "@/lib/payments";
 import { supabasePaymentStore } from "@/lib/payment-store";
 import { decidePurchase, purchaseInputFromRow, publicPurchase } from "@/lib/purchase-eligibility";
 import { readPaymentReview, type PaymentRowsDb } from "@/lib/payment-review";
+import { containLegacyAudit } from "@/lib/legacy-containment";
+import { applyInputOverrides } from "@/lib/input-overrides";
+import { readOverrides } from "@/lib/input-overrides-store";
 
 // Prevent Next.js from caching this route
 export const dynamic = "force-dynamic";
@@ -87,7 +90,19 @@ export async function GET(
   const payment_review = await readPaymentReview(service as unknown as PaymentRowsDb, id, user.id, unlocked);
   const tier = tierForYearCount(paidRow?.recon_year_count);
 
-  const publicAudit = toPublicAudit(audit, paidRow?.paid_findings ?? null, {
+  // Customer corrections exist only on paid audits (the inputs route requires payment) and are applied only when unlocked.
+  let shownAudit = audit;
+  let shownPaid: unknown = paidRow?.paid_findings ?? null;
+  if (unlocked) {
+    const { overrides } = await readOverrides(service, id, user.id);
+    if (overrides) {
+      const applied = applyInputOverrides(containLegacyAudit({ ...audit, paid_findings: shownPaid }), overrides);
+      shownAudit = applied;
+      shownPaid = applied.paid_findings;
+    }
+  }
+
+  const publicAudit = toPublicAudit(shownAudit, shownPaid, {
     unlocked,
     tier,
     amountCents: tier ? TIERS[tier].amount : null,

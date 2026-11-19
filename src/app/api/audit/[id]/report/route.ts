@@ -5,6 +5,8 @@ import { authenticate, userOwnsAudit, UUID_RE } from "@/lib/audit-access";
 import { authorizeReportAccess } from "@/lib/payments";
 import { supabasePaymentStore } from "@/lib/payment-store";
 import { containLegacyAudit } from "@/lib/legacy-containment";
+import { applyInputOverrides } from "@/lib/input-overrides";
+import { readOverrides } from "@/lib/input-overrides-store";
 
 /**
  * Report download. Requires a signed-in OWNER and a VERIFIED payment (recorded
@@ -53,7 +55,11 @@ export async function GET(
     .maybeSingle();
   if (!stored) return NextResponse.json({ error: "Report not found" }, { status: 404, headers: NO_STORE });
   // Read-time containment of audits stored before cap/gross-up amounts were withheld (also applied inside the generator).
-  const a = containLegacyAudit(stored as Record<string, unknown>) as typeof stored;
+  // Then customer corrections of extracted numbers (stored separately, applied the same way on every surface).
+  const a = applyInputOverrides(
+    containLegacyAudit(stored as Record<string, unknown>),
+    (await readOverrides(db, id, user!.id)).overrides,
+  ) as typeof stored;
 
   try {
     const { generateReportPdf } = await import("@/services/report-pdf");
