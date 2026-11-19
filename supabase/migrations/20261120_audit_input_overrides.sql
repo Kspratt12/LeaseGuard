@@ -18,10 +18,14 @@ alter table public.audits
   drop constraint if exists audits_input_overrides_shape;
 alter table public.audits
   add constraint audits_input_overrides_shape
+  -- coalesce(..., false): a CHECK that evaluates to NULL passes, so every test must be false (not NULL) when a part is
+  -- missing. The size limit uses the text length, not pg_column_size (which measures the compressed value).
   check (
     input_overrides is null
-    or (jsonb_typeof(input_overrides) = 'object'
-        and input_overrides->>'version' = '1'
-        and jsonb_typeof(input_overrides->'values') = 'object'
-        and pg_column_size(input_overrides) < 16384)
+    or coalesce(
+         jsonb_typeof(input_overrides) = 'object'
+         and input_overrides->>'version' = '1'
+         and jsonb_typeof(input_overrides->'values') = 'object'
+         and octet_length(input_overrides::text) < 16384,
+         false)
   );
