@@ -106,6 +106,8 @@ interface Contained {
   kind: Kind | null;
   /** share class: this is a contained legacy share finding (all but the first in an audit are dropped) */
   share?: boolean;
+  /** fee class: a contained legacy fee-over-base finding */
+  fee?: boolean;
 }
 
 function containShare(f: Finding, desc: string): Contained | null {
@@ -136,14 +138,52 @@ function containShare(f: Finding, desc: string): Contained | null {
   return null;
 }
 
+/**
+ * FEE class. The earlier "Administrative Fee Cap Exceeded" check (fee measured over a base, used when the statement did not
+ * state the rate) priced the excess as "tenant total x excess %", and used the BUILDING total when no tenant total was read,
+ * which skipped the tenant's share. The billed share was not stored, so the correct amount cannot be rebuilt: it is withheld,
+ * and the stored figures are kept as a question.
+ */
+const RE_LEGACY_FEE = new RegExp(
+  `^The admin/management fee in the reconciliation is (\\$[\\d,]+(?:\\.\\d+)?), representing ${P}% of building operating expenses \\((\\$[\\d,]+(?:\\.\\d+)?)\\)\\. The lease limits this fee to ${P}%, creating a ${P}% excess\\. Potential discrepancy: \\$[\\d,]+(?:\\.\\d+)?\\.`,
+);
+function containFee(f: Finding, desc: string): Contained | null {
+  if (f.category !== "Administrative Fee Cap Exceeded") return null;
+  const m = RE_LEGACY_FEE.exec(desc);
+  if (!m) return null;
+  const [, fee, pct, base, cap] = m;
+  const amount = typeof f.potential_savings === "number" && f.potential_savings > 0 && f.insufficientData !== true ? f.potential_savings : 0;
+  return {
+    kind: null,
+    fee: true,
+    removed: amount,
+    finding: {
+      ...f,
+      description:
+        `The management/admin fee on the statement is ${fee}, which is ${pct}% of the ${base} total it was compared with; the lease text identified in this review limits the fee to ${cap}%. ` +
+        "An earlier version of this review calculated an amount for this item on a basis that did not apply your share correctly. That amount is no longer shown, and the share needed to recalculate it was not stored. " +
+        "The statement figures and lease text quoted as source evidence are from your documents. No amount is counted for this item.",
+      letterText:
+        `The statement shows a management/admin fee of ${fee}, which is ${pct}% of the ${base} total. The lease I reviewed limits this fee to ${cap}%. ` +
+        "Please explain how the fee was calculated, which total it was applied to, and provide the calculation.",
+      potential_savings: 0,
+      severity: "medium" as const,
+    },
+  };
+}
+
 function containOne(f: Finding): Contained | null {
   if (!isObj(f) || typeof f.category !== "string") return null;
   if ((f as { quantified?: unknown }).quantified !== undefined) return null; // a new-format record says what it is
+  if (typeof (f as { checkId?: unknown }).checkId === "string") return null; // a finding with a structured identity is current
   const desc = typeof f.description === "string" ? f.description : "";
 
   // ── share class ──
   const share = containShare(f, desc);
   if (share) return share;
+  // ── fee class ──
+  const fee = containFee(f, desc);
+  if (fee) return fee;
 
   // ── amount class ──
   const kind: Kind | null = LEGACY_CAP_CATEGORIES.includes(f.category) ? "cap" : f.category === LEGACY_GROSS_UP_CATEGORY && f.insufficientData !== true ? "gross-up" : null;
@@ -207,6 +247,8 @@ export interface ContainedFindings {
   changed: boolean;
   /** A legacy share finding was contained (and any duplicates of it dropped). */
   shareContained: boolean;
+  /** A legacy fee-over-base finding was contained. */
+  feeContained: boolean;
 }
 
 /**
@@ -218,6 +260,7 @@ export function containLegacyFindings(findings: Finding[], state: { shareSeen: b
   const kinds: Kind[] = [];
   let changed = false;
   let shareContained = false;
+  let feeContained = false;
   const out: Finding[] = [];
   for (const f of findings) {
     const c = containOne(f);
@@ -228,6 +271,7 @@ export function containLegacyFindings(findings: Finding[], state: { shareSeen: b
     changed = true;
     removed += c.removed;
     if (c.kind) kinds.push(c.kind);
+    if (c.fee) feeContained = true;
     if (c.share) {
       shareContained = true;
       if (state.shareSeen) continue; // the same billed share, already listed once: dropped, its amount withheld above
@@ -235,7 +279,7 @@ export function containLegacyFindings(findings: Finding[], state: { shareSeen: b
     }
     out.push(c.finding);
   }
-  return { findings: changed ? out : findings, removed: round2(removed), kinds, changed, shareContained };
+  return { findings: changed ? out : findings, removed: round2(removed), kinds, changed, shareContained, feeContained };
 }
 
 /** Sum of the amounts the engine's own formula counts: not insufficient-data, not withheld. */
@@ -259,7 +303,8 @@ export function containLegacyAudit<T extends Record<string, unknown>>(row: T): T
   const removed = round2((free?.removed ?? 0) + (paid?.removed ?? 0));
   const kinds = [...(free?.kinds ?? []), ...(paid?.kinds ?? [])];
   const shareContained = !!(free?.shareContained || paid?.shareContained);
-  if (kinds.length === 0 && removed === 0 && !shareContained) return next as T; // wording-only change: no amount was withheld, nothing else to say
+  const feeContained = !!(free?.feeContained || paid?.feeContained);
+  if (kinds.length === 0 && removed === 0 && !shareContained && !feeContained) return next as T; // wording-only change: no amount was withheld, nothing else to say
 
   // Headline: presented only if it reconciles. Nothing is clamped into a precise-looking total.
   let unavailable = false;
@@ -293,6 +338,7 @@ export function containLegacyAudit<T extends Record<string, unknown>>(row: T): T
       // the cap/gross-up sentence is said only when a cap or gross-up amount was actually contained
       legacyContained: kinds.length > 0 || existing?.legacyContained === true,
       legacyShareContained: shareContained || existing?.legacyShareContained === true,
+      legacyFeeContained: feeContained || existing?.legacyFeeContained === true,
       headlineUnavailable: unavailable || existing?.headlineUnavailable === true,
       comparison: existing?.comparison,
       uploadedButFailed: existing?.uploadedButFailed,

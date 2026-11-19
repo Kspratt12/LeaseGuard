@@ -112,47 +112,142 @@ function lineWith(text: string, value: number): string | null {
   return null;
 }
 
-/** Tolerance for "pool x share = charge": the larger of one dollar and 0.05% of the charge (statement rounding). */
-export const POOL_MATCH_TOLERANCE = (charge: number) => Math.max(1, charge * 0.0005);
+/** Decimal places the share is printed with ("10.00" -> 2, "8.5" -> 1, "10" -> 0). */
+export function shareDecimals(raw: string | null | undefined): number {
+  const m = /\.(\d+)/.exec(String(raw ?? "").replace(/[%\s]/g, ""));
+  return m ? m[1].length : 0;
+}
 
 /**
- * Finds the pool the statement applied the billed share to, from the statement's own figures. Each candidate tenant
- * charge (the extracted totals) is tested against every other amount on the statement; the first exact-to-tolerance
- * match wins, preferring the closest. Returns null when the figures do not show it.
+ * Tolerance for "pool x printed share = charge". A share printed to d decimals can be off by half a unit in the last
+ * place, so the charge can differ from pool x printed share by up to pool x 0.5 x 10^-d / 100. The tolerance follows
+ * that, with a $1 floor for cent rounding and a ceiling of 0.2% of the charge: a share printed too coarsely to check
+ * (for example "10%") is not matched at all rather than matched loosely.
+ */
+export function poolMatchTolerance(charge: number, billedShare: number, decimals: number): number {
+  const rel = Math.min(0.002, Math.max(0.0005, (0.5 * Math.pow(10, -decimals)) / billedShare));
+  return Math.max(1, charge * rel);
+}
+
+/** Lines that state a total or an expense pool. A coincidental amount on an expense line or a payment line is never a pool. */
+const POOL_LINE = /\b(total|subtotal|operating expenses|expense pool|recoverable|building expenses|cam expenses|common area)\b/i;
+const NOT_POOL_LINE = /\b(budget|estimated|payments?|paid|received|balance|due|credit|prior|previous)\b/i;
+
+/**
+ * Finds the pool the statement applied the billed share to, from the statement's own figures: an amount on a total line
+ * such that pool x billed share = a candidate tenant charge, within poolMatchTolerance. Returns null when no pool matches,
+ * AND when two different pools match (ambiguous: the software cannot tell which one the share was applied to).
  */
 export function findSharePool(i: {
   statementText: string;
   billedShare: number;
+  /** Decimal places the billed share is printed with; defaults to 2. */
+  billedShareDecimals?: number;
   candidateCharges: Array<number | null | undefined>;
 }): SharePool | null {
   const s = i.billedShare;
   if (!(s > 0 && s < 100)) return null;
-  const amounts = amountsIn(i.statementText);
-  let best: { pool: number; charge: number; err: number } | null = null;
-  for (const charge of i.candidateCharges) {
-    if (charge == null || !(charge > 0)) continue;
-    for (const pool of amounts) {
+  const decimals = i.billedShareDecimals ?? 2;
+  if (decimals === 0) return null; // a whole-number share is too coarse to verify a pool against
+  const pools = new Map<number, string>();
+  for (const line of i.statementText.split(/\r?\n|\f/)) {
+    const l = line.trim();
+    if (!POOL_LINE.test(l) || NOT_POOL_LINE.test(l)) continue;
+    for (const n of amountsIn(l)) if (!pools.has(n)) pools.set(n, l.replace(/\s+/g, " "));
+  }
+  const matches: Array<{ pool: number; charge: number; err: number; line: string }> = [];
+  for (const charge of new Set(i.candidateCharges.filter((c): c is number => c != null && c > 0))) {
+    for (const [pool, line] of pools) {
       if (pool <= charge) continue;
       const err = Math.abs((pool * s) / 100 - charge);
-      if (err <= POOL_MATCH_TOLERANCE(charge) && (!best || err < best.err)) best = { pool, charge, err };
+      if (err <= poolMatchTolerance(charge, s, decimals)) matches.push({ pool, charge, err, line });
     }
   }
-  if (!best) return null;
-  return {
-    pool: best.pool,
-    tenantCharge: best.charge,
-    poolLine: lineWith(i.statementText, best.pool),
-    chargeLine: lineWith(i.statementText, best.charge),
-  };
+  if (matches.length === 0) return null;
+  if (new Set(matches.map((m) => m.pool)).size > 1) return null; // ambiguous
+  const best = matches.sort((a, b) => a.err - b.err)[0];
+  return { pool: best.pool, tenantCharge: best.charge, poolLine: best.line, chargeLine: lineWith(i.statementText, best.charge) };
 }
 
 /**
- * Dollar effect of a share difference on a known pool: pool x (billed - expected) / 100, to the cent. Zero when the
- * tenant is billed at or below the expected share, or when an input is missing.
+ * Dollar effect of a share difference on a known pool: the charge actually billed minus the charge the expected share
+ * gives on the same pool, to the cent. Using the billed charge (not pool x printed share) keeps the result exact when the
+ * statement prints a rounded share. Zero when the tenant is billed at or below the expected share, or an input is missing.
  */
-export function computeShareMisallocation(i: { pool: number | null; billedShare: number | null; expectedShare: number | null }): number {
-  const { pool, billedShare, expectedShare } = i;
-  if (pool == null || billedShare == null || expectedShare == null) return 0;
-  if (!(pool > 0) || !(billedShare > expectedShare)) return 0;
-  return round2((pool * (billedShare - expectedShare)) / 100);
+export function computeShareMisallocation(i: { pool: number | null; tenantCharge: number | null; billedShare: number | null; expectedShare: number | null }): number {
+  const { pool, tenantCharge, billedShare, expectedShare } = i;
+  if (pool == null || tenantCharge == null || billedShare == null || expectedShare == null) return 0;
+  if (!(pool > 0) || !(tenantCharge > 0) || !(billedShare > expectedShare)) return 0;
+  const atExpected = round2((pool * expectedShare) / 100);
+  return tenantCharge > atExpected ? round2(tenantCharge - atExpected) : 0;
+}
+
+/** The charge the expected share gives on the pool, to the cent (shown in the finding). */
+export const chargeAtShare = (pool: number, share: number) => round2((pool * share) / 100);
+
+// ───────────────────────────── the finding ─────────────────────────────
+
+/** Structured identity of the share check. Stored on its findings so later code never has to match on wording. */
+export const SHARE_CHECK_ID = "pro-rata-share";
+
+/** The inputs of an overbilled-share finding, stored with it so the amount can be reproduced (and recomputed). */
+export interface ShareCalc {
+  kind: "share";
+  billedShare: number;
+  expectedShare: number;
+  expectedBasis: ShareBasis;
+  /** The pool the statement's figures show the share was applied to; null when not shown. */
+  pool: number | null;
+  /** The tenant charge that equals pool x billed share; null when the pool is not shown. */
+  tenantCharge: number | null;
+}
+
+const pctText = (n: number) => `${parseFloat(n.toFixed(4))}%`;
+const usd = (n: number) => {
+  const c = Math.round(n * 100);
+  return c % 100 === 0 ? `$${(c / 100).toLocaleString("en-US")}` : `$${(c / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+/**
+ * The overbilled-share finding for a set of inputs. With a pool: one amount, the charge billed minus the charge at the
+ * expected share, rounded to the dollar. Without one: the same discrepancy as a question with no amount.
+ * `expectedSentence` says where the expected share came from (the lease text, its square footage, or a value the
+ * customer confirmed).
+ */
+export function shareFinding(c: ShareCalc, ctx: { expectedSentence: string; sqftText?: string | null }) {
+  const head = `The statement applies a tenant share of ${pctText(c.billedShare)}. ${ctx.expectedSentence}`.trim();
+  if (c.pool != null && c.tenantCharge != null) {
+    const at = chargeAtShare(c.pool, c.expectedShare);
+    const exact = computeShareMisallocation({ pool: c.pool, tenantCharge: c.tenantCharge, billedShare: c.billedShare, expectedShare: c.expectedShare });
+    const amount = Math.round(exact);
+    return {
+      category: "Tenant Allocation Discrepancy",
+      checkId: SHARE_CHECK_ID,
+      calc: c,
+      description:
+        `${head} The statement's own figures show the share was applied to ${usd(c.pool)} ` +
+        `(${usd(c.pool)} x ${pctText(c.billedShare)} = ${usd(c.tenantCharge)}, the charge billed). ` +
+        `At ${pctText(c.expectedShare)} the same amount gives ${usd(at)}. ` +
+        `Calculation: ${usd(c.tenantCharge)} - ${usd(at)} = ${usd(exact)}, rounded to ${usd(amount)}. ` +
+        `This is a calculation from the documents, not a confirmed overcharge. It assumes the lease share applies to the same expenses the statement applied its share to, ` +
+        `and that no other lease provision (for example a different share for some expense groups, or an occupancy adjustment) changes it.`,
+      potential_savings: amount,
+      severity: "high" as const,
+    };
+  }
+  const leaseSide = c.expectedBasis === "stated" ? `states ${pctText(c.expectedShare)}` : `square footage gives ${ctx.sqftText ?? pctText(c.expectedShare)}`;
+  return {
+    category: "Tenant Allocation Discrepancy",
+    checkId: SHARE_CHECK_ID,
+    calc: c,
+    description:
+      `${head} That is ${parseFloat((c.billedShare - c.expectedShare).toFixed(4))} percentage points higher. ` +
+      `The statement's figures did not show which total the share was applied to, so no dollar amount is calculated and nothing is counted in any total. ` +
+      `Ask the landlord how the share was determined and which total it was applied to.`,
+    potential_savings: 0,
+    letterText:
+      `The statement applies a tenant share of ${pctText(c.billedShare)}, while the lease ${leaseSide}. ` +
+      `Please explain how my share was determined, identify the total it was applied to, and provide the calculation.`,
+    severity: "high" as const,
+  };
 }

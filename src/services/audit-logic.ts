@@ -24,17 +24,21 @@ import {
 import {
   computeAdminFeeTenantOvercharge,
   computeCamCapExcess,
+  computeFeeOverBaseTenantOvercharge,
   totalSavings,
 } from "@/services/savings-math";
 import { dedupeBySourceLine, supportedPriorYearTotal } from "@/services/line-ledger";
 import { extractAuditRights, type AuditRightsClause } from "@/lib/audit-rights";
 import {
-  computeShareMisallocation,
+  SHARE_CHECK_ID,
   findSharePool,
   parseMoney,
   parsePercent,
   resolveExpectedShare,
+  shareDecimals,
+  shareFinding,
   shareMismatchThreshold,
+  type ShareCalc,
 } from "@/services/share-math";
 import { buildComparisonStatus, type ComparisonStatus, type UnquantifiedCheck } from "@/lib/quantification";
 
@@ -71,6 +75,27 @@ export interface Finding {
   /** First-person wording for the dispute letter, for items that ask the landlord a question. Falls back to `description`. */
   letterText?: string;
   sourceEvidence?: SourceEvidence[];
+  /**
+   * Structured identity of the check that produced the finding (for example "pro-rata-share"). Absent on findings stored
+   * before identities were added; code that recognises a finding uses this first and falls back to wording only for those.
+   */
+  checkId?: string;
+  /** The deterministic inputs of a calculated finding, so its amount can be reproduced and recomputed from corrected values. */
+  calc?: ShareCalc | AdminFeeCalc;
+}
+
+/** Inputs of the management/admin fee calculation (see src/services/savings-math.ts). */
+export interface AdminFeeCalc {
+  kind: "admin-fee";
+  /** "stated-rate": the statement states the billed percentage. "fee-over-base": the percentage is the fee line divided by the base. */
+  method: "stated-rate" | "fee-over-base";
+  feeAmountBuilding: number;
+  /** Billed percentage: as stated (stated-rate) or fee / base x 100 (fee-over-base). */
+  statedPercent: number;
+  capPercent: number;
+  /** The total the fee is measured against (fee-over-base only). */
+  feeBase: number | null;
+  tenantSharePercent: number | null;
 }
 
 export interface OverchargeLineItem {
@@ -713,6 +738,10 @@ export async function runAudit(
         );
         paidFindings.push({
           category: "Admin Fee Above Lease Cap",
+          checkId: "admin-fee",
+          ...(feeSavings > 0
+            ? { calc: { kind: "admin-fee" as const, method: "stated-rate" as const, feeAmountBuilding, statedPercent: reconVal, capPercent: leaseVal, feeBase: null, tenantSharePercent: parsePercent(shareRaw) } }
+            : {}),
           description:
             `The reconciliation shows a management/admin fee at ${reconVal}%, ` +
             `while the lease caps this fee at ${leaseVal}%. ` +
@@ -815,47 +844,27 @@ export async function runAudit(
           const pool = findSharePool({
             statementText: reconText,
             billedShare: billed,
+            billedShareDecimals: shareDecimals(reconFields.proRataShare),
             candidateCharges: [parseMoney(reconFields.totalCamCharges), parseMoney(reconFields.reconciliationTotal)],
           });
+          const calc: ShareCalc = {
+            kind: "share",
+            billedShare: billed,
+            expectedShare: expected.value,
+            expectedBasis: expected.basis!,
+            pool: pool?.pool ?? null,
+            tenantCharge: pool?.tenantCharge ?? null,
+          };
           if (pool) {
             if (pool.poolLine) shareEvidence.push({ document: reconDocName, page: findPageForText(reconText, pool.poolLine), extractedText: pool.poolLine, findingCategory: "Amount the Share Was Applied To" });
             if (pool.chargeLine && pool.chargeLine !== pool.poolLine) shareEvidence.push({ document: reconDocName, page: findPageForText(reconText, pool.chargeLine), extractedText: pool.chargeLine, findingCategory: "Tenant Charge" });
-            const exact = computeShareMisallocation({ pool: pool.pool, billedShare: billed, expectedShare: expected.value });
-            const amount = Math.round(exact);
-            freeFindings.push({
-              category: "Tenant Allocation Discrepancy",
-              description:
-                `The statement applies a tenant share of ${pct(billed)}. ${expectedSentence} ` +
-                `The statement's own figures show the share was applied to ${formatMoney(pool.pool)} ` +
-                `(${formatMoney(pool.pool)} x ${pct(billed)} = ${formatMoney(pool.tenantCharge)}). ` +
-                `At ${pct(expected.value)} the same amount gives ${formatMoney(Math.round(pool.pool * expected.value) / 100)}. ` +
-                `Calculation: ${formatMoney(pool.pool)} x (${pct(billed)} - ${pct(expected.value)}) = ${formatMoney(exact)}, rounded to ${formatMoney(amount)}. ` +
-                `This is a calculation from the documents, not a confirmed overcharge. It assumes the lease share applies to the same expenses the statement applied its share to, ` +
-                `and that no other lease provision (for example a different share for some expense groups, or an occupancy adjustment) changes it.`,
-              potential_savings: amount,
-              severity: "high",
-              sourceEvidence: shareEvidence.length > 0 ? shareEvidence : undefined,
-            });
-          } else {
-            freeFindings.push({
-              category: "Tenant Allocation Discrepancy",
-              description:
-                `The statement applies a tenant share of ${pct(billed)}. ${expectedSentence} ` +
-                `That is ${parseFloat(diff.toFixed(4))} percentage points higher. ` +
-                `The statement's figures did not show which total the share was applied to, so no dollar amount is calculated and nothing is counted in any total. ` +
-                `Ask the landlord how the share was determined and which total it was applied to.`,
-              potential_savings: 0,
-              letterText:
-                `The statement applies a tenant share of ${pct(billed)}, while the lease ${expected.basis === "stated" ? `states ${pct(expected.value)}` : `square footage gives ${sqftText}`}. ` +
-                `Please explain how my share was determined, identify the total it was applied to, and provide the calculation.`,
-              severity: "high",
-              sourceEvidence: shareEvidence.length > 0 ? shareEvidence : undefined,
-            });
           }
+          freeFindings.push({ ...shareFinding(calc, { expectedSentence, sqftText }), sourceEvidence: shareEvidence.length > 0 ? shareEvidence : undefined });
         } else {
           // Billed below the lease share: reported so the figures are visible, never as savings and never raised in the letter.
           freeFindings.push({
             category: "Pro-Rata Share Below Lease Share",
+            checkId: SHARE_CHECK_ID,
             description:
               `The statement applies a tenant share of ${pct(billed)}. ${expectedSentence} ` +
               `The billed share is ${parseFloat(Math.abs(diff).toFixed(4))} percentage points lower than the lease share, so it is not a charge above the lease. ` +
@@ -875,6 +884,7 @@ export async function runAudit(
           Math.abs(billed - expected.fromSquareFootage!) <= shareMismatchThreshold("square-footage"));
       freeFindings.push({
         category: "Pro-Rata Share Review",
+        checkId: SHARE_CHECK_ID,
         description:
           `The lease text identified in this review states a share of ${pct(expected.stated!)}, but its square footage gives ${sqftText}. ` +
           (billed != null
@@ -962,10 +972,13 @@ export async function runAudit(
           : null;
 
         if (adminPercent != null && adminPercent > adminFeeCap) {
-          // Calculate tenant-level overcharge: excess fee % × tenant's total
-          const tenantTotal = reconTotal ?? feeBaseTotal!;
+          // Tenant's part of the fee above the cap: (fee - base x cap%) x tenant share%. Needs the share; without it, no amount.
           const excessPercent = adminPercent - adminFeeCap;
-          const adminOvercharge = Math.round(tenantTotal * (excessPercent / 100));
+          const feeShareRaw = reconFields.proRataShare ?? leaseFields.proRataShare;
+          const feeShare = parsePercent(feeShareRaw);
+          const permittedFee = Math.round(feeBaseTotal! * adminFeeCap) / 100;
+          const exactFeeExcess = computeFeeOverBaseTenantOvercharge({ feeAmountBuilding: adminFeeAmount, feeBase: feeBaseTotal!, capPercent: adminFeeCap, tenantSharePercent: feeShare });
+          const adminOvercharge = Math.round(exactFeeExcess);
 
           // Build evidence
           const adminValEvidence: SourceEvidence[] = [];
@@ -999,15 +1012,23 @@ export async function runAudit(
           const adminValDesc =
             `The admin/management fee in the reconciliation is ${formatMoney(adminFeeAmount)}, ` +
             `representing ${adminPercent.toFixed(2)}% of building operating expenses (${formatMoney(feeBaseTotal!)}). ` +
-            `The lease limits this fee to ${adminFeeCap}%, creating a ${excessPercent.toFixed(2)}% excess. ` +
-            `Potential discrepancy: ${formatMoney(adminOvercharge)}. This is a calculation from the documents, not a confirmed overcharge. ` +
+            `The lease limits this fee to ${adminFeeCap}%, ${excessPercent.toFixed(2)} percentage points less. ` +
+            (adminOvercharge > 0
+              ? `Calculation: at ${adminFeeCap}% of ${formatMoney(feeBaseTotal!)} the permitted fee is ${formatMoney(permittedFee)}, so the fee is ${formatMoney(Math.round((adminFeeAmount - permittedFee) * 100) / 100)} above it; ` +
+                `your ${feeShareRaw}% share of that is ${formatMoney(exactFeeExcess)}, rounded to ${formatMoney(adminOvercharge)}. ` +
+                `This assumes the lease measures the fee against the same total, which this review did not establish (for example, whether that total includes the fee itself). This is a calculation from the documents, not a confirmed overcharge. `
+              : `Your share percentage was not found in the documents, so no dollar amount is calculated and nothing is counted in any total. `) +
             `Ask the landlord to explain how the fee was calculated, and consider requesting an itemized breakdown of the management fee.`;
 
           paidFindings.push({
             category: "Administrative Fee Cap Exceeded",
+            checkId: "admin-fee",
+            ...(adminOvercharge > 0
+              ? { calc: { kind: "admin-fee" as const, method: "fee-over-base" as const, feeAmountBuilding: adminFeeAmount, statedPercent: adminPercent, capPercent: adminFeeCap, feeBase: feeBaseTotal!, tenantSharePercent: feeShare } }
+              : {}),
             description: adminValDesc,
             potential_savings: adminOvercharge,
-            severity: "high",
+            severity: adminOvercharge > 0 ? "high" : "medium",
             sourceEvidence:
               adminValEvidence.length > 0 ? adminValEvidence : undefined,
           });

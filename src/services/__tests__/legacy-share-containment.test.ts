@@ -127,6 +127,82 @@ async function main() {
     assert.strictEqual(containLegacyAudit(row), row);
   });
 
+  // ---------------- fee class (old "fee measured over a base" wording, exactly as the pre-fix engine generated it) ----------------
+  const OLD_FEE: Finding = {
+    category: "Administrative Fee Cap Exceeded",
+    description:
+      "The admin/management fee in the reconciliation is $100,897.20, representing 18.00% of building operating expenses ($560,540.00). The lease limits this fee to 15%, creating a 3.00% excess. Potential discrepancy: $1,603. This is a calculation from the documents, not a confirmed overcharge. Ask the landlord to explain how the fee was calculated, and consider requesting an itemized breakdown of the management fee.",
+    potential_savings: 1603,
+    severity: "high",
+  };
+  const KEEP: Finding = { category: "Admin Fee Above Lease Cap", description: "The reconciliation shows a management/admin fee at 18%, while the lease caps this fee at 15%.", potential_savings: 1359, severity: "medium" };
+
+  await test("old fee-over-base amount is withheld; its figures are kept as a question; an unrelated amount is untouched", () => {
+    const row = { free_findings: [KEEP], paid_findings: [OLD_FEE], savings_estimate: 2962, estimated_overcharge: 0 };
+    const r = containLegacyAudit(row);
+    const fee = (r.paid_findings as Finding[])[0];
+    assert.strictEqual(fee.potential_savings, 0);
+    assert.ok(fee.description.includes("$100,897.20") && fee.description.includes("18.00%") && fee.description.includes("$560,540.00") && fee.description.includes("15%"));
+    assert.ok(/Please explain how the fee was calculated/.test(fee.letterText ?? ""));
+    assert.strictEqual((r.free_findings as Finding[])[0], KEEP, "the unaffected finding is the same object, unchanged");
+    assert.strictEqual(r.savings_estimate, 1359, "2,962 - 1,603 = 1,359: the unaffected amount remains");
+    const st = comparisonStatusOf(r.lease_clauses_summary as LeaseClauseSummary)!;
+    assert.strictEqual(st.legacyFeeContained, true);
+    assert.ok(/management-fee amount/.test(quantificationNotice(st)!.lines.join(" ")));
+    assert.deepStrictEqual(containLegacyAudit(r), r, "idempotent");
+  });
+
+  await test("a finding with a structured identity is never touched, even with legacy-looking wording", () => {
+    const f = { ...OLD_FEE, checkId: "admin-fee" };
+    const row = { free_findings: [], paid_findings: [f], savings_estimate: 1603 };
+    assert.strictEqual(containLegacyAudit(row), row);
+  });
+
+  await test("incomplete legacy records are tolerated: missing fields, nulls and malformed entries never throw or invent amounts", () => {
+    const weird = [
+      { category: "Pro-Rata Share Mismatch" }, // no description
+      { category: "Tenant Allocation Discrepancy", description: 42, potential_savings: "x" },
+      null,
+      "junk",
+      { description: "no category", potential_savings: 5 },
+    ] as unknown as Finding[];
+    const row = { free_findings: weird, paid_findings: null, savings_estimate: null };
+    const r = containLegacyAudit(row);
+    assert.strictEqual(r, row, "nothing matched, so the row is returned as is");
+    const partial = containLegacyAudit({ free_findings: [(legacy.free_findings as Finding[]).find((f) => f.category === "Tenant Allocation Discrepancy")!] });
+    // no stored headline to reconcile: the total is marked unavailable (null), never invented
+    assert.strictEqual(partial.savings_estimate, null);
+    assert.strictEqual(comparisonStatusOf(partial.lease_clauses_summary as LeaseClauseSummary)?.headlineUnavailable, true);
+    assert.strictEqual((partial.free_findings as Finding[])[0].potential_savings, 0);
+  });
+
+  await test("a stored headline that does not reconcile after withholding is shown as unavailable, never forced", () => {
+    const r = containLegacyAudit({ ...legacy, savings_estimate: 999 });
+    assert.strictEqual(r.savings_estimate, null);
+    assert.strictEqual(comparisonStatusOf(r.lease_clauses_summary as LeaseClauseSummary)?.headlineUnavailable, true);
+  });
+
+  await test("the new engine's own output passes through containment unchanged (same object)", async () => {
+    const { validateDocuments } = await import("../document-validator");
+    const { runAudit } = await import("../audit-logic");
+    const { PDFDocument, StandardFonts } = await import("pdf-lib");
+    const toPdf = async (t: string) => {
+      const pdf = await PDFDocument.create();
+      const font = await pdf.embedFont(StandardFonts.Courier);
+      const page = pdf.addPage([612, 792]);
+      t.split("\n").slice(0, 68).forEach((l, j) => page.drawText(l.replace(/[^\x20-\x7E]/g, "-"), { x: 36, y: 756 - j * 10.5, size: 8, font }));
+      return Buffer.from(await pdf.save());
+    };
+    const lease = fs.readFileSync(path.join(FIX, "lease-high-confidence.txt"), "utf-8");
+    const recon = fs.readFileSync(path.join(FIX, "recon-high-confidence.txt"), "utf-8")
+      .replace("Tenant's Pro-Rata Share: 8.08%", "Tenant's Pro-Rata Share: 10.00%")
+      .replace("Tenant's Share (8.08%)                                 $53,444.13", "Tenant's Share (10.00%)                                $66,143.72")
+      .replace("Total CAM charges for your suite: $53,444.13", "Total CAM charges for your suite: $66,143.72");
+    const out = await runAudit(await validateDocuments(await toPdf(lease), await toPdf(recon)));
+    const row = { free_findings: out.free_findings, paid_findings: out.paid_findings, savings_estimate: out.savings_estimate, estimated_overcharge: out.estimated_overcharge, lease_clauses_summary: out.leaseClausesSummary };
+    assert.strictEqual(containLegacyAudit(row), row);
+  });
+
   console.log(`\nlegacy-share-containment: ${passed} passed, 0 failed`);
 }
 

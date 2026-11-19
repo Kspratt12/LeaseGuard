@@ -102,11 +102,39 @@ async function main() {
     assert.strictEqual(findSharePool({ statementText: text, billedShare: 10, candidateCharges: [12560.93] }), null);
   });
 
-  await test("misallocation = pool x (billed - expected) / 100, to the cent; never negative", () => {
-    assert.strictEqual(computeShareMisallocation({ pool: 661437.2, billedShare: 10, expectedShare: 8.08 }), 12699.59);
-    assert.strictEqual(computeShareMisallocation({ pool: 661437.2, billedShare: 7, expectedShare: 8.08 }), 0);
-    assert.strictEqual(computeShareMisallocation({ pool: 661437.2, billedShare: 8.08, expectedShare: 8.08 }), 0);
-    assert.strictEqual(computeShareMisallocation({ pool: null, billedShare: 10, expectedShare: 8.08 }), 0);
+  await test("misallocation = charge billed - pool x expected share (to the cent); never negative", () => {
+    // 661,437.20 x 8.08% = 53,444.1258 -> 53,444.13 (the figure the original statement prints); 66,143.72 - 53,444.13 = 12,699.59
+    assert.strictEqual(computeShareMisallocation({ pool: 661437.2, tenantCharge: 66143.72, billedShare: 10, expectedShare: 8.08 }), 12699.59);
+    assert.strictEqual(computeShareMisallocation({ pool: 661437.2, tenantCharge: 46300.6, billedShare: 7, expectedShare: 8.08 }), 0);
+    assert.strictEqual(computeShareMisallocation({ pool: 661437.2, tenantCharge: 53444.13, billedShare: 8.08, expectedShare: 8.08 }), 0);
+    assert.strictEqual(computeShareMisallocation({ pool: null, tenantCharge: 66143.72, billedShare: 10, expectedShare: 8.08 }), 0);
+    assert.strictEqual(computeShareMisallocation({ pool: 661437.2, tenantCharge: null, billedShare: 10, expectedShare: 8.08 }), 0);
+  });
+
+  await test("a statement that prints a rounded share still matches, and the amount uses the charge actually billed", () => {
+    // True share 4,200/41,000 = 10.2439%; printed "10.24%". Pool $500,000 -> charge $51,219.51 (pool x true share).
+    // pool x printed share = $51,200.00, $19.51 off: inside the tolerance for a 2-decimal share (0.5 x 0.01 / 10.24 = 0.049%).
+    const text = "Total Operating Expenses $500,000.00\nYour share (10.24%) $51,219.51";
+    const p = findSharePool({ statementText: text, billedShare: 10.24, billedShareDecimals: 2, candidateCharges: [51219.51] });
+    assert.ok(p && p.pool === 500000);
+    // expected 8.00%: 500,000 x 8% = 40,000; 51,219.51 - 40,000 = 11,219.51 (not 500,000 x 2.24% = 11,200)
+    assert.strictEqual(computeShareMisallocation({ pool: 500000, tenantCharge: 51219.51, billedShare: 10.24, expectedShare: 8 }), 11219.51);
+  });
+
+  await test("pool search: budget/payment lines are never pools; two matching pools is ambiguous; a whole-number share is not matched", () => {
+    const budget = "Total Budget $661,437.20\nTenant charge $66,143.72";
+    assert.strictEqual(findSharePool({ statementText: budget, billedShare: 10, candidateCharges: [66143.72] }), null);
+    const two = "Total Operating Expenses $661,437.20\nTotal Recoverable Expenses $661,440.00\nTenant charge $66,143.72";
+    assert.strictEqual(findSharePool({ statementText: two, billedShare: 10, candidateCharges: [66143.72] }), null, "ambiguous");
+    const whole = "Total Operating Expenses $661,437.20\nTenant charge $66,143.72";
+    assert.strictEqual(findSharePool({ statementText: whole, billedShare: 10, billedShareDecimals: 0, candidateCharges: [66143.72] }), null);
+    assert.ok(findSharePool({ statementText: whole, billedShare: 10, billedShareDecimals: 2, candidateCharges: [66143.72] }));
+  });
+
+  await test("invalid and extreme shares: zero, negative, 100% and non-numbers are rejected", () => {
+    for (const bad of ["0", "-5", "100", "150", "", "n/a"]) assert.strictEqual(parsePercent(bad), null, bad);
+    assert.strictEqual(parsePercent("99.99"), 99.99);
+    assert.strictEqual(findSharePool({ statementText: "Total $100.00", billedShare: 0, candidateCharges: [1] }), null);
   });
 
   // ---------------- full pipeline (regex extraction only) ----------------
@@ -129,9 +157,16 @@ async function main() {
     assert.strictEqual(withAmount[0].potential_savings, 12700);
     assert.strictEqual(over.share.length, 1, "no second finding for the same discrepancy");
   });
+  await test("overbilled: the finding carries a structured identity and its inputs, and the inputs reproduce the amount", () => {
+    const f = over.share[0];
+    assert.strictEqual(f.checkId, "pro-rata-share");
+    assert.deepStrictEqual(f.calc, { kind: "share", billedShare: 10, expectedShare: 8.08, expectedBasis: "stated", pool: 661437.2, tenantCharge: 66143.72 });
+    const c = f.calc as { pool: number; tenantCharge: number; billedShare: number; expectedShare: number };
+    assert.strictEqual(Math.round(computeShareMisallocation(c)), f.potential_savings);
+  });
   await test("overbilled: the description shows inputs, pool, formula, exact result and rounding, and stays qualified", () => {
     const d = over.share[0].description;
-    for (const s of ["10%", "8.08%", "$661,437.20", "$66,143.72", "$12,699.59", "rounded to $12,700", "not a confirmed overcharge"]) {
+    for (const s of ["10%", "8.08%", "$661,437.20", "$66,143.72", "$53,444.13", "$66,143.72 - $53,444.13 = $12,699.59", "rounded to $12,700", "not a confirmed overcharge"]) {
       assert.ok(d.includes(s), `missing "${s}" in: ${d}`);
     }
     assert.ok(!/overbilled|recoverable|you are owed/i.test(d));
