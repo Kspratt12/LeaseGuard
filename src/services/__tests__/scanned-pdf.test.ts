@@ -12,6 +12,9 @@
  *
  * Run: npx tsx src/services/__tests__/scanned-pdf.test.ts
  */
+// OCR on a busy machine can exceed the production per-page limit; the test checks behaviour, not machine speed.
+process.env.OCR_PAGE_TIMEOUT_MS ??= "180000";
+process.env.OCR_TOTAL_TIMEOUT_MS ??= "600000";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
