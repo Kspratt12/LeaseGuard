@@ -244,19 +244,16 @@ function BaseYearPanel() {
   const [mode, setMode] = useState<StopMode>("base-year");
   const [f, setF] = useState({ current: "", base: "", stop: "", psf: "", bsf: "", share: "" });
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
-  const outcome = useMemo(
-    () =>
-      calculateBaseYear({
-        mode,
-        currentExpenses: num(f.current),
-        baseYearExpenses: num(f.base),
-        stopAmount: num(f.stop),
-        stopPerSqFt: num(f.psf),
-        buildingSqFt: num(f.bsf),
-        sharePercent: num(f.share),
-      }),
-    [mode, f],
-  );
+  // cheap arithmetic: computed on every render (no memo needed)
+  const outcome = calculateBaseYear({
+    mode,
+    currentExpenses: num(f.current),
+    baseYearExpenses: num(f.base),
+    stopAmount: num(f.stop),
+    stopPerSqFt: num(f.psf),
+    buildingSqFt: num(f.bsf),
+    sharePercent: num(f.share),
+  });
   const started = Object.values(f).some((v) => v !== "");
 
   return (

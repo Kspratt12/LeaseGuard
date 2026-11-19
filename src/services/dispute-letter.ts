@@ -16,7 +16,7 @@ import { totalSavings } from "@/services/savings-math";
 import { formatMoney, ROUNDING_NOTE_SHORT } from "@/lib/format";
 import { coverageOf, isAiTruncated } from "@/lib/analysis-coverage";
 import { findingKind, isExcludedCategoryFinding } from "@/services/finding-classification";
-import { comparisonStatusOf, headlineUnavailable, HEADLINE_UNAVAILABLE_SENTENCE, isUnquantified } from "@/lib/quantification";
+import { comparisonStatusOf, headlineUnavailable, HEADLINE_UNAVAILABLE_SENTENCE } from "@/lib/quantification";
 import { containLegacyFindings } from "@/lib/legacy-containment";
 
 export interface LetterItem {

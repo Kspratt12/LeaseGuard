@@ -23,6 +23,14 @@ const parse = (raw: string): number | null => {
   return /^\d*\.?\d+$/.test(t) ? Number(t) : Number.NaN;
 };
 
+/** The figures for an audit, or null when they could not be loaded. Sets no state (safe to call from an effect). */
+async function fetchInputs(auditId: string): Promise<InputsView | null> {
+  const headers = await getAuthHeaders();
+  if (!headers) return null;
+  const res = await fetch(`/api/audit/${auditId}/inputs`, { headers, cache: "no-store" });
+  return res.ok ? ((await res.json()) as InputsView) : null;
+}
+
 /**
  * The numbers the calculated checks used, with what the documents gave, and a way to correct a misread number.
  * Corrections are saved separately and every result (screen, PDF, letters) is recalculated from them on the server.
@@ -35,19 +43,20 @@ export function InputCorrectionsPanel({ auditId, onChanged }: { auditId: string;
   const [loadFailed, setLoadFailed] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  async function load() {
-    setLoadFailed(false);
-    const headers = await getAuthHeaders();
-    if (!headers) return setLoadFailed(true);
-    const res = await fetch(`/api/audit/${auditId}/inputs`, { headers, cache: "no-store" });
-    if (!res.ok) return setLoadFailed(true);
-    const v: InputsView = await res.json();
+  const apply = (v: InputsView | null) => {
+    if (!v) return setLoadFailed(true);
     setView(v);
     setDraft(Object.fromEntries(v.inputs.map((i) => [i.key, i.corrected && i.current != null ? String(i.current) : ""])));
-  }
+  };
+  const load = () => fetchInputs(auditId).then(apply);
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let active = true;
+    fetchInputs(auditId).then((v) => {
+      if (active) apply(v);
+    });
+    return () => {
+      active = false;
+    };
   }, [auditId]);
 
   async function save(values: Record<string, number | null>) {
@@ -101,7 +110,7 @@ export function InputCorrectionsPanel({ auditId, onChanged }: { auditId: string;
       <section aria-labelledby="ic-title" className="rounded-xl border border-gray-200 bg-white p-4 text-sm sm:p-5">
         <h2 id="ic-title" className="text-lg font-semibold text-ink">Check the figures used</h2>
         <p className="mt-1 text-ink-soft">The figures could not be loaded.</p>
-        <button type="button" onClick={load} className={`${buttonClass("secondary")} mt-3`}>Try again</button>
+        <button type="button" onClick={() => { setLoadFailed(false); load(); }} className={`${buttonClass("secondary")} mt-3`}>Try again</button>
       </section>
     );
   }

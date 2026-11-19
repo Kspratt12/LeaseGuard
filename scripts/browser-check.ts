@@ -58,7 +58,7 @@ async function main() {
   const { validateDocuments } = await import("../src/services/document-validator");
   const { runAudit } = await import("../src/services/audit-logic");
   const { containLegacyAudit } = await import("../src/lib/legacy-containment");
-  const { applyInputOverrides, listCorrectableInputs, mergeOverrides, validateCorrections, parseOverrides } = await import("../src/lib/input-overrides");
+  const { applyInputOverrides, listCorrectableInputs, mergeOverrides, validateCorrections } = await import("../src/lib/input-overrides");
   const { toPublicAudit } = await import("../src/lib/audit-access");
   const { decidePurchase, purchaseInputFromRow, publicPurchase } = await import("../src/lib/purchase-eligibility");
   const { buildDisputeLetter, letterToDocx, letterToPdf } = await import("../src/services/dispute-letter");
@@ -80,7 +80,7 @@ async function main() {
     lease_clauses_summary: r.leaseClausesSummary, confidence: r.confidence, confidence_score: r.confidenceScore,
     validation_warning: r.validationWarning, audit_mode: r.auditMode, was_swapped: false, recon_year_count: 1,
   };
-  const state = { unlocked: false, overrides: null as ReturnType<typeof parseOverrides>, failInputs: false, failLetter: 0 };
+  const state = { unlocked: false, overrides: null as import("../src/lib/input-overrides").InputOverrides | null, failInputs: false, failLetter: 0 };
   const seen: Array<{ url: string; body: string }> = [];
 
   const shown = () => {
@@ -106,6 +106,7 @@ async function main() {
       JSON.stringify({ access_token: "fake-local-token", refresh_token: "fake", token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 86400, user: { id: USER.id, email: USER.email, aud: "authenticated", role: "authenticated" } }),
     ]);
     // Block everything that is not the local app (fonts are self-hosted by next/font at build time).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await ctx.route("**/*", async (route: any) => {
       const u = new URL(route.request().url());
       if (u.origin === SUPA) return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: USER.id, email: USER.email, aud: "authenticated" }) });
@@ -153,6 +154,7 @@ async function main() {
     const page = await ctx.newPage();
     const errors: string[] = [];
     page.on("pageerror", (e: Error) => errors.push(e.message));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     page.on("console", (m: any) => { if (m.type() === "error") errors.push(m.text()); });
     return { ctx, page, errors };
   };
