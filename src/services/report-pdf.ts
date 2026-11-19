@@ -14,6 +14,7 @@ import { toWinAnsi } from "@/services/dispute-letter";
 import { ROUNDING_NOTE } from "@/lib/format";
 import { CONFIDENCE_COVERAGE_QUALIFIER, coverageOf, coverageSentence, isAiTruncated } from "@/lib/analysis-coverage";
 import { containLegacyAudit } from "@/lib/legacy-containment";
+import { correctionsSentence, parseInputCorrections } from "@/lib/input-overrides";
 import { HEADLINE_UNAVAILABLE_SENTENCE, headlineUnavailable, comparisonStatusOf, isNoCapObservationOnly, isUnquantified, NO_AMOUNT_LABEL, NO_CAP_ONLY_IDENTIFIED, NO_CAP_ONLY_LABEL, NO_CAP_ONLY_NO_CAP, NO_CAP_ONLY_NOT_A_PASS, quantificationNotice, sumCounted } from "@/lib/quantification";
 
 interface ReportInput {
@@ -424,6 +425,18 @@ export async function generateReportPdf(
           drawCenteredText(ctx.page, line, font, 9, AMBER, ctx.y);
           ctx.y -= 14;
         }
+      }
+    }
+  }
+
+  // Customer corrections of extracted numbers (src/lib/input-overrides.ts): a neutral statement, not a data warning.
+  {
+    const rec = parseInputCorrections(input.leaseClausesSummary?.inputCorrections);
+    if (rec && rec.applied.length > 0) {
+      ctx.y -= 16;
+      for (const line of wrapText(winAnsiDeep(correctionsSentence(rec)), font, 9, CONTENT_WIDTH)) {
+        drawCenteredText(ctx.page, line, font, 9, DARK, ctx.y);
+        ctx.y -= 14;
       }
     }
   }

@@ -50,20 +50,26 @@ export function AuditRightsPanel({ clauses }: { clauses: AuditRightsClause[] }) 
       {withPeriod && (
         <div className="mt-4">
           <label htmlFor="ar-start" className="block font-medium text-gray-800">
-            {withPeriod.trigger ? `Date of ${withPeriod.trigger} (optional)` : "Date the period starts (optional)"}
+            Start date for this period (optional)
           </label>
+          <p id="ar-start-hint" className="text-xs text-gray-500">
+            {withPeriod.trigger
+              ? `The clause counts from: ${withPeriod.trigger}. Enter that date from your own records.`
+              : "Enter the date the clause counts from, from your own records."}
+          </p>
           <input
             id="ar-start"
             type="date"
             value={start}
             onChange={(e) => setStart(e.target.value)}
+            aria-describedby="ar-start-hint"
             className="mt-1 block min-h-11 w-full max-w-xs rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900"
           />
           {result && (
             <div role="status" className="mt-3">
               {result.ok ? (
                 <p>
-                  {withPeriod.period!.count} {withPeriod.period!.unit} after {longDate(start)} is <span className="font-semibold">{longDate(result.date)}</span>.
+                  {withPeriod.period!.count} {withPeriod.period!.unit} after the date you entered ({longDate(start)}) is <span className="font-semibold">{longDate(result.date)}</span>.
                 </p>
               ) : (
                 <p>{result.reason}</p>

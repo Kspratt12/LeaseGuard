@@ -268,10 +268,9 @@ export function applyInputOverrides<T extends Record<string, unknown>>(row: T, r
     camCap: null, adminFeeCap: null, managementFeeCap: null, tenantProRataShare: null,
     tenantSquareFootage: null, buildingSquareFootage: null, excludedCategories: [], additionalClauses: [],
   };
+  // The record travels with the clause summary; the screen and the PDF state it in their own neutral notice (not as a
+  // data warning), worded by correctionsSentence below.
   next.lease_clauses_summary = { ...lcs, inputCorrections: record };
-  // The report and screen already show the validation notice; say there what changed, in one sentence.
-  const note = correctionsSentence(record);
-  next.validation_warning = typeof row.validation_warning === "string" && row.validation_warning.trim() ? `${row.validation_warning} ${note}` : note;
   return next as T;
 }
 

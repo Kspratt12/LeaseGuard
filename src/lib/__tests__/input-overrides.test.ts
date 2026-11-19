@@ -12,6 +12,7 @@ import {
   mergeOverrides,
   parseOverrides,
   validateCorrections,
+  correctionsSentence,
   type InputOverrides,
 } from "../input-overrides";
 import { buildDisputeLetter } from "../../services/dispute-letter";
@@ -128,8 +129,10 @@ async function main() {
     const rec = (out.lease_clauses_summary as LeaseClauseSummary).inputCorrections!;
     assert.deepStrictEqual(rec.applied.map((a) => a.key), ["share.expectedShare"]);
     assert.deepStrictEqual(rec.notReassessed, ["CAM Cap Review: Increase Above Stated Percentage"]);
-    assert.ok(/Recalculated with figures you corrected/.test(String(out.validation_warning)));
-    assert.ok(/were not reassessed: CAM Cap Review/.test(String(out.validation_warning)));
+    const sentence = correctionsSentence(rec);
+    assert.ok(/^Recalculated with figures you corrected: your share under the lease 9% \(documents: none\)/.test(sentence), sentence);
+    assert.ok(/were not reassessed: CAM Cap Review/.test(sentence));
+    assert.strictEqual(out.validation_warning, null, "the data warning is not used for a customer correction");
   });
 
   await test("an unavailable legacy headline stays unavailable after a correction", () => {
@@ -154,7 +157,7 @@ async function main() {
     const pdf = await generateReportPdf({
       auditId: "00000000-0000-0000-0000-000000000000", createdAt: NOW, savingsEstimate: out.savings_estimate as number,
       freeFindings: out.free_findings as Finding[], paidFindings: out.paid_findings as Finding[], isPaid: true,
-      validationWarning: String(out.validation_warning), estimatedOvercharge: out.estimated_overcharge as number,
+      validationWarning: out.validation_warning as string | null, estimatedOvercharge: out.estimated_overcharge as number,
       overchargeBreakdown: out.overcharge_breakdown as never, leaseClausesSummary: out.lease_clauses_summary as LeaseClauseSummary,
     });
     const text = (await extractTextFromPdf(Buffer.from(pdf))).text.replace(/\s+/g, " ");

@@ -157,7 +157,7 @@ export function InputCorrectionsPanel({ auditId, onChanged }: { auditId: string;
                   id={`ic-${i.key}`}
                   inputMode="decimal"
                   autoComplete="off"
-                  placeholder={i.unit === "percent" ? "e.g. 8.08" : "e.g. 12,345.67"}
+                  placeholder={i.extracted != null ? `Empty uses ${show(i, i.extracted)}` : "Enter the figure"}
                   value={draft[i.key] ?? ""}
                   onChange={(e) => setDraft((d) => ({ ...d, [i.key]: e.target.value }))}
                   aria-describedby={`ic-${i.key}-hint`}
