@@ -131,6 +131,9 @@ async function main() {
     procs.push(pgrst);
     await waitFor(`http://127.0.0.1:${pgrstPort}/`);
     let restDown = false;
+    // Minimal in-memory stand-in for Supabase Storage: only the object upload the app uses (POST /storage/v1/object/{bucket}/{path}).
+    // Only the service role may write, and an existing object is never overwritten (the app uploads with upsert: false).
+    const storage = new Map<string, { bytes: number; contentType: string }>();
     server = http.createServer(async (inReq, out) => {
       const u = new URL(inReq.url ?? "/", "http://x");
       if (u.pathname === "/auth/v1/user") {
@@ -138,6 +141,17 @@ async function main() {
         if (!c || c.role !== "authenticated") { out.writeHead(401, { "content-type": "application/json" }); return out.end(JSON.stringify({ code: 401, msg: "invalid JWT" })); }
         out.writeHead(200, { "content-type": "application/json" });
         return out.end(JSON.stringify({ id: c.sub, aud: "authenticated", role: "authenticated", email: c.email }));
+      }
+      if (u.pathname.startsWith("/storage/v1/object/") && inReq.method === "POST") {
+        const c = verify(String(inReq.headers.authorization ?? "").replace(/^Bearer\s+/i, ""));
+        if (!c || c.role !== "service_role") { out.writeHead(403, { "content-type": "application/json" }); return out.end(JSON.stringify({ statusCode: "403", error: "Unauthorized", message: "service role required" })); }
+        const key = decodeURIComponent(u.pathname.slice("/storage/v1/object/".length));
+        if (storage.has(key) && inReq.headers["x-upsert"] !== "true") { out.writeHead(409, { "content-type": "application/json" }); return out.end(JSON.stringify({ statusCode: "409", error: "Duplicate", message: "The resource already exists" })); }
+        let bytes = 0;
+        for await (const ch of inReq) bytes += (ch as Buffer).length;
+        storage.set(key, { bytes, contentType: String(inReq.headers["content-type"] ?? "") });
+        out.writeHead(200, { "content-type": "application/json" });
+        return out.end(JSON.stringify({ Key: key, Id: crypto.randomUUID() }));
       }
       if (u.pathname.startsWith("/rest/v1/")) {
         if (restDown) { out.writeHead(503); return out.end("down"); }
@@ -333,6 +347,69 @@ async function main() {
       const ok = await call(`/api/audit/${AUD.NEW}/inputs`, { as: A, method: "PUT", body: { values: { "share.expectedShare": 9 } } });
       assert.equal(ok.status, 200);
       await call(`/api/audit/${AUD.NEW}/inputs`, { as: A, method: "PUT", body: { values: { "share.expectedShare": null } } });
+    });
+
+    // ── upload -> storage -> background analysis -> stored result (real /api/upload; no AI key, so deterministic extraction)
+    const upload = async (as: string | null, files: Record<string, { bytes: Buffer; type: string; name: string }>) => {
+      const fd = new FormData();
+      for (const [field, f] of Object.entries(files)) fd.append(field, new Blob([new Uint8Array(f.bytes)], { type: f.type }), f.name);
+      return fetch(`${BASE}/api/upload`, { method: "POST", headers: as ? { Authorization: `Bearer ${as}` } : {}, body: fd });
+    };
+    const waitDone = async (id: string, as: string, ms = 180000) => {
+      const t = Date.now();
+      while (Date.now() - t < ms) {
+        const j = await (await call(`/api/audit/${id}`, { as })).json();
+        if (j.status === "completed" || j.status === "error") return j;
+        await new Promise((r2) => setTimeout(r2, 1500));
+      }
+      throw new Error("analysis did not finish");
+    };
+    const leasePdf = await textToPdf(fs.readFileSync(path.join(FIX, "lease-high-confidence.txt"), "utf-8"));
+    const reconPdf = await textToPdf(recon);
+    let uploadedId = "";
+    await check("upload: refused without sign-in (401), for a non-PDF (400) and with a document missing (400)", async () => {
+      assert.equal((await upload(null, { lease: { bytes: leasePdf, type: "application/pdf", name: "lease.pdf" }, recon: { bytes: reconPdf, type: "application/pdf", name: "recon.pdf" } })).status, 401);
+      const fake = Buffer.from("this is not a pdf, only a renamed text file");
+      assert.equal((await upload(A, { lease: { bytes: fake, type: "application/pdf", name: "lease.pdf" }, recon: { bytes: reconPdf, type: "application/pdf", name: "recon.pdf" } })).status, 400, "non-PDF content");
+      assert.equal((await upload(A, { lease: { bytes: leasePdf, type: "application/pdf", name: "lease.pdf" } })).status, 400, "statement missing");
+      assert.equal(storage.size, 0, "nothing stored for refused uploads");
+    });
+    await check("upload: a signed-in user's lease and statement are stored, analysed in the background and completed with traceable findings", async () => {
+      const res = await upload(A, { lease: { bytes: leasePdf, type: "application/pdf", name: "Fictional-Lease.pdf" }, recon: { bytes: reconPdf, type: "application/pdf", name: "Fictional-Statement.pdf" } });
+      assert.equal(res.status, 200);
+      const body = await res.json();
+      assert.ok(body.success && typeof body.id === "string");
+      uploadedId = body.id;
+      const j = await waitDone(uploadedId, A);
+      assert.equal(j.status, "completed", `status ${j.status}: ${j.error_message}`);
+      const share = shareOf(j);
+      assert.equal(share.length, 1);
+      assert.equal(share[0].potential_savings, 12700, "the corrected share calculation runs inside the real upload pipeline");
+      const ev = (share[0] as { sourceEvidence?: Array<{ document: string; extractedText: string }> }).sourceEvidence ?? [];
+      assert.ok(ev.some((e) => e.document === "Fictional-Statement.pdf" && /661,437\.20/.test(e.extractedText)), "evidence names the uploaded statement and quotes it");
+      assert.ok([...(j.free_findings ?? [])].every((f: { description: string }) => !/\bconfirmed overcharge\b(?! )/i.test(f.description.replace(/not a confirmed overcharge/gi, ""))), "no finding asserts a confirmed overcharge");
+      for (const name of ["lease.pdf", "recon.pdf", "report.pdf"]) assert.ok(storage.has(`invoices/${uploadedId}/${name}`), `${name} stored under the audit`);
+      const row = await db.query(`select owner_id, status, lease_url, recon_url from public.audits where id = $1`, [uploadedId]);
+      assert.equal(row.rows[0].owner_id, U.A, "the audit belongs to the uploader");
+      assert.equal(row.rows[0].lease_url, `${uploadedId}/lease.pdf`, "a private storage path, not a public URL");
+    });
+    await check("upload: the new audit is invisible to another user and locked until payment", async () => {
+      assert.equal((await call(`/api/audit/${uploadedId}`, { as: B })).status, 404);
+      const j = await (await call(`/api/audit/${uploadedId}`, { as: A })).json();
+      assert.equal(j.payment.unlocked, false);
+      assert.equal((await call(`/api/audit/${uploadedId}/report`, { as: A })).status, 402);
+      const list = await (await call("/api/audits", { as: A })).json();
+      assert.ok(list.some((x: { id: string }) => x.id === uploadedId), "listed in the owner's account");
+      assert.ok(!JSON.stringify(j).includes("invoices/"), "no storage path in the response");
+    });
+    await check("upload: an unreadable document ends in an understandable error status, never an empty 'completed' result", async () => {
+      const blank = await (async () => { const d = await PDFDocument.create(); d.addPage([612, 792]); return Buffer.from(await d.save()); })();
+      const res = await upload(A, { lease: { bytes: leasePdf, type: "application/pdf", name: "lease.pdf" }, recon: { bytes: blank, type: "application/pdf", name: "blank.pdf" } });
+      assert.equal(res.status, 200, "accepted for processing (a valid PDF)");
+      const j = await waitDone((await res.json()).id, A);
+      assert.equal(j.status, "error");
+      assert.match(String(j.error_message), /could not process these documents/i);
+      assert.ok(!/stack|\.ts:|Error:/i.test(String(j.error_message)), "no internal detail shown to the customer");
     });
 
     // ── deploy order: code before migration
