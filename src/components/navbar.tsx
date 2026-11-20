@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Menu, X } from "lucide-react";
 import { useAuditDraft } from "@/components/audit-draft-context";
 import { supabase } from "@/lib/supabase";
@@ -22,6 +22,19 @@ export function Navbar() {
   const pathname = usePathname();
   const isLanding = pathname === "/";
   const [mobileOpen, setMobileOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+
+  // While the mobile menu is open, Escape closes it and returns focus to the toggle (so keyboard users are not lost).
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setMobileOpen(false);
+      toggleRef.current?.focus();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mobileOpen]);
   const { clearDraft } = useAuditDraft();
   // null until the session has been read, so the account link never flashes the wrong label.
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
@@ -96,6 +109,7 @@ export function Navbar() {
 
         {/* Mobile toggle */}
         <button
+          ref={toggleRef}
           type="button"
           className="-mr-2 inline-flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted hover:text-ink md:hidden"
           onClick={() => setMobileOpen((o) => !o)}
