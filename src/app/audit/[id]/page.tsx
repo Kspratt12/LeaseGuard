@@ -5,6 +5,10 @@ import { formatMoney, ROUNDING_NOTE } from "@/lib/format";
 import { useEffect, useState, useRef, use } from "react";
 import { AuditResultsFree } from "@/components/audit-results-free";
 import { AuditResultsPaid } from "@/components/audit-results-paid";
+import { InputCorrectionsPanel } from "@/components/input-corrections-panel";
+import { correctionsSentence, parseInputCorrections } from "@/lib/input-overrides";
+import { SourceIndexPanel } from "@/components/source-index-panel";
+import { buildSourceIndex } from "@/lib/source-index";
 import { ConfidenceNotRated, NoPurchasePanel, TotalUnreliableNotice } from "@/components/audit-no-purchase";
 import { CoverageNotice } from "@/components/coverage-notice";
 import { QuantificationNoticeBlock } from "@/components/quantification-notice";
@@ -418,6 +422,7 @@ export default function AuditPage({
         confirmingPayment={returnedFromCheckout && !paymentUnlocked}
         confirmGaveUp={confirmGaveUp}
         onCheckAgain={checkAgain}
+        onReload={() => setRetryKey((k) => k + 1)}
       />
     );
   } catch (err) {
@@ -451,7 +456,9 @@ function AuditResultsRenderer({
   confirmingPayment,
   confirmGaveUp,
   onCheckAgain,
+  onReload,
 }: {
+  onReload: () => void;
   confirmingPayment: boolean;
   confirmGaveUp: boolean;
   onCheckAgain: () => void;
@@ -738,6 +745,14 @@ function AuditResultsRenderer({
                 )}
               </section>
             )}
+            {unlocked && (() => {
+              const rec = parseInputCorrections(audit.lease_clauses_summary?.inputCorrections);
+              return rec && rec.applied.length > 0 ? (
+                <p role="status" className="order-first rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
+                  {correctionsSentence(rec)} The amounts, total, PDF report and letters on this audit use these figures; reset them under &ldquo;Check the figures used&rdquo;.
+                </p>
+              ) : null;
+            })()}
 
             </div>
 
@@ -796,6 +811,12 @@ function AuditResultsRenderer({
               leaseClausesSummary={audit.lease_clauses_summary}
             />
             )}
+
+            {/* Customer corrections of misread numbers (paid only; recalculated on the server for every surface) */}
+            {unlocked && <InputCorrectionsPanel auditId={audit.id} onChanged={onReload} />}
+
+            {/* Quotations by document and page (paid: evidence is part of the full report) */}
+            {unlocked && <SourceIndexPanel index={buildSourceIndex([...freeFindings, ...paidFindings], overchargeBreakdown)} />}
 
             {/* CAM Review Plan: built from the findings already shown above, so it adds no new data access */}
             {unlocked && (

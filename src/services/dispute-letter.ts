@@ -16,7 +16,7 @@ import { totalSavings } from "@/services/savings-math";
 import { formatMoney, ROUNDING_NOTE_SHORT } from "@/lib/format";
 import { coverageOf, isAiTruncated } from "@/lib/analysis-coverage";
 import { findingKind, isExcludedCategoryFinding } from "@/services/finding-classification";
-import { comparisonStatusOf, headlineUnavailable, HEADLINE_UNAVAILABLE_SENTENCE, isUnquantified } from "@/lib/quantification";
+import { comparisonStatusOf, headlineUnavailable, HEADLINE_UNAVAILABLE_SENTENCE } from "@/lib/quantification";
 import { containLegacyFindings } from "@/lib/legacy-containment";
 
 export interface LetterItem {
@@ -109,14 +109,15 @@ export function buildDisputeLetter(input: {
   //    compliance/informational notes and are left out of the letter.
   for (const f of findings) {
     if (findingKind(f) !== "clarify") continue;
-    // letterText "" = an observation that raises nothing with the landlord (for example a change below the stated percentage)
-    if (isUnquantified(f) && f.letterText === "") continue;
+    // letterText "" = an observation that raises nothing with the landlord (for example a change below the stated
+    // percentage, or a share that matches one of two figures the lease gives)
+    if (f.letterText === "") continue;
     items.push({
       kind: "clarify",
       title: f.category,
       amount: null,
       // an item asking the landlord a question reads in the customer's own voice when the audit supplied that wording
-      explanation: (isUnquantified(f) && f.letterText?.trim() ? f.letterText : f.description).trim(),
+      explanation: (f.letterText?.trim() ? f.letterText : f.description).trim(),
       evidence: evidenceOf(f.sourceEvidence),
     });
   }

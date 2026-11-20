@@ -46,6 +46,10 @@ export interface ComparisonStatus {
   unquantified: UnquantifiedCheck[];
   /** Set only by the read-time adapter (src/lib/legacy-containment.ts): this audit was stored before the amounts were withheld. */
   legacyContained?: boolean;
+  /** Set only by the read-time adapter: this audit was stored before the pro-rata share amounts were corrected. */
+  legacyShareContained?: boolean;
+  /** Set only by the read-time adapter: this audit was stored before the fee-over-base amount was corrected. */
+  legacyFeeContained?: boolean;
   /**
    * Set only by the read-time adapter: the stored headline, the removed amounts and the retained components do not agree
    * under the documented rule (see reconcileLegacyHeadline), so NO overall total is presented anywhere.
@@ -67,13 +71,15 @@ export interface ComparisonFacts {
 }
 
 /** The record for a run, or null when nothing needs saying. */
-export function buildComparisonStatus(i: { notCompared: string[]; unquantified: UnquantifiedCheck[]; legacyContained?: boolean; headlineUnavailable?: boolean; comparison?: ComparisonFacts; uploadedButFailed?: boolean }): ComparisonStatus | null {
+export function buildComparisonStatus(i: { notCompared: string[]; unquantified: UnquantifiedCheck[]; legacyContained?: boolean; legacyShareContained?: boolean; legacyFeeContained?: boolean; headlineUnavailable?: boolean; comparison?: ComparisonFacts; uploadedButFailed?: boolean }): ComparisonStatus | null {
   const unquantified = Array.from(new Set(i.unquantified));
-  if (i.notCompared.length === 0 && unquantified.length === 0 && !i.legacyContained && !i.headlineUnavailable && !i.comparison && !i.uploadedButFailed) return null;
+  if (i.notCompared.length === 0 && unquantified.length === 0 && !i.legacyContained && !i.legacyShareContained && !i.legacyFeeContained && !i.headlineUnavailable && !i.comparison && !i.uploadedButFailed) return null;
   return {
     notCompared: [...i.notCompared],
     unquantified,
     ...(i.legacyContained ? { legacyContained: true } : {}),
+    ...(i.legacyShareContained ? { legacyShareContained: true } : {}),
+    ...(i.legacyFeeContained ? { legacyFeeContained: true } : {}),
     ...(i.headlineUnavailable ? { headlineUnavailable: true } : {}),
     ...(i.comparison ? { comparison: { ...i.comparison } } : {}),
     ...(i.uploadedButFailed ? { uploadedButFailed: true } : {}),
@@ -128,7 +134,7 @@ export function parseComparisonStatus(v: unknown): ComparisonStatus | null {
     c && typeof c === "object" && !Array.isArray(c) && cnt((c as Record<string, unknown>).years) != null && cnt((c as Record<string, unknown>).pairsRun) != null && cnt((c as Record<string, unknown>).pairsSkipped) != null
       ? { years: cnt((c as Record<string, unknown>).years)!, pairsRun: cnt((c as Record<string, unknown>).pairsRun)!, pairsSkipped: cnt((c as Record<string, unknown>).pairsSkipped)! }
       : undefined;
-  return buildComparisonStatus({ notCompared, unquantified, legacyContained: o.legacyContained === true, headlineUnavailable: o.headlineUnavailable === true, comparison, uploadedButFailed: o.uploadedButFailed === true });
+  return buildComparisonStatus({ notCompared, unquantified, legacyContained: o.legacyContained === true, legacyShareContained: o.legacyShareContained === true, legacyFeeContained: o.legacyFeeContained === true, headlineUnavailable: o.headlineUnavailable === true, comparison, uploadedButFailed: o.uploadedButFailed === true });
 }
 
 /** The record of an audit, from its stored clause summary. A missing record is "no record", not "nothing was skipped". */
@@ -152,6 +158,17 @@ export function quantificationNotice(status: ComparisonStatus | null | undefined
     lines.push(
       "This audit was created by an earlier version of the review. Its cap and gross-up calculations are no longer shown, because the lease's cap method, baseline and covered expenses were not established. " +
         "The statement figures and lease text quoted as source evidence are unchanged.",
+    );
+  }
+  if (status.legacyShareContained) {
+    lines.push(
+      "This audit was created by an earlier version of the review. Its pro-rata share amount is no longer shown: it multiplied a statement total by the difference in percentage points, " +
+        "a total not established as the amount your share was applied to, and the same difference could be counted more than once. The share figures quoted as source evidence are unchanged.",
+    );
+  }
+  if (status.legacyFeeContained) {
+    lines.push(
+      "This audit was created by an earlier version of the review. Its management-fee amount for a fee measured against a statement total is no longer shown: it did not apply your share correctly, and the share needed to recalculate it was not stored. The fee figures quoted as source evidence are unchanged.",
     );
   }
   if (status.headlineUnavailable) lines.push(HEADLINE_UNAVAILABLE_SENTENCE);
@@ -186,7 +203,7 @@ export function quantificationNotice(status: ComparisonStatus | null | undefined
     lines.push(PRICE_NOT_COMPARISON_SENTENCE);
   }
   if (lines.length === 0) return null;
-  const onlyComparison = !!cmp && status.unquantified.length === 0 && !status.legacyContained && !status.headlineUnavailable;
+  const onlyComparison = !!cmp && status.unquantified.length === 0 && !status.legacyContained && !status.legacyShareContained && !status.legacyFeeContained && !status.headlineUnavailable;
   return { title: onlyComparison ? "Year-over-year comparison: what ran" : "Some comparisons did not produce a dollar amount", lines };
 }
 

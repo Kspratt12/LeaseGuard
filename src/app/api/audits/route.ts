@@ -4,6 +4,7 @@ import { authenticate } from "@/lib/audit-access";
 import { TIERS, tierForYearCount } from "@/lib/payments";
 import { decidePurchase, purchaseInputFromRow } from "@/lib/purchase-eligibility";
 import { containLegacyAudit } from "@/lib/legacy-containment";
+import { applyInputOverrides } from "@/lib/input-overrides";
 import { comparisonStatusOf, headlineUnavailable } from "@/lib/quantification";
 
 export const dynamic = "force-dynamic";
@@ -33,11 +34,19 @@ export async function GET(req: NextRequest) {
     ? await db.from("payments").select("audit_id").eq("owner_id", user.id).eq("status", "paid").in("audit_id", ids)
     : { data: [] as { audit_id: string }[] };
   const unlocked = new Set((paid ?? []).map((p) => p.audit_id));
+  // Customer corrections (paid audits only), so the list shows the same figure as the audit page. One query; if the column
+  // does not exist yet the error is ignored and the original figures are shown.
+  const overridesById = new Map<string, unknown>();
+  if (unlocked.size) {
+    const { data: ov, error: ovErr } = await db.from("audits").select("id,input_overrides").eq("owner_id", user.id).in("id", [...unlocked]);
+    if (!ovErr) for (const r of (ov ?? []) as Array<{ id: string; input_overrides: unknown }>) overridesById.set(r.id, r.input_overrides);
+  }
 
   return NextResponse.json(
     (audits ?? []).map((stored) => {
       // Read-time containment of audits stored before cap/gross-up amounts were withheld: same figure as the audit page.
-      const a = containLegacyAudit(stored as unknown as Record<string, unknown>) as unknown as typeof stored;
+      const contained = containLegacyAudit(stored as unknown as Record<string, unknown>);
+      const a = (unlocked.has(stored.id) ? applyInputOverrides(contained, overridesById.get(stored.id)) : contained) as unknown as typeof stored;
       return {
       id: a.id,
       created_at: a.created_at,

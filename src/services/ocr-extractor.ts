@@ -97,11 +97,17 @@ export interface OcrOutcome {
 /** Maximum number of pages to OCR (prevents multi-page PDFs from timing out). */
 const MAX_OCR_PAGES = 8;
 
-/** Per-page OCR timeout in milliseconds. */
-const PER_PAGE_TIMEOUT_MS = 30_000;
-
-/** Total OCR timeout in milliseconds. */
-const TOTAL_OCR_TIMEOUT_MS = 90_000;
+/**
+ * OCR time limits. Production defaults: 30 s per page, 90 s in total (the upload function has 5 minutes).
+ * They can be raised for slow machines or tests with OCR_PAGE_TIMEOUT_MS / OCR_TOTAL_TIMEOUT_MS, read at call time and
+ * bounded (5 s to 10 min), so a test is not decided by wall-clock speed. Unset or invalid values use the defaults.
+ */
+const envMs = (name: string, def: number) => {
+  const n = Number(process.env[name]);
+  return Number.isFinite(n) && n >= 5_000 && n <= 600_000 ? n : def;
+};
+const perPageTimeoutMs = () => envMs("OCR_PAGE_TIMEOUT_MS", 30_000);
+const totalOcrTimeoutMs = () => envMs("OCR_TOTAL_TIMEOUT_MS", 90_000);
 
 /** Scale factor for rendering PDF pages (2.0 = ~150 DPI, good for OCR). */
 const RENDER_SCALE = 2.0;
@@ -308,8 +314,8 @@ async function renderPagesWithCanvas(
  *   1. Try unpdf renderPageAsImage (canvas handed over via canvasImport)
  *   2. Fall back to pdfjs-dist + @napi-rs/canvas (local/Docker)
  *
- * Limits: processes at most MAX_OCR_PAGES pages, with PER_PAGE_TIMEOUT_MS
- * per page and TOTAL_OCR_TIMEOUT_MS overall to avoid serverless timeouts.
+ * Limits: processes at most MAX_OCR_PAGES pages, with perPageTimeoutMs()
+ * per page and totalOcrTimeoutMs() overall to avoid serverless timeouts.
  * The outcome says how many pages were not read, so callers can tell a partial read from a complete one.
  */
 export async function extractTextWithOcrDetailed(
@@ -352,8 +358,8 @@ export async function extractTextWithOcrDetailed(
     const pageTexts: string[] = [];
     let pagesRead = 0;
     for (let i = 0; i < pngBuffers.length; i++) {
-      if (Date.now() - ocrStart > TOTAL_OCR_TIMEOUT_MS) {
-        console.warn(`[ocr] Total OCR timeout reached after ${i} pages (${TOTAL_OCR_TIMEOUT_MS / 1000}s), returning partial text`);
+      if (Date.now() - ocrStart > totalOcrTimeoutMs()) {
+        console.warn(`[ocr] Total OCR timeout reached after ${i} pages (${totalOcrTimeoutMs() / 1000}s), returning partial text`);
         break;
       }
       if (pngBuffers[i].length === 0) {
@@ -367,11 +373,11 @@ export async function extractTextWithOcrDetailed(
           // the language data is cached on disk; the app folder is read-only on serverless hosts
           cachePath: os.tmpdir(),
         }),
-        PER_PAGE_TIMEOUT_MS,
+        perPageTimeoutMs(),
       );
 
       if (result == null) {
-        console.warn(`[ocr] Page ${i + 1} OCR timed out after ${PER_PAGE_TIMEOUT_MS / 1000}s, skipping`);
+        console.warn(`[ocr] Page ${i + 1} OCR timed out after ${perPageTimeoutMs() / 1000}s, skipping`);
         pageTexts.push("");
         continue;
       }

@@ -139,8 +139,16 @@ export function toPublicAudit(
     audit_mode: audit.audit_mode,
     estimated_overcharge: audit.estimated_overcharge,
     overcharge_breakdown: audit.overcharge_breakdown,
-    lease_clauses_summary: audit.lease_clauses_summary,
+    // The quoted audit-rights clause is part of the paid material (letter page); it is removed until payment is verified.
+    lease_clauses_summary: access.unlocked ? audit.lease_clauses_summary : withoutAuditRights(audit.lease_clauses_summary),
   };
+}
+
+function withoutAuditRights(summary: unknown): unknown {
+  if (!summary || typeof summary !== "object" || Array.isArray(summary) || !("auditRights" in summary)) return summary;
+  const { auditRights: _omit, ...rest } = summary as Record<string, unknown>;
+  void _omit;
+  return rest;
 }
 
 /** True when the signed-in user (via RLS, with their own JWT) can see this audit. */

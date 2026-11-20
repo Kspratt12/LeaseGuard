@@ -55,6 +55,30 @@ export function computeAdminFeeTenantOvercharge(input: {
 }
 
 /**
+ * Tenant's share of a fee charged above a percentage cap when the statement does NOT state the billed rate, so the rate
+ * is the fee line divided by the total it is measured against (the base):
+ *   permitted fee = base x cap%;  building excess = fee - permitted;  tenant's part = building excess x tenant share%.
+ * Zero when any input is missing or the fee is within the cap. (The earlier version multiplied the tenant total by the
+ * excess percentage, and fell back to the BUILDING total when no tenant total was read, which skipped the share.)
+ */
+export function computeFeeOverBaseTenantOvercharge(input: {
+  feeAmountBuilding: number | null;
+  feeBase: number | null;
+  capPercent: number | null;
+  tenantSharePercent: number | null;
+}): number {
+  const { feeAmountBuilding, feeBase, capPercent, tenantSharePercent } = input;
+  if (
+    feeAmountBuilding == null || feeBase == null || capPercent == null || tenantSharePercent == null ||
+    !(feeAmountBuilding > 0) || !(feeBase > 0) || !(capPercent >= 0) || !(tenantSharePercent > 0) || tenantSharePercent > 100
+  ) {
+    return 0;
+  }
+  const excessBuilding = feeAmountBuilding - feeBase * (capPercent / 100);
+  return excessBuilding > 0 ? round2(excessBuilding * (tenantSharePercent / 100)) : 0;
+}
+
+/**
  * Total shown to the customer = sum of the savings of the findings that are
  * actually listed + the excluded-category overcharge (itemised separately in
  * the breakdown; excluded-category findings carry $0 so nothing is counted

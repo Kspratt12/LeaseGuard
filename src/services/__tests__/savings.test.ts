@@ -21,6 +21,7 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 import {
   computeAdminFeeTenantOvercharge,
   computeCamCapExcess,
+  computeFeeOverBaseTenantOvercharge,
   totalSavings,
 } from "../savings-math";
 
@@ -68,6 +69,13 @@ async function main() {
     assert.strictEqual(computeAdminFeeTenantOvercharge(base), 0);
     assert.strictEqual(computeAdminFeeTenantOvercharge({ ...base, statedPercent: 18, tenantSharePercent: null }), 0);
     assert.strictEqual(computeAdminFeeTenantOvercharge({ ...base, statedPercent: 18, feeAmountBuilding: null }), 0);
+  });
+  await test("fee over base (no stated rate): (fee - base x cap%) x tenant share", () => {
+    // 100,897.20 - 560,540 x 15% (84,081.00) = 16,816.20; x 8.08% = 1,358.749 -> 1,358.75 (agrees with the stated-rate formula)
+    assert.strictEqual(computeFeeOverBaseTenantOvercharge({ feeAmountBuilding: 100897.2, feeBase: 560540, capPercent: 15, tenantSharePercent: 8.08 }), 1358.75);
+    assert.strictEqual(computeFeeOverBaseTenantOvercharge({ feeAmountBuilding: 100897.2, feeBase: 560540, capPercent: 15, tenantSharePercent: null }), 0, "no share, no amount");
+    assert.strictEqual(computeFeeOverBaseTenantOvercharge({ feeAmountBuilding: 50000, feeBase: 560540, capPercent: 15, tenantSharePercent: 8.08 }), 0, "within the cap");
+    assert.strictEqual(computeFeeOverBaseTenantOvercharge({ feeAmountBuilding: 100897.2, feeBase: 0, capPercent: 15, tenantSharePercent: 8.08 }), 0);
   });
   await test("total = listed findings + excluded-category overcharge; insufficient-data excluded", () => {
     assert.strictEqual(
@@ -228,6 +236,30 @@ async function main() {
     assert.ok(!/recoverable|recover your|will recover|guarantee/i.test(corpus), corpus.match(/.{30}recoverable.{30}/i)?.[0]);
     const pdfAll = await pdfText(true);
     assert.ok(!/recoverable/i.test(pdfAll), "PDF must not say recoverable");
+  });
+
+  // --- Fee measured over a base (the statement does not state the billed rate) ---
+  await test("pipeline, fee with no stated rate: one fee finding, priced as (fee - base x cap) x share, reproducible from its inputs", async () => {
+    const reconNoRate = fs.readFileSync(path.join(FIX, "recon-high-confidence.txt"), "utf-8")
+      .replace("Management Fee (18%)", "Management Fee      ")
+      .replace("- Management fee calculated at 18% of operating expenses\n", "");
+    const v = await validateDocuments(lease, await textToPdf(reconNoRate));
+    v.leaseFields.adminFeePercentage = "15";
+    v.reconFields.adminFeePercentage = null;
+    v.reconFields.managementFee = null;
+    if (!v.reconFields.lineItems.some((i) => /management fee/i.test(i.category))) {
+      v.reconFields.lineItems.push({ category: "Management Fee", amount: "100,897.20", rawLine: "Management Fee        $91,080.00    $100,897.20" });
+    }
+    const r = await runAudit(v);
+    const fees = [...r.free_findings, ...r.paid_findings].filter((f) => f.checkId === "admin-fee" && f.potential_savings > 0);
+    assert.strictEqual(fees.length, 1, JSON.stringify([...r.free_findings, ...r.paid_findings].map((f) => [f.category, f.potential_savings])));
+    const c = fees[0].calc as { kind: string; method: string; feeAmountBuilding: number; feeBase: number; capPercent: number; tenantSharePercent: number };
+    assert.strictEqual(c.method, "fee-over-base");
+    assert.strictEqual(fees[0].potential_savings, Math.round(computeFeeOverBaseTenantOvercharge({ feeAmountBuilding: c.feeAmountBuilding, feeBase: c.feeBase, capPercent: c.capPercent, tenantSharePercent: c.tenantSharePercent })));
+    assert.strictEqual(c.tenantSharePercent, 8.08, "the tenant share is applied");
+    // the old formula (tenant total 53,444.13 x excess %) is gone
+    assert.ok(!/53,444\.13 x/.test(fees[0].description));
+    console.log(`    fee base used: ${c.feeBase}, amount: ${fees[0].potential_savings}`);
   });
 
   console.log(`\n${passed} passed, 0 failed`);
