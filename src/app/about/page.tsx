@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/about" },
   title: "About LeaseGuard | Commercial Lease CAM Audit Platform",
   description:
-    "LeaseGuard helps commercial tenants detect CAM overcharges by analyzing lease clauses and reconciliation statements.",
+    "LeaseGuard helps commercial tenants find potential CAM billing discrepancies by comparing lease clauses with reconciliation statements.",
   keywords: [
     "about LeaseGuard",
     "CAM audit platform",

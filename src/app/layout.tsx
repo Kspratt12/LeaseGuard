@@ -57,16 +57,20 @@ export const metadata: Metadata = {
   openGraph: {
     title: "LeaseGuard | CAM Audit Tool for Commercial Tenants",
     description:
-      "Detect CAM overcharges by comparing your lease clauses with reconciliation statements. See the findings in a free preview.",
+      "Compare your commercial lease with your CAM reconciliation statement to find potential billing discrepancies, with the source for each item. See the findings in a free preview.",
     type: "website",
     siteName: "LeaseGuard",
     locale: "en_US",
+    // The brand mark (no new artwork). Shared links previously had no image at all.
+    images: [{ url: "/leaseguard-icon.png", width: 953, height: 598, alt: "LeaseGuard" }],
   },
   twitter: {
-    card: "summary_large_image",
+    // "summary" (small image beside the text) suits a mark-only image; "summary_large_image" had no image to show.
+    card: "summary",
     title: "LeaseGuard | CAM Audit Tool for Commercial Tenants",
     description:
-      "Detect CAM overcharges by comparing your lease clauses with reconciliation statements. See the findings in a free preview.",
+      "Compare your commercial lease with your CAM reconciliation statement to find potential billing discrepancies, with the source for each item. See the findings in a free preview.",
+    images: ["/leaseguard-icon.png"],
   },
   robots: {
     index: true,
@@ -97,14 +101,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${serif.variable} ${figures.variable}`}>
       <head>
-        <link
-          rel="preload"
-          href="/leaseguard-logo.png"
-          as="image"
-          type="image/png"
-        />
-        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
