@@ -1,0 +1,3 @@
+{
+  "git": { "deploymentEnabled": { "feature/share-fix-tenant-tools": false } }
+}
