@@ -23,6 +23,8 @@ const BANNED: Array<[RegExp, string]> = [
   [/\b(cap|CAM cap|excluded[- ]expense) violations?\b/i, "a finding described as a violation"],
   [/\bviolat(?:e|es|ed|ing|ion|ions)\b/i, "violation language"],
   [/\b(?:to|and) (?:identify|catch|detect|uncover) (?!potential |possible )(?:\w+ )?overcharges\b/i, "claims to identify or catch overcharges"],
+  // any position, e.g. a sentence-initial "Detect CAM overcharges ..." in social-preview text (found in the site metadata)
+  [/\b(?:identify|catch|detect|uncover)s? (?!potential |possible )(?:\w+ )?overcharges\b/i, "claims to identify or catch overcharges"],
   [/\bmore common than (?:most )?(?:tenants|people)\b/i, "an unsupported frequency claim"],
   [/\b(?:frequently|most often|usually) missed\b/i, "an unsupported frequency claim"],
   [/\bsurprisingly common\b/i, "an unsupported frequency claim"],
