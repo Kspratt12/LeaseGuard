@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArticleLayout } from "@/components/ArticleLayout";
+import { DisputeLetterBuilder } from "@/components/dispute-letter-builder";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/resources/commercial-lease-dispute-letter-template" },
   title: "CAM Dispute Letter Template | LeaseGuard",
   description:
-    "A plain fill-in letter a commercial tenant can adapt to ask a landlord to explain CAM charges and send supporting records, with notes on what to attach.",
+    "A free fill-in CAM dispute letter: edit it in your browser, pick a style and color, and download a PDF or Word file. Notes on what to attach.",
   keywords: [
     "commercial lease dispute letter",
     "CAM dispute letter template",
     "CAM reconciliation dispute",
     "request CAM backup documents",
+    "editable CAM dispute letter PDF",
   ],
 };
 
@@ -20,9 +22,21 @@ export default function CamDisputeLetterTemplate() {
     <ArticleLayout
       title="CAM Dispute Letter Template for Commercial Tenants"
       publishedDate="October 29, 2026"
-      modifiedDate="October 29, 2026"
+      modifiedDate="November 21, 2026"
       readTime="5 min read"
-      description="A plain fill-in letter a commercial tenant can adapt to ask a landlord to explain CAM charges and send supporting records, with notes on what to attach."
+      description="A free fill-in CAM dispute letter: edit it in your browser, pick a style and color, and download a PDF or Word file. Notes on what to attach."
+      tool={
+        <>
+          <div className="mb-5 max-w-2xl">
+            <h2 className="text-2xl font-semibold text-gray-900">Build your letter</h2>
+            <p className="mt-1 text-gray-600">
+              Fill in the fields, edit any wording, choose a style and color, then download a PDF or Word file. Nothing
+              you type leaves your browser.
+            </p>
+          </div>
+          <DisputeLetterBuilder />
+        </>
+      }
     >
       <p>
         When a CAM reconciliation statement contains something you cannot match to your lease, a clear written request
@@ -35,8 +49,11 @@ export default function CamDisputeLetterTemplate() {
         large amount or a deadline is involved, consider asking a commercial real estate attorney.
       </p>
 
-      <h2>The template</h2>
-      <p>Replace everything in [brackets]. Delete any item that does not apply to you.</p>
+      <h2>The template as plain text</h2>
+      <p>
+        Prefer to work in your own editor? The same letter is below. Replace everything in [brackets] and delete any
+        item that does not apply to you, or use the builder above to fill it in and download a formatted copy.
+      </p>
       <pre className="whitespace-pre-wrap rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm leading-relaxed text-gray-800">
 {`[Date]
 

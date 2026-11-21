@@ -9,6 +9,8 @@ interface ArticleLayoutProps {
   modifiedDate?: string;
   readTime: string;
   description?: string;
+  /** Optional full-width interactive tool shown between the header and the article text. */
+  tool?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -37,6 +39,7 @@ export function ArticleLayout({
   modifiedDate,
   readTime,
   description,
+  tool,
   children,
 }: ArticleLayoutProps) {
   const articleJsonLd = {
@@ -99,6 +102,12 @@ export function ArticleLayout({
           </div>
         </div>
       </div>
+
+      {tool && (
+        <section className="border-b border-gray-100">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 sm:py-10">{tool}</div>
+        </section>
+      )}
 
       {/* Article body */}
       <article className="mx-auto max-w-3xl px-4 sm:px-6 py-10 sm:py-14">
