@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/commercial-cam-audit" },
-  title: "What Is a Commercial CAM Audit? How Tenants Review CAM Charges | LeaseGuard",
+  title: "What Is a Commercial CAM Audit? | LeaseGuard",
   description:
     "Run a commercial CAM audit online. Upload your lease and CAM reconciliation statement to identify potential billing discrepancies.",
   keywords: [

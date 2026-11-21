@@ -229,7 +229,8 @@ export default function CommonCamOvercharges() {
         <li>
           <strong>Consider professional help.</strong> For large discrepancies,
           a professional CAM auditor or commercial real estate attorney can help
-          you recover the overcharges.
+          you verify the figures and pursue a correction if an overcharge
+          is confirmed.
         </li>
       </ol>
       <p>

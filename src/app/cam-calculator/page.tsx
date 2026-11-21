@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/cam-calculator" },
   title: "CAM Reconciliation Calculator for Commercial Tenants | LeaseGuard",
   description:
-    "Free CAM reconciliation calculator. Enter the expense pool, your pro-rata share and your payments to see the formula and the balance, then compare it with your statement. No upload needed.",
+    "Free CAM reconciliation calculator. Enter the expense pool, your pro-rata share and payments to see the formula and balance, then compare with your statement.",
 };
 
 const faqs = [
