@@ -40,7 +40,12 @@ function LoginForm() {
         });
         if (err) throw err;
         if (!data.session) {
-          setNotice("Check your email and confirm your address, then sign in. The link brings you straight back here.");
+          // Supabase sends NO email when the address already has an account (and returns no session either way, so
+          // registered addresses are not revealed). The notice must stay true in both cases instead of promising an email.
+          setNotice(
+            "If this email is new, we have sent a confirmation link: confirm your address, then sign in (the link brings you straight back here). " +
+              "If you already have an account with this email, no new email is sent: sign in, or use \"Forgot password\" to reset it.",
+          );
           setMode("signin");
           setPassword("");
           return;
