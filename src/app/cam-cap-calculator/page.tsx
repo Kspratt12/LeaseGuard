@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/cam-cap-calculator" },
   title: "CAM Cap & Base Year Calculator | LeaseGuard",
   description:
-    "Free calculator for commercial tenants: apply a cumulative or non-cumulative CAM cap year by year, or a base year or expense stop, and see every formula. Runs in your browser.",
+    "Free calculator for commercial tenants: apply a cumulative or non-cumulative CAM cap, base year or expense stop year by year, and see every formula.",
 };
 
 const faqs = [

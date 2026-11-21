@@ -36,7 +36,7 @@ export default function CheckYourProRataShare() {
 
       <h2>The basic formula</h2>
       <p>
-        In most leases the share is your premises area divided by the building (or project) area, shown as a
+        In many leases the share is your premises area divided by the building (or project) area, shown as a
         percentage:
       </p>
       <p>

@@ -4,7 +4,7 @@ import { CheckCircle, Upload, Search, FileText, ArrowRight } from "lucide-react"
 
 export const metadata: Metadata = {
   alternates: { canonical: "/cam-audit" },
-  title: "Check Your CAM Charges Against Your Lease | CAM Audit Tool | LeaseGuard",
+  title: "Check CAM Charges Against Your Lease | LeaseGuard",
   description:
     "Run a commercial CAM audit online. Upload your lease and CAM reconciliation statement to flag potential overcharges, cap differences, and billing discrepancies.",
   keywords: [

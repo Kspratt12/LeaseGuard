@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/commercial-tenant-cam-audit-guide" },
-  title: "Commercial Tenant CAM Audit Guide | How to Check for CAM Overcharges",
+  title: "Commercial Tenant CAM Audit Guide | LeaseGuard",
   description:
     "Learn how commercial tenants audit CAM charges, review reconciliation statements, and detect common lease overcharges.",
   keywords: [
@@ -200,7 +200,7 @@ export default function CommercialTenantCamAuditGuide() {
             The distinction between a repair (operating expense) and a capital
             improvement is one of the most disputed areas in commercial leasing.
             A new roof, parking lot replacement, or HVAC system upgrade is a
-            capital expenditure that most leases either exclude entirely or
+            capital expenditure that many leases either exclude entirely or
             require to be amortized over the asset&apos;s useful life. When
             these costs are classified as &quot;repairs&quot; or
             &quot;maintenance,&quot; the full amount hits your reconciliation in

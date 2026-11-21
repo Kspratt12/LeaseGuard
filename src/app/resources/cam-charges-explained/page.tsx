@@ -72,7 +72,7 @@ export default function CamChargesExplained() {
       <p>
         This includes routine upkeep like cleaning, snow removal, landscaping,
         elevator maintenance, and general building repairs. These are the costs
-        most tenants expect to see in their CAM bills.
+        tenants typically expect to see in their CAM bills.
       </p>
       <h3>Insurance and Taxes</h3>
       <p>
@@ -179,8 +179,8 @@ export default function CamChargesExplained() {
       <p>
         Look for unexplained year-over-year increases, new expense categories
         that weren&apos;t on prior statements, and costs that your lease
-        explicitly excludes. If anything looks wrong, most leases give tenants
-        the right to request supporting documentation.
+        explicitly excludes. If anything looks wrong, check whether your lease
+        gives you the right to request supporting documentation.
       </p>
 
       <h2>How to Protect Yourself</h2>

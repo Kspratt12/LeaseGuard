@@ -4,7 +4,7 @@ import { BookOpen, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/resources" },
-  title: "Resources: CAM Audits, Reconciliation, and Commercial Lease Insights | LeaseGuard",
+  title: "CAM Audit and Commercial Lease Resources | LeaseGuard",
   description:
     "Educational guides to help commercial tenants understand CAM charges, reconciliation statements, and how to identify potential overcharges in their leases.",
   keywords: [
